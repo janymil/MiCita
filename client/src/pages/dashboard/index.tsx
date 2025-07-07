@@ -80,12 +80,21 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex items-center space-x-4">
-              <Link href={`/negocio/${currentBusiness?.slug}`}>
-                <Button variant="outline">
-                  <Eye className="w-4 h-4 mr-2" />
-                  Ver Micrositio
-                </Button>
-              </Link>
+              {businessSettings?.customUrl ? (
+                <Link href={`/${businessSettings.customUrl}`}>
+                  <Button variant="outline">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Ver Micrositio
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/dashboard/configuracion">
+                  <Button variant="outline">
+                    <Eye className="w-4 h-4 mr-2" />
+                    Configurar Micrositio
+                  </Button>
+                </Link>
+              )}
               <Link href="/dashboard/citas">
                 <Button className="bg-red-600 hover:bg-red-700">
                   <Plus className="w-4 h-4 mr-2" />

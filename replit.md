@@ -147,6 +147,12 @@ Changelog:
   - Enhanced public micrositio pages to respect all toggle settings dynamically
   - Restored and secured "barberianicolas" test configuration data
   - All toggle effects immediately visible on public micrositio pages
+- July 07, 2025: Fixed micrositio URL structure and dashboard integration:
+  - Changed micrositio URLs from /negocio/business-name to /business-name (direct URLs)
+  - Fixed dashboard "Ver Micrositio" button to use customUrl from settings instead of business slug
+  - Resolved form loading issues where customUrl wasn't displaying in configuration
+  - Enhanced form validation with proper error messages for missing URLs
+  - Working hours now properly display from Horarios tab instead of default data
 
 ## User Preferences
 
