@@ -33,6 +33,11 @@ export default function Dashboard() {
 
   const currentBusiness = businesses?.[0];
 
+  const { data: businessSettings } = useQuery({
+    queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"],
+    enabled: !!currentBusiness?.id,
+  });
+
   if (businessesLoading) {
     return (
       <DashboardLayout>
