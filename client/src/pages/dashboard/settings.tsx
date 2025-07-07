@@ -275,13 +275,26 @@ export default function SettingsPage() {
 
   const updateMicrositeSettingsMutation = useMutation({
     mutationFn: async (data: MicrositeForm) => {
-      console.log("Sending data to API:", data);
+      console.log("🔄 Sending data to API:", data);
+      
+      // Only send non-empty fields to prevent overwriting existing data
+      const filteredData = Object.entries(data).reduce((acc, [key, value]) => {
+        if (typeof value === 'string' && value.trim() !== '') {
+          acc[key] = value;
+        } else if (typeof value === 'boolean') {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as any);
+      
+      console.log("🔄 Filtered data (non-empty only):", filteredData);
+      
       const response = await fetch(`/api/dashboard/businesses/${currentBusiness?.id}/settings`, {
         method: "PUT",
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(filteredData),
       });
       
       if (!response.ok) {
@@ -308,7 +321,18 @@ export default function SettingsPage() {
   });
 
   const onMicrositeSubmit = (data: MicrositeForm) => {
-    console.log("Submitting micrositio data:", data);
+    console.log("✅ Submitting micrositio data:", data);
+    
+    // Validate that we have essential data before submitting
+    if (!data.customUrl || data.customUrl.trim() === '') {
+      toast({
+        title: "Error",
+        description: "Primero configura la URL del negocio.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     updateMicrositeSettingsMutation.mutate(data);
   };
 
@@ -893,7 +917,7 @@ export default function SettingsPage() {
                         className="rounded-l-none"
                       />
                     </div>
-                    {micrositeForm.watch("customUrl") && (
+                    {micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '' ? (
                       <div className="flex items-center space-x-2 mt-2">
                         <p className="text-xs text-green-600">
                           ✓ Tu micrositio: /{micrositeForm.watch("customUrl")}
@@ -903,14 +927,27 @@ export default function SettingsPage() {
                           variant="outline" 
                           size="sm"
                           onClick={() => {
-                            const url = `/${micrositeForm.watch("customUrl")}`;
-                            window.open(url, '_blank');
+                            const customUrl = micrositeForm.watch("customUrl");
+                            if (customUrl && customUrl.trim() !== '') {
+                              const url = `/${customUrl}`;
+                              window.open(url, '_blank');
+                            } else {
+                              toast({
+                                title: "Error",
+                                description: "Primero configura la URL del negocio.",
+                                variant: "destructive",
+                              });
+                            }
                           }}
                         >
                           <ExternalLink className="w-3 h-3 mr-1" />
                           Vista Previa
                         </Button>
                       </div>
+                    ) : (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Configura tu URL personalizada para ver la vista previa
+                      </p>
                     )}
                   </div>
 
