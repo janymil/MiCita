@@ -1,0 +1,246 @@
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Search, MapPin, Filter, SlidersHorizontal } from "lucide-react";
+import PublicHeader from "@/components/public-header";
+import BusinessCard from "@/components/business-card";
+import { BUSINESS_CATEGORIES, PERUVIAN_CITIES } from "@/lib/constants";
+
+export default function SearchPage() {
+  const [location, setLocation] = useLocation();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCity, setSelectedCity] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Parse URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    setSearchQuery(urlParams.get("q") || "");
+    setSelectedCategory(urlParams.get("category") || "");
+    setSelectedCity(urlParams.get("location") || "");
+  }, [location]);
+
+  const { data: searchResults, isLoading } = useQuery({
+    queryKey: [
+      "/api/search", 
+      { q: searchQuery, category: selectedCategory, city: selectedCity }
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append("q", searchQuery);
+      if (selectedCategory) params.append("category", selectedCategory);
+      if (selectedCity) params.append("city", selectedCity);
+      
+      const response = await fetch(`/api/search?${params}`);
+      return response.json();
+    }
+  });
+
+  const handleSearch = () => {
+    const params = new URLSearchParams();
+    if (searchQuery) params.append("q", searchQuery);
+    if (selectedCategory) params.append("category", selectedCategory);
+    if (selectedCity) params.append("location", selectedCity);
+    
+    setLocation(`/buscar?${params.toString()}`);
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory("");
+    setSelectedCity("");
+    setLocation("/buscar");
+  };
+
+  const handleBusinessView = (slug: string) => {
+    setLocation(`/negocio/${slug}`);
+  };
+
+  const registeredBusinesses = searchResults?.filter((b: any) => b.type === "registered") || [];
+  const publicBusinesses = searchResults?.filter((b: any) => b.type === "public") || [];
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <PublicHeader />
+      
+      {/* Search Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="space-y-4">
+            {/* Main Search Bar */}
+            <div className="flex flex-col lg:flex-row gap-4">
+              <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-4 py-3">
+                <Search className="text-gray-400 mr-3 w-5 h-5" />
+                <Input
+                  type="text"
+                  placeholder="¿Qué servicio necesitas?"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+              </div>
+              
+              <div className="flex items-center bg-gray-50 rounded-lg px-4 py-3 lg:w-64">
+                <MapPin className="text-gray-400 mr-3 w-5 h-5" />
+                <Select value={selectedCity} onValueChange={setSelectedCity}>
+                  <SelectTrigger className="border-0 bg-transparent focus:ring-0">
+                    <SelectValue placeholder="Ubicación" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERUVIAN_CITIES.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Button
+                onClick={handleSearch}
+                className="bg-red-600 hover:bg-red-700 px-8"
+              >
+                <Search className="mr-2 w-4 h-4" />
+                Buscar
+              </Button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center"
+              >
+                <SlidersHorizontal className="mr-2 w-4 h-4" />
+                Filtros
+              </Button>
+
+              {selectedCategory && (
+                <Badge variant="secondary" className="px-3 py-1">
+                  {BUSINESS_CATEGORIES.find(c => c.id === selectedCategory)?.name}
+                  <button
+                    onClick={() => setSelectedCategory("")}
+                    className="ml-2 text-gray-500 hover:text-gray-700"
+                  >
+                    ×
+                  </button>
+                </Badge>
+              )}
+
+              {(searchQuery || selectedCategory || selectedCity) && (
+                <Button variant="ghost" onClick={clearFilters} size="sm">
+                  Limpiar filtros
+                </Button>
+              )}
+            </div>
+
+            {/* Expandable Filters */}
+            {showFilters && (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Categoría
+                  </label>
+                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Todas las categorías" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Todas las categorías</SelectItem>
+                      {BUSINESS_CATEGORIES.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Results */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
+            <p className="text-gray-600 mt-4">Buscando negocios...</p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Registered Businesses */}
+            {registeredBusinesses.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Negocios Registrados ({registeredBusinesses.length})
+                  </h2>
+                  <Badge className="bg-red-600">
+                    Con Reservas Online
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {registeredBusinesses.map((business: any) => (
+                    <BusinessCard
+                      key={`registered-${business.id}`}
+                      business={business}
+                      onViewClick={handleBusinessView}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Public Directory */}
+            {publicBusinesses.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Directorio Público ({publicBusinesses.length})
+                  </h2>
+                  <Badge variant="outline">
+                    Información Básica
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {publicBusinesses.map((business: any) => (
+                    <BusinessCard
+                      key={`public-${business.id}`}
+                      business={business}
+                      onViewClick={handleBusinessView}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No Results */}
+            {searchResults && searchResults.length === 0 && (
+              <div className="text-center py-12">
+                <Search className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  No se encontraron resultados
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Intenta modificar tu búsqueda o explorar diferentes categorías
+                </p>
+                <Button onClick={clearFilters} variant="outline">
+                  Ver Todos los Negocios
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

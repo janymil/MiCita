@@ -1,0 +1,137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(20, 14.3%, 4.1%);
+  --muted: hsl(60, 4.8%, 95.9%);
+  --muted-foreground: hsl(25, 5.3%, 44.7%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(20, 14.3%, 4.1%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(20, 14.3%, 4.1%);
+  --border: hsl(20, 5.9%, 90%);
+  --input: hsl(20, 5.9%, 90%);
+  --primary: hsl(347, 77%, 50%);
+  --primary-foreground: hsl(0, 0%, 98%);
+  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary-foreground: hsl(24, 9.8%, 10%);
+  --accent: hsl(60, 4.8%, 95.9%);
+  --accent-foreground: hsl(24, 9.8%, 10%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(60, 9.1%, 97.8%);
+  --ring: hsl(20, 14.3%, 4.1%);
+  --radius: 0.5rem;
+
+  /* Peruvian Colors */
+  --peru-red: hsl(347, 77%, 50%);
+  --peru-gold: hsl(41, 96%, 48%);
+  
+  /* Category Colors */
+  --belleza: hsl(330, 81%, 60%);
+  --salud: hsl(142, 76%, 36%);
+  --fitness: hsl(217, 91%, 60%);
+  --restaurante: hsl(21, 90%, 48%);
+  --cafeteria: hsl(41, 96%, 48%);
+  --automotriz: hsl(0, 72%, 51%);
+  --educacion: hsl(271, 91%, 65%);
+  --hogar: hsl(48, 96%, 53%);
+}
+
+.dark {
+  --background: hsl(240, 10%, 3.9%);
+  --foreground: hsl(0, 0%, 98%);
+  --muted: hsl(240, 3.7%, 15.9%);
+  --muted-foreground: hsl(240, 5%, 64.9%);
+  --popover: hsl(240, 10%, 3.9%);
+  --popover-foreground: hsl(0, 0%, 98%);
+  --card: hsl(240, 10%, 3.9%);
+  --card-foreground: hsl(0, 0%, 98%);
+  --border: hsl(240, 3.7%, 15.9%);
+  --input: hsl(240, 3.7%, 15.9%);
+  --primary: hsl(347, 77%, 50%);
+  --primary-foreground: hsl(0, 0%, 98%);
+  --secondary: hsl(240, 3.7%, 15.9%);
+  --secondary-foreground: hsl(0, 0%, 98%);
+  --accent: hsl(240, 3.7%, 15.9%);
+  --accent-foreground: hsl(0, 0%, 98%);
+  --destructive: hsl(0, 62.8%, 30.6%);
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(240, 4.9%, 83.9%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .peru-gradient {
+    background: linear-gradient(135deg, var(--peru-red), var(--peru-gold));
+  }
+  
+  .category-belleza {
+    background: linear-gradient(135deg, var(--belleza), hsl(330, 81%, 50%));
+  }
+  
+  .category-salud {
+    background: linear-gradient(135deg, var(--salud), hsl(142, 76%, 30%));
+  }
+  
+  .category-fitness {
+    background: linear-gradient(135deg, var(--fitness), hsl(217, 91%, 50%));
+  }
+  
+  .category-restaurante {
+    background: linear-gradient(135deg, var(--restaurante), hsl(21, 90%, 40%));
+  }
+  
+  .category-cafeteria {
+    background: linear-gradient(135deg, var(--cafeteria), hsl(41, 96%, 40%));
+  }
+  
+  .category-automotriz {
+    background: linear-gradient(135deg, var(--automotriz), hsl(0, 72%, 45%));
+  }
+  
+  .category-educacion {
+    background: linear-gradient(135deg, var(--educacion), hsl(271, 91%, 55%));
+  }
+  
+  .category-hogar {
+    background: linear-gradient(135deg, var(--hogar), hsl(48, 96%, 45%));
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-in-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-in-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
