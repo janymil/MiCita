@@ -250,7 +250,28 @@ export default function SettingsPage() {
 
   const micrositeForm = useForm<MicrositeForm>({
     resolver: zodResolver(micrositeSchema),
-    defaultValues: {
+    defaultValues: currentBusinessSettings ? {
+      customUrl: currentBusinessSettings.customUrl || "",
+      professionalTitle: currentBusinessSettings.professionalTitle || "",
+      publicDescription: currentBusinessSettings.publicDescription || "",
+      profileImage: currentBusinessSettings.profileImage || "",
+      coverImage: currentBusinessSettings.coverImage || "",
+      publicEmail: currentBusinessSettings.publicEmail || "",
+      publicPhone: currentBusinessSettings.publicPhone || "",
+      streetAddress: currentBusinessSettings.streetAddress || "",
+      district: currentBusinessSettings.district || "",
+      region: currentBusinessSettings.region || "",
+      postalCode: currentBusinessSettings.postalCode || "",
+      country: currentBusinessSettings.country || "Perú",
+      facebookUrl: currentBusinessSettings.facebookUrl || "",
+      instagramUrl: currentBusinessSettings.instagramUrl || "",
+      tiktokUrl: currentBusinessSettings.tiktokUrl || "",
+      youtubeUrl: currentBusinessSettings.youtubeUrl || "",
+      enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
+      enableContactForm: currentBusinessSettings.enableContactForm ?? true,
+      enableGallery: currentBusinessSettings.enableGallery ?? true,
+      scheduleNotes: currentBusinessSettings.scheduleNotes || "",
+    } : {
       customUrl: "",
       professionalTitle: "",
       publicDescription: "",
