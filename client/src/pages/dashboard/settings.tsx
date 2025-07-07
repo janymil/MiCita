@@ -1607,62 +1607,6 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Clock className="w-5 h-5 mr-2" />
-                  Horarios de Atención
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Form {...hoursForm}>
-                  <form onSubmit={hoursForm.handleSubmit(onHoursSubmit)} className="space-y-4">
-                    {days.map((day) => (
-                      <div key={day.key} className="flex items-center space-x-4 p-4 border rounded-lg">
-                        <div className="w-24">
-                          <Label className="font-medium">{day.label}</Label>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <Input
-                            type="time"
-                            {...hoursForm.register(`${day.key}.open` as any)}
-                            disabled={hoursForm.watch(`${day.key}.closed` as any)}
-                            className="w-32"
-                          />
-                          <span className="text-gray-500">-</span>
-                          <Input
-                            type="time"
-                            {...hoursForm.register(`${day.key}.close` as any)}
-                            disabled={hoursForm.watch(`${day.key}.closed` as any)}
-                            className="w-32"
-                          />
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            checked={!hoursForm.watch(`${day.key}.closed` as any)}
-                            onCheckedChange={(checked) => 
-                              hoursForm.setValue(`${day.key}.closed` as any, !checked)
-                            }
-                          />
-                          <Label className="text-sm text-gray-600">Abierto</Label>
-                        </div>
-                      </div>
-                    ))}
-
-                    <Button
-                      type="submit"
-                      disabled={updateHoursMutation.isPending}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      {updateHoursMutation.isPending ? "Guardando..." : "Guardar Horarios"}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Appearance */}
