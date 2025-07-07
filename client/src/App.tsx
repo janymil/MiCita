@@ -20,6 +20,7 @@ import Register from "@/pages/auth/register";
 // Dashboard pages
 import Dashboard from "@/pages/dashboard/index";
 import Appointments from "@/pages/dashboard/appointments";
+import Calendar from "@/pages/dashboard/calendar";
 import Clients from "@/pages/dashboard/clients";
 import Services from "@/pages/dashboard/services";
 import Analytics from "@/pages/dashboard/analytics";
@@ -40,6 +41,7 @@ function Router() {
       {/* Dashboard routes */}
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/dashboard/citas" component={Appointments} />
+      <Route path="/dashboard/calendario" component={Calendar} />
       <Route path="/dashboard/clientes" component={Clients} />
       <Route path="/dashboard/servicios" component={Services} />
       <Route path="/dashboard/analytics" component={Analytics} />
