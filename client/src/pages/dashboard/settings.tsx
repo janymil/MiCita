@@ -42,7 +42,8 @@ import {
   Eye,
   Edit3,
   AlertTriangle,
-  Plus
+  Plus,
+  Trash2
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -110,6 +111,19 @@ const micrositeSchema = z.object({
   
   // Horario de Apertura (Notas)
   scheduleNotes: z.string().optional(),
+  
+  // Blocked dates and hours
+  blockedDates: z.array(z.object({
+    startDate: z.string(),
+    endDate: z.string(),
+    reason: z.string().optional(),
+  })).optional(),
+  blockedHours: z.array(z.object({
+    date: z.string(),
+    startTime: z.string(),
+    endTime: z.string(),
+    reason: z.string().optional(),
+  })).optional(),
 });
 
 type CreateBusinessForm = z.infer<typeof createBusinessSchema>;
@@ -156,6 +170,20 @@ const hoursSchema = z.object({
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("business");
   const [showCreateBusinessModal, setShowCreateBusinessModal] = useState(false);
+  
+  // Blocked dates state
+  const [blockDateStart, setBlockDateStart] = useState("");
+  const [blockDateEnd, setBlockDateEnd] = useState("");
+  const [blockDateReason, setBlockDateReason] = useState("");
+  const [blockedDates, setBlockedDates] = useState<Array<{startDate: string, endDate: string, reason?: string}>>([]);
+  
+  // Blocked hours state
+  const [blockHourDate, setBlockHourDate] = useState("");
+  const [blockHourStart, setBlockHourStart] = useState("");
+  const [blockHourEnd, setBlockHourEnd] = useState("");
+  const [blockHourReason, setBlockHourReason] = useState("");
+  const [blockedHours, setBlockedHours] = useState<Array<{date: string, startTime: string, endTime: string, reason?: string}>>([]);
+  
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -263,6 +291,14 @@ export default function SettingsPage() {
       };
       
       console.log("✅ SETTING FORM DATA:", formData);
+      
+      // Load blocked dates and hours
+      if (currentBusinessSettings.blockedDates) {
+        setBlockedDates(currentBusinessSettings.blockedDates);
+      }
+      if (currentBusinessSettings.blockedHours) {
+        setBlockedHours(currentBusinessSettings.blockedHours);
+      }
       
       // Force reset the form completely
       micrositeForm.reset(formData);
@@ -412,6 +448,78 @@ export default function SettingsPage() {
 
   const onCreateBusinessSubmit = (data: CreateBusinessForm) => {
     createBusinessMutation.mutate(data);
+  };
+
+  // Blocked dates functions
+  const addBlockedDate = () => {
+    if (!blockDateStart || !blockDateEnd) return;
+    
+    if (new Date(blockDateStart) > new Date(blockDateEnd)) {
+      toast({
+        title: "Error",
+        description: "La fecha de inicio debe ser anterior a la fecha de fin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newBlockedDate = {
+      startDate: blockDateStart,
+      endDate: blockDateEnd,
+      reason: blockDateReason || undefined,
+    };
+
+    setBlockedDates([...blockedDates, newBlockedDate]);
+    setBlockDateStart("");
+    setBlockDateEnd("");
+    setBlockDateReason("");
+  };
+
+  const removeBlockedDate = (index: number) => {
+    const newBlockedDates = blockedDates.filter((_, i) => i !== index);
+    setBlockedDates(newBlockedDates);
+  };
+
+  // Blocked hours functions
+  const addBlockedHour = () => {
+    if (!blockHourDate || !blockHourStart || !blockHourEnd) return;
+    
+    if (blockHourStart >= blockHourEnd) {
+      toast({
+        title: "Error",
+        description: "La hora de inicio debe ser anterior a la hora de fin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newBlockedHour = {
+      date: blockHourDate,
+      startTime: blockHourStart,
+      endTime: blockHourEnd,
+      reason: blockHourReason || undefined,
+    };
+
+    setBlockedHours([...blockedHours, newBlockedHour]);
+    setBlockHourDate("");
+    setBlockHourStart("");
+    setBlockHourEnd("");
+    setBlockHourReason("");
+  };
+
+  const removeBlockedHour = (index: number) => {
+    const newBlockedHours = blockedHours.filter((_, i) => i !== index);
+    setBlockedHours(newBlockedHours);
+  };
+
+  const saveBlockedDatesAndHours = () => {
+    const formData = micrositeForm.getValues();
+    const dataWithBlocks = {
+      ...formData,
+      blockedDates,
+      blockedHours,
+    };
+    updateMicrositeSettingsMutation.mutate(dataWithBlocks);
   };
 
   const days = [
@@ -1339,25 +1447,76 @@ export default function SettingsPage() {
                 <div>
                   <Label className="text-base font-medium mb-3 block">Fechas Bloqueadas</Label>
                   <div className="space-y-3">
-                    <div className="flex space-x-2">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                       <Input 
                         type="date" 
-                        placeholder="Seleccionar fecha"
+                        placeholder="Fecha inicio"
                         className="flex-1"
-                        id="blockDate"
+                        id="blockDateStart"
+                        value={blockDateStart}
+                        onChange={(e) => setBlockDateStart(e.target.value)}
                       />
-                      <Button type="button" variant="outline">
+                      <Input 
+                        type="date" 
+                        placeholder="Fecha fin"
+                        className="flex-1"
+                        id="blockDateEnd"
+                        value={blockDateEnd}
+                        onChange={(e) => setBlockDateEnd(e.target.value)}
+                      />
+                      <Input 
+                        placeholder="Motivo (opcional)"
+                        className="flex-1"
+                        id="blockDateReason"
+                        value={blockDateReason}
+                        onChange={(e) => setBlockDateReason(e.target.value)}
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={addBlockedDate}
+                        disabled={!blockDateStart || !blockDateEnd}
+                      >
                         <Plus className="w-4 h-4 mr-2" />
-                        Bloquear Fecha
+                        Bloquear
                       </Button>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4 min-h-[100px]">
-                      <p className="text-sm text-gray-600 text-center">
-                        No hay fechas bloqueadas configuradas
-                      </p>
-                      <p className="text-xs text-gray-500 text-center mt-2">
-                        Las fechas bloqueadas no estarán disponibles para reservas
-                      </p>
+                      {blockedDates.length > 0 ? (
+                        <div className="space-y-2">
+                          {blockedDates.map((dateRange, index) => (
+                            <div key={index} className="flex items-center justify-between bg-white p-3 rounded border">
+                              <div>
+                                <p className="font-medium">
+                                  {dateRange.startDate === dateRange.endDate 
+                                    ? `${new Date(dateRange.startDate).toLocaleDateString()}`
+                                    : `${new Date(dateRange.startDate).toLocaleDateString()} - ${new Date(dateRange.endDate).toLocaleDateString()}`
+                                  }
+                                </p>
+                                {dateRange.reason && (
+                                  <p className="text-sm text-gray-600">{dateRange.reason}</p>
+                                )}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeBlockedDate(index)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm text-gray-600 text-center">
+                            No hay fechas bloqueadas configuradas
+                          </p>
+                          <p className="text-xs text-gray-500 text-center mt-2">
+                            Las fechas bloqueadas no estarán disponibles para reservas
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1365,30 +1524,85 @@ export default function SettingsPage() {
                 <div>
                   <Label className="text-base font-medium mb-3 block">Horas Específicas Bloqueadas</Label>
                   <div className="space-y-3">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <Input type="date" placeholder="Fecha" />
-                      <Input type="time" placeholder="Hora inicio" />
-                      <Input type="time" placeholder="Hora fin" />
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+                      <Input 
+                        type="date" 
+                        placeholder="Fecha" 
+                        value={blockHourDate}
+                        onChange={(e) => setBlockHourDate(e.target.value)}
+                      />
+                      <Input 
+                        type="time" 
+                        placeholder="Hora inicio"
+                        value={blockHourStart}
+                        onChange={(e) => setBlockHourStart(e.target.value)}
+                      />
+                      <Input 
+                        type="time" 
+                        placeholder="Hora fin"
+                        value={blockHourEnd}
+                        onChange={(e) => setBlockHourEnd(e.target.value)}
+                      />
+                      <Input 
+                        placeholder="Motivo (opcional)"
+                        value={blockHourReason}
+                        onChange={(e) => setBlockHourReason(e.target.value)}
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={addBlockedHour}
+                        disabled={!blockHourDate || !blockHourStart || !blockHourEnd}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Bloquear
+                      </Button>
                     </div>
-                    <Button type="button" variant="outline">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Bloquear Horario
-                    </Button>
                     <div className="bg-gray-50 rounded-lg p-4 min-h-[100px]">
-                      <p className="text-sm text-gray-600 text-center">
-                        No hay horarios específicos bloqueados
-                      </p>
-                      <p className="text-xs text-gray-500 text-center mt-2">
-                        Bloquea horarios específicos en días particulares
-                      </p>
+                      {blockedHours.length > 0 ? (
+                        <div className="space-y-2">
+                          {blockedHours.map((hourRange, index) => (
+                            <div key={index} className="flex items-center justify-between bg-white p-3 rounded border">
+                              <div>
+                                <p className="font-medium">
+                                  {new Date(hourRange.date).toLocaleDateString()} - {hourRange.startTime} a {hourRange.endTime}
+                                </p>
+                                {hourRange.reason && (
+                                  <p className="text-sm text-gray-600">{hourRange.reason}</p>
+                                )}
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removeBlockedHour(index)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm text-gray-600 text-center">
+                            No hay horarios específicos bloqueados
+                          </p>
+                          <p className="text-xs text-gray-500 text-center mt-2">
+                            Bloquea horarios específicos en días particulares
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t">
-                  <Button className="bg-red-600 hover:bg-red-700">
+                  <Button 
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={saveBlockedDatesAndHours}
+                    disabled={updateMicrositeSettingsMutation.isPending}
+                  >
                     <Save className="w-4 h-4 mr-2" />
-                    Guardar Configuración de Bloqueos
+                    {updateMicrositeSettingsMutation.isPending ? "Guardando..." : "Guardar Configuración de Bloqueos"}
                   </Button>
                 </div>
               </CardContent>
