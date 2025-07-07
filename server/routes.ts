@@ -195,16 +195,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/dashboard/businesses/:businessId/services", async (req, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
+      console.log("Creating service with data:", req.body);
+      
+      // Validate the request body
       const serviceData = insertServiceSchema.parse(req.body);
+      console.log("Parsed service data:", serviceData);
       
       const service = await storage.createService({
         ...serviceData,
         businessId
       });
       
+      console.log("Service created successfully:", service);
       res.json(service);
-    } catch (error) {
-      res.status(400).json({ message: "Error creando servicio" });
+    } catch (error: any) {
+      console.error("Error creating service:", error);
+      if (error.name === 'ZodError') {
+        res.status(400).json({ 
+          message: "Datos del servicio inválidos",
+          details: error.errors 
+        });
+      } else {
+        res.status(400).json({ 
+          message: "Error creando servicio",
+          details: error.message 
+        });
+      }
     }
   });
 

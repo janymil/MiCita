@@ -66,9 +66,15 @@ export default function Services() {
         : "/api/dashboard/businesses/1/services";
       const method = editingService ? "PUT" : "POST";
       
+      // Ensure price is a valid number
+      const price = parseFloat(data.price);
+      if (isNaN(price) || price <= 0) {
+        throw new Error("El precio debe ser un número válido mayor a 0");
+      }
+      
       return apiRequest(method, endpoint, {
         ...data,
-        price: parseFloat(data.price),
+        price: price,
       });
     },
     onSuccess: () => {

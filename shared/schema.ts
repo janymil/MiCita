@@ -203,6 +203,14 @@ export const insertServiceSchema = createInsertSchema(services).omit({
   id: true,
   businessId: true,
   createdAt: true,
+}).extend({
+  price: z.union([z.string(), z.number()]).transform((val) => {
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    if (isNaN(num) || num <= 0) {
+      throw new Error('Price must be a positive number');
+    }
+    return num.toString();
+  }),
 });
 
 export const insertClientSchema = createInsertSchema(clients).omit({
