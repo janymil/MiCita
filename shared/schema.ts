@@ -113,11 +113,65 @@ export const reviews = pgTable("reviews", {
 export const businessSettings = pgTable("business_settings", {
   id: serial("id").primaryKey(),
   businessId: serial("business_id").references(() => businesses.id),
+  
+  // Micrositio Identity & Access
+  customUrl: text("custom_url"),
+  professionalTitle: text("professional_title"),
+  publicDescription: text("public_description"),
+  
+  // Brand Images
+  profileImage: text("profile_image"),
+  coverImage: text("cover_image"),
+  
+  // Extended Contact Info
+  publicEmail: text("public_email"),
+  publicPhone: text("public_phone"),
+  streetAddress: text("street_address"),
+  district: text("district"),
+  region: text("region"),
+  postalCode: text("postal_code"),
+  country: text("country").default("Perú"),
+  
+  // Social Media
+  facebookUrl: text("facebook_url"),
+  instagramUrl: text("instagram_url"),
+  tiktokUrl: text("tiktok_url"),
+  youtubeUrl: text("youtube_url"),
+  
+  // Features
+  enablePublicBooking: boolean("enable_public_booking").default(true),
+  enableContactForm: boolean("enable_contact_form").default(true),
+  enableGallery: boolean("enable_gallery").default(true),
+  
+  // Schedule Notes
+  scheduleNotes: text("schedule_notes"),
+  
+  // Working Hours
+  workingHours: jsonb("working_hours").$type<{
+    [key: string]: {
+      enabled: boolean;
+      start: string;
+      end: string;
+    };
+  }>().default({
+    monday: { enabled: true, start: "09:00", end: "17:00" },
+    tuesday: { enabled: true, start: "09:00", end: "17:00" },
+    wednesday: { enabled: true, start: "09:00", end: "17:00" },
+    thursday: { enabled: true, start: "09:00", end: "17:00" },
+    friday: { enabled: true, start: "09:00", end: "17:00" },
+    saturday: { enabled: true, start: "09:00", end: "17:00" },
+    sunday: { enabled: false, start: "09:00", end: "17:00" },
+  }),
+  
+  // Existing fields
   theme: text("theme").default("default"),
   primaryColor: text("primary_color"),
   bookingSettings: jsonb("booking_settings"),
   emailNotifications: boolean("email_notifications").default(true),
   smsNotifications: boolean("sms_notifications").default(false),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Insert schemas
@@ -169,6 +223,8 @@ export const insertReviewSchema = createInsertSchema(reviews).omit({
 export const insertBusinessSettingsSchema = createInsertSchema(businessSettings).omit({
   id: true,
   businessId: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 // Types

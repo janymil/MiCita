@@ -84,3 +84,6 @@ export const BUSINESS_CATEGORIES = [
     description: "Reparaciones, limpieza, jardinería"
   }
 ];
+
+// Alias for backwards compatibility
+export const categories = BUSINESS_CATEGORIES;

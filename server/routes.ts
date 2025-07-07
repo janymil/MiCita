@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema } from "@shared/schema";
+import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -286,5 +286,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  // Micrositio routes
+  app.get("/api/negocio/:slug", async (req, res) => {
+    const slug = req.params.slug;
+    try {
+      // Get all business settings to find one with matching custom URL
+      const businesses = await storage.searchBusinesses("");
+      let foundBusiness = null;
+      let foundSettings = null;
+
+      for (const business of businesses) {
+        const settings = await storage.getBusinessSettings(business.id);
+        if (settings?.customUrl === slug) {
+          foundBusiness = business;
+          foundSettings = settings;
+          break;
+        }
+      }
+
+      if (!foundBusiness || !foundSettings) {
+        return res.status(404).json({ error: "Negocio no encontrado" });
+      }
+
+      const services = await storage.getServicesByBusinessId(foundBusiness.id);
+      const gallery = await storage.getGalleryByBusinessId(foundBusiness.id);
+      const reviews = await storage.getReviewsByBusinessId(foundBusiness.id);
+
+      res.json({
+        business: foundBusiness,
+        settings: foundSettings,
+        services,
+        gallery,
+        reviews
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Error obteniendo datos del negocio" });
+    }
+  });
+
+  // Business settings routes
+  app.get("/api/dashboard/businesses/:id/settings", async (req, res) => {
+    const businessId = parseInt(req.params.id);
+    try {
+      const settings = await storage.getBusinessSettings(businessId);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Error obteniendo configuración" });
+    }
+  });
+
+  app.put("/api/dashboard/businesses/:id/settings", async (req, res) => {
+    const businessId = parseInt(req.params.id);
+    try {
+      const body = insertBusinessSettingsSchema.parse(req.body);
+      const settings = await storage.updateBusinessSettings(businessId, body);
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Error actualizando configuración" });
+    }
+  });
+
   return httpServer;
 }

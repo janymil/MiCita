@@ -507,11 +507,47 @@ export class MemStorage implements IStorage {
       const newSettings: BusinessSettings = {
         id: this.currentSettingsId++,
         businessId,
+        
+        // Micrositio fields
+        customUrl: settings.customUrl || null,
+        professionalTitle: settings.professionalTitle || null,
+        publicDescription: settings.publicDescription || null,
+        profileImage: settings.profileImage || null,
+        coverImage: settings.coverImage || null,
+        publicEmail: settings.publicEmail || null,
+        publicPhone: settings.publicPhone || null,
+        streetAddress: settings.streetAddress || null,
+        district: settings.district || null,
+        region: settings.region || null,
+        postalCode: settings.postalCode || null,
+        country: settings.country || "Perú",
+        facebookUrl: settings.facebookUrl || null,
+        instagramUrl: settings.instagramUrl || null,
+        tiktokUrl: settings.tiktokUrl || null,
+        youtubeUrl: settings.youtubeUrl || null,
+        enablePublicBooking: settings.enablePublicBooking ?? true,
+        enableContactForm: settings.enableContactForm ?? true,
+        enableGallery: settings.enableGallery ?? true,
+        scheduleNotes: settings.scheduleNotes || null,
+        workingHours: settings.workingHours || {
+          monday: { enabled: true, start: "09:00", end: "17:00" },
+          tuesday: { enabled: true, start: "09:00", end: "17:00" },
+          wednesday: { enabled: true, start: "09:00", end: "17:00" },
+          thursday: { enabled: true, start: "09:00", end: "17:00" },
+          friday: { enabled: true, start: "09:00", end: "17:00" },
+          saturday: { enabled: true, start: "09:00", end: "17:00" },
+          sunday: { enabled: false, start: "09:00", end: "17:00" },
+        },
+        
+        // Existing fields
         theme: settings.theme || null,
         primaryColor: settings.primaryColor || null,
         bookingSettings: settings.bookingSettings || null,
         emailNotifications: settings.emailNotifications ?? true,
         smsNotifications: settings.smsNotifications ?? false,
+        
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
       this.businessSettings.set(newSettings.id, newSettings);
       return newSettings;

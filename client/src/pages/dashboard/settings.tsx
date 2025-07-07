@@ -197,31 +197,61 @@ export default function SettingsPage() {
     },
   });
 
+  const { data: currentBusinessSettings } = useQuery({
+    queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"],
+    enabled: !!currentBusiness?.id,
+  });
+
   const micrositeForm = useForm<MicrositeForm>({
     resolver: zodResolver(micrositeSchema),
     defaultValues: {
-      customUrl: "",
-      professionalTitle: "",
-      publicDescription: "",
-      profileImage: "",
-      coverImage: "",
-      publicEmail: "",
-      publicPhone: "",
-      streetAddress: "",
-      district: "",
-      region: "",
-      postalCode: "",
-      country: "Perú",
-      facebookUrl: "",
-      instagramUrl: "",
-      tiktokUrl: "",
-      youtubeUrl: "",
-      enablePublicBooking: true,
-      enableContactForm: true,
-      enableGallery: true,
-      scheduleNotes: "",
+      customUrl: currentBusinessSettings?.customUrl || "",
+      professionalTitle: currentBusinessSettings?.professionalTitle || "",
+      publicDescription: currentBusinessSettings?.publicDescription || "",
+      profileImage: currentBusinessSettings?.profileImage || "",
+      coverImage: currentBusinessSettings?.coverImage || "",
+      publicEmail: currentBusinessSettings?.publicEmail || "",
+      publicPhone: currentBusinessSettings?.publicPhone || "",
+      streetAddress: currentBusinessSettings?.streetAddress || "",
+      district: currentBusinessSettings?.district || "",
+      region: currentBusinessSettings?.region || "",
+      postalCode: currentBusinessSettings?.postalCode || "",
+      country: currentBusinessSettings?.country || "Perú",
+      facebookUrl: currentBusinessSettings?.facebookUrl || "",
+      instagramUrl: currentBusinessSettings?.instagramUrl || "",
+      tiktokUrl: currentBusinessSettings?.tiktokUrl || "",
+      youtubeUrl: currentBusinessSettings?.youtubeUrl || "",
+      enablePublicBooking: currentBusinessSettings?.enablePublicBooking ?? true,
+      enableContactForm: currentBusinessSettings?.enableContactForm ?? true,
+      enableGallery: currentBusinessSettings?.enableGallery ?? true,
+      scheduleNotes: currentBusinessSettings?.scheduleNotes || "",
     },
   });
+
+  const updateMicrositeSettingsMutation = useMutation({
+    mutationFn: (data: MicrositeForm) => apiRequest(`/api/dashboard/businesses/${currentBusiness?.id}/settings`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+    onSuccess: () => {
+      toast({
+        title: "Configuración guardada",
+        description: "Los cambios del micrositio se han guardado correctamente.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Hubo un problema al guardar la configuración.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onMicrositeSubmit = (data: MicrositeForm) => {
+    updateMicrositeSettingsMutation.mutate(data);
+  };
 
   const hoursForm = useForm({
     resolver: zodResolver(hoursSchema),
@@ -790,40 +820,66 @@ export default function SettingsPage() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-purple-900">Identidad y Acceso</h3>
-                    <Button variant="outline" size="sm">
-                      <Edit3 className="w-4 h-4 mr-2" />
-                      Editar
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-purple-700">URL del Micrositio</Label>
-                      <div className="flex mt-1">
-                        <span className="text-blue-600 underline">
-                          https://buscarperu.com/barberia-nicolas
-                        </span>
-                        <ExternalLink className="w-4 h-4 ml-2 text-gray-400" />
-                      </div>
+                <Form {...micrositeForm}>
+                  <form onSubmit={micrositeForm.handleSubmit(onMicrositeSubmit)} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={micrositeForm.control}
+                        name="customUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>URL del Micrositio</FormLabel>
+                            <FormControl>
+                              <div className="flex">
+                                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                                  buscarperu.com/negocio/
+                                </span>
+                                <Input 
+                                  placeholder="mi-negocio" 
+                                  {...field} 
+                                  className="rounded-l-none"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={micrositeForm.control}
+                        name="professionalTitle"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Título Profesional</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ej: Barbería" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    
-                    <div>
-                      <Label className="text-purple-700">Título Profesional</Label>
-                      <p className="mt-1 text-gray-900">Barbería</p>
-                    </div>
-                    
-                    <div>
-                      <Label className="text-purple-700">Descripción Pública</Label>
-                      <p className="mt-1 text-gray-900">
-                        Cortes clásicos y modernos, afeitado profesional y cuidado masculino en un ambiente cómodo y relajado. 
-                        Reserva tu cita y vive una experiencia de barbería de calidad.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+
+                    <FormField
+                      control={micrositeForm.control}
+                      name="publicDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Descripción Pública</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Descripción que verán tus clientes en tu micrositio público..."
+                              rows={4}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </form>
+                </Form>
               </CardContent>
             </Card>
 
@@ -870,68 +926,112 @@ export default function SettingsPage() {
                   Información de Contacto y Ubicación
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center">
-                    <Mail className="w-4 h-4 mr-2 text-gray-500" />
-                    <div>
-                      <Label className="text-gray-600">Email Público</Label>
-                      <p>jan.milata@gmail.com</p>
-                    </div>
-                  </div>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={micrositeForm.control}
+                    name="publicEmail"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email Público</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="email" 
+                            placeholder="contacto@negocio.com" 
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  <div className="flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-gray-500" />
-                    <div>
-                      <Label className="text-gray-600">Teléfono Público</Label>
-                      <p>+51 938 693 848</p>
-                    </div>
-                  </div>
+                  <FormField
+                    control={micrositeForm.control}
+                    name="publicPhone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Teléfono Público</FormLabel>
+                        <FormControl>
+                          <Input placeholder="+51 987 654 321" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
-                <div className="flex items-start">
-                  <MapPin className="w-4 h-4 mr-2 text-gray-500 mt-1" />
-                  <div>
-                    <Label className="text-gray-600">Calle y Número</Label>
-                    <p>Tulipanes 468</p>
-                  </div>
+                <FormField
+                  control={micrositeForm.control}
+                  name="streetAddress"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Calle y Número</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Av. Larco 345" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <FormField
+                    control={micrositeForm.control}
+                    name="district"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ciudad / Distrito</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Miraflores" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={micrositeForm.control}
+                    name="region"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Referencia / Región</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Cerca al parque Kennedy" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={micrositeForm.control}
+                    name="postalCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Código Postal</FormLabel>
+                        <FormControl>
+                          <Input placeholder="15074" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center">
-                    <MapPin className="w-4 h-4 mr-2 text-gray-500" />
-                    <div>
-                      <Label className="text-gray-600">Ciudad / Distrito</Label>
-                      <p>Lima</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center">
-                    <MapPin className="w-4 h-4 mr-2 text-gray-500" />
-                    <div>
-                      <Label className="text-gray-600">Referencia / Región</Label>
-                      <p>2 cuadras de San Felipe con Universitaria</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center">
-                    <MapPin className="w-4 h-4 mr-2 text-gray-500" />
-                    <div>
-                      <Label className="text-gray-600">Código Postal</Label>
-                      <p>15313</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center">
-                    <Globe className="w-4 h-4 mr-2 text-gray-500" />
-                    <div>
-                      <Label className="text-gray-600">País</Label>
-                      <p>Peru</p>
-                    </div>
-                  </div>
-                </div>
+                <FormField
+                  control={micrositeForm.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>País</FormLabel>
+                      <FormControl>
+                        <Input {...field} disabled />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
 
@@ -943,42 +1043,75 @@ export default function SettingsPage() {
                   Redes Sociales
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center">
-                    <Facebook className="w-4 h-4 mr-2 text-blue-600" />
-                    <div>
-                      <Label className="text-gray-600">Facebook</Label>
-                      <p className="text-blue-600 hover:underline cursor-pointer">
-                        https://www.facebook.com/groups/101574817164424
-                        <ExternalLink className="w-3 h-3 ml-1 inline" />
-                      </p>
-                    </div>
-                  </div>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={micrositeForm.control}
+                    name="facebookUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center">
+                          <Facebook className="w-4 h-4 mr-2 text-blue-600" />
+                          Facebook
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://facebook.com/tu-negocio" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  <div className="flex items-center">
-                    <Instagram className="w-4 h-4 mr-2 text-pink-600" />
-                    <div>
-                      <Label className="text-gray-600">Instagram</Label>
-                      <p className="text-gray-500 italic">No configurado</p>
-                    </div>
-                  </div>
+                  <FormField
+                    control={micrositeForm.control}
+                    name="instagramUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center">
+                          <Instagram className="w-4 h-4 mr-2 text-pink-600" />
+                          Instagram
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://instagram.com/tu-negocio" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  <div className="flex items-center">
-                    <Twitter className="w-4 h-4 mr-2 text-black" />
-                    <div>
-                      <Label className="text-gray-600">TikTok</Label>
-                      <p className="text-gray-500 italic">No configurado</p>
-                    </div>
-                  </div>
+                  <FormField
+                    control={micrositeForm.control}
+                    name="tiktokUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center">
+                          <Twitter className="w-4 h-4 mr-2 text-black" />
+                          TikTok
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://tiktok.com/@tu-negocio" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                  <div className="flex items-center">
-                    <Youtube className="w-4 h-4 mr-2 text-red-600" />
-                    <div>
-                      <Label className="text-gray-600">YouTube</Label>
-                      <p className="text-gray-500 italic">No configurado</p>
-                    </div>
-                  </div>
+                  <FormField
+                    control={micrositeForm.control}
+                    name="youtubeUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center">
+                          <Youtube className="w-4 h-4 mr-2 text-red-600" />
+                          YouTube
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://youtube.com/@tu-negocio" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1075,8 +1208,23 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <Label className="text-base font-medium text-purple-600">Notas de Horario de Apertura</Label>
-                  <p className="text-sm text-gray-600 mt-1">Martes a Domingo, 9.00 - 22.00</p>
+                  <FormField
+                    control={micrositeForm.control}
+                    name="scheduleNotes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-medium text-purple-600">Notas de Horario de Apertura</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Ej: Martes a Domingo, 9.00 - 22.00. Atendemos con cita previa los lunes."
+                            rows={3}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </CardContent>
             </Card>
