@@ -232,7 +232,7 @@ export default function SettingsPage() {
   React.useEffect(() => {
     if (currentBusinessSettings) {
       console.log("Loading settings into form:", currentBusinessSettings);
-      micrositeForm.reset({
+      const formData = {
         customUrl: currentBusinessSettings.customUrl || "",
         professionalTitle: currentBusinessSettings.professionalTitle || "",
         publicDescription: currentBusinessSettings.publicDescription || "",
@@ -253,9 +253,11 @@ export default function SettingsPage() {
         enableContactForm: currentBusinessSettings.enableContactForm ?? true,
         enableGallery: currentBusinessSettings.enableGallery ?? true,
         scheduleNotes: currentBusinessSettings.scheduleNotes || "",
-      });
+      };
+      console.log("Form data being set:", formData);
+      micrositeForm.reset(formData);
     }
-  }, [currentBusinessSettings, micrositeForm]);
+  }, [currentBusinessSettings]);
 
   const updateMicrositeSettingsMutation = useMutation({
     mutationFn: async (data: MicrositeForm) => {
@@ -293,6 +295,18 @@ export default function SettingsPage() {
 
   const onMicrositeSubmit = (data: MicrositeForm) => {
     console.log("Submitting micrositio data:", data);
+    // Prevent empty submissions that would overwrite existing data
+    const hasContent = Object.values(data).some(value => {
+      if (typeof value === 'boolean') return true;
+      if (typeof value === 'string') return value.trim() !== '';
+      return false;
+    });
+    
+    if (!hasContent && currentBusinessSettings) {
+      console.log("Preventing empty submission, keeping existing data");
+      return;
+    }
+    
     updateMicrositeSettingsMutation.mutate(data);
   };
 
@@ -1226,6 +1240,110 @@ export default function SettingsPage() {
 
           {/* Business Hours */}
           <TabsContent value="hours" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Clock className="w-5 h-5 mr-2" />
+                  Horarios de Atención
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {days.map((day) => (
+                    <div key={day.key} className="flex items-center space-x-4 p-4 border rounded-lg">
+                      <div className="w-24">
+                        <Label className="text-sm font-medium">{day.label}</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="time"
+                          defaultValue="09:00"
+                          className="w-32"
+                        />
+                        <span className="text-gray-500">-</span>
+                        <Input
+                          type="time"
+                          defaultValue="17:00"
+                          className="w-32"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch defaultChecked={day.key !== 'sunday'} />
+                        <Label className="text-sm text-gray-600">Abierto</Label>
+                      </div>
+                    </div>
+                  ))}
+                  <Button className="bg-red-600 hover:bg-red-700">
+                    <Save className="w-4 h-4 mr-2" />
+                    Guardar Horarios
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Blocked Dates and Hours */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
+                  Fechas y Horas Bloqueadas
+                </CardTitle>
+                <p className="text-sm text-gray-600 mt-2">
+                  Configura días y horarios cuando no estarás disponible para citas
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <Label className="text-base font-medium mb-3 block">Fechas Bloqueadas</Label>
+                  <div className="space-y-3">
+                    <div className="flex space-x-2">
+                      <Input 
+                        type="date" 
+                        placeholder="Seleccionar fecha"
+                        className="flex-1"
+                        id="blockDate"
+                      />
+                      <Button type="button" variant="outline">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Bloquear Fecha
+                      </Button>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-4 min-h-[100px]">
+                      <p className="text-sm text-gray-600 text-center">
+                        No hay fechas bloqueadas configuradas
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-base font-medium mb-3 block">Horas Específicas Bloqueadas</Label>
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      <Input type="date" placeholder="Fecha" />
+                      <Input type="time" placeholder="Hora inicio" />
+                      <Input type="time" placeholder="Hora fin" />
+                    </div>
+                    <Button type="button" variant="outline">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Bloquear Horario
+                    </Button>
+                    <div className="bg-gray-50 rounded-lg p-4 min-h-[100px]">
+                      <p className="text-sm text-gray-600 text-center">
+                        No hay horarios específicos bloqueados
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t">
+                  <Button className="bg-red-600 hover:bg-red-700">
+                    <Save className="w-4 h-4 mr-2" />
+                    Guardar Configuración de Bloqueos
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
