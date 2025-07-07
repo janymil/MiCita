@@ -159,13 +159,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const businessData = insertBusinessSchema.parse(req.body);
       const userId = 1; // Mock user ID
       
-      // Check if user already has a business and delete it
+      // Check if user already has a business
       const existingBusinesses = await storage.getBusinessesByUserId(userId);
       if (existingBusinesses.length > 0) {
-        // Delete the existing business (user can only have one)
-        for (const existingBusiness of existingBusinesses) {
-          await storage.deleteBusiness(existingBusiness.id);
-        }
+        // Return error if user already has a business
+        return res.status(400).json({ 
+          message: "Ya tienes un negocio registrado. Solo puedes tener un negocio por cuenta." 
+        });
       }
       
       // NO AUTO-SLUG GENERATION. Slug will be set ONLY when user configures micrositio

@@ -202,16 +202,32 @@ export default function SettingsPage() {
   const businessForm = useForm<BusinessForm>({
     resolver: zodResolver(businessSchema),
     defaultValues: {
-      name: currentBusiness?.name || "",
-      description: currentBusiness?.description || "",
-      category: currentBusiness?.category || "",
-      phone: currentBusiness?.phone || "",
-      email: currentBusiness?.email || "",
-      address: currentBusiness?.address || "",
-      city: currentBusiness?.city || "Lima",
-      website: currentBusiness?.website || "",
+      name: "",
+      description: "",
+      category: "",
+      phone: "",
+      email: "",
+      address: "",
+      city: "Lima",
+      website: "",
     },
   });
+
+  // Update form when business data loads
+  React.useEffect(() => {
+    if (currentBusiness) {
+      businessForm.reset({
+        name: currentBusiness.name || "",
+        description: currentBusiness.description || "",
+        category: currentBusiness.category || "",
+        phone: currentBusiness.phone || "",
+        email: currentBusiness.email || "",
+        address: currentBusiness.address || "",
+        city: currentBusiness.city || "Lima",
+        website: currentBusiness.website || "",
+      });
+    }
+  }, [currentBusiness, businessForm]);
 
   const createBusinessForm = useForm<CreateBusinessForm>({
     resolver: zodResolver(createBusinessSchema),
@@ -434,13 +450,16 @@ export default function SettingsPage() {
 
   const onCreateBusinessSubmit = (data: CreateBusinessForm) => {
     if (currentBusiness) {
-      // If there's already a business, show a warning
-      if (window.confirm(`Ya tienes un negocio registrado (${currentBusiness.name}). \n\nAl crear un nuevo negocio, el anterior será eliminado. ¿Deseas continuar?`)) {
-        createBusinessMutation.mutate(data);
-      }
-    } else {
-      createBusinessMutation.mutate(data);
+      // If there's already a business, show a warning and don't allow creation
+      toast({
+        title: "Ya tienes un negocio",
+        description: `Ya tienes un negocio registrado: "${currentBusiness.name}". Solo puedes tener un negocio por cuenta.`,
+        variant: "destructive",
+      });
+      setShowCreateBusinessModal(false);
+      return;
     }
+    createBusinessMutation.mutate(data);
   };
 
   // Blocked dates functions
@@ -1655,7 +1674,7 @@ export default function SettingsPage() {
               <DialogTitle>Crear Tu Negocio</DialogTitle>
               <DialogDescription>
                 {currentBusiness ? 
-                  "Atención: Al crear un nuevo negocio, tu negocio actual será eliminado." :
+                  "Ya tienes un negocio registrado. Solo puedes tener un negocio por cuenta." :
                   "Completa la información para registrar tu negocio en nuestra plataforma"
                 }
               </DialogDescription>
