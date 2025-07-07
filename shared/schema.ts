@@ -16,7 +16,7 @@ export const businesses = pgTable("businesses", {
   id: serial("id").primaryKey(),
   userId: serial("user_id").references(() => users.id),
   name: text("name").notNull(),
-  slug: text("slug").unique(),
+  slug: text("slug").unique(), // DEPRECATED: Not used for micrositios - use customUrl in businessSettings instead
   description: text("description"),
   category: text("category").notNull(),
   phone: text("phone"),

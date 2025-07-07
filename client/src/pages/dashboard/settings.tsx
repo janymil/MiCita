@@ -279,7 +279,7 @@ export default function SettingsPage() {
   React.useEffect(() => {
     if (currentBusinessSettings && Object.keys(currentBusinessSettings).length > 0) {
       const formData = {
-        customUrl: currentBusinessSettings.customUrl || currentBusiness?.slug || "",
+        customUrl: currentBusinessSettings.customUrl || "",
         professionalTitle: currentBusinessSettings.professionalTitle || "",
         publicDescription: currentBusinessSettings.publicDescription || "",
         profileImage: currentBusinessSettings.profileImage || "",
@@ -310,9 +310,6 @@ export default function SettingsPage() {
       }
       
       micrositeForm.reset(formData);
-    } else if (currentBusiness?.slug) {
-      // If no settings exist yet, use the business slug
-      micrositeForm.setValue("customUrl", currentBusiness.slug);
     }
   }, [currentBusinessSettings, currentBusiness]);
 
@@ -840,17 +837,17 @@ export default function SettingsPage() {
                         className="rounded-l-none"
                       />
                     </div>
-                    {(micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '') || currentBusiness?.slug ? (
+                    {micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '' ? (
                       <div className="flex items-center space-x-2 mt-2">
                         <p className="text-xs text-green-600">
-                          ✓ Tu micrositio: /{micrositeForm.watch("customUrl") || currentBusiness?.slug}
+                          ✓ Tu micrositio: /{micrositeForm.watch("customUrl")}
                         </p>
                         <Button 
                           type="button" 
                           variant="outline" 
                           size="sm"
                           onClick={() => {
-                            const customUrl = micrositeForm.watch("customUrl") || currentBusiness?.slug;
+                            const customUrl = micrositeForm.watch("customUrl");
                             if (customUrl && customUrl.trim() !== '') {
                               const url = `/${customUrl}`;
                               window.open(url, '_blank');
@@ -869,7 +866,7 @@ export default function SettingsPage() {
                       </div>
                     ) : (
                       <p className="text-xs text-gray-500 mt-2">
-                        Configura tu URL personalizada para ver la vista previa
+                        Ingresa una URL personalizada para activar tu micrositio
                       </p>
                     )}
                   </div>
@@ -1292,13 +1289,13 @@ export default function SettingsPage() {
                     variant="outline" 
                     className="flex items-center"
                     onClick={() => {
-                      const customUrl = micrositeForm.getValues("customUrl") || currentBusiness?.slug;
+                      const customUrl = micrositeForm.getValues("customUrl");
                       if (customUrl && customUrl.trim() !== '') {
                         window.open(`/${customUrl}`, '_blank');
                       } else {
                         toast({
                           title: "URL no configurada",
-                          description: "Primero guarda una URL personalizada para ver la vista previa.",
+                          description: "Primero ingresa y guarda una URL personalizada para ver la vista previa.",
                           variant: "destructive",
                         });
                       }

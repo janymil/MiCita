@@ -168,10 +168,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // NO AUTO-SLUG GENERATION. Slug will be set ONLY when user configures micrositio
+      // NO SLUG GENERATION - micrositio URLs are handled through settings customUrl only
       const business = await storage.createBusiness({
         ...businessData,
-        slug: null, // Start with no slug
+        slug: null, // No slug needed - customUrl in settings handles micrositio access
         userId
       });
       
