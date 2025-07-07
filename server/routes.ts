@@ -338,11 +338,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/dashboard/businesses/:id/settings", async (req, res) => {
     const businessId = parseInt(req.params.id);
     try {
+      console.log("Received settings update request:", req.body);
       const body = insertBusinessSettingsSchema.parse(req.body);
+      console.log("Parsed settings data:", body);
       const settings = await storage.updateBusinessSettings(businessId, body);
+      console.log("Settings updated successfully:", settings);
       res.json(settings);
-    } catch (error) {
-      res.status(500).json({ error: "Error actualizando configuración" });
+    } catch (error: any) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ error: "Error actualizando configuración", details: error?.message || "Unknown error" });
     }
   });
 

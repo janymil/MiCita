@@ -205,34 +205,68 @@ export default function SettingsPage() {
   const micrositeForm = useForm<MicrositeForm>({
     resolver: zodResolver(micrositeSchema),
     defaultValues: {
-      customUrl: currentBusinessSettings?.customUrl || "",
-      professionalTitle: currentBusinessSettings?.professionalTitle || "",
-      publicDescription: currentBusinessSettings?.publicDescription || "",
-      profileImage: currentBusinessSettings?.profileImage || "",
-      coverImage: currentBusinessSettings?.coverImage || "",
-      publicEmail: currentBusinessSettings?.publicEmail || "",
-      publicPhone: currentBusinessSettings?.publicPhone || "",
-      streetAddress: currentBusinessSettings?.streetAddress || "",
-      district: currentBusinessSettings?.district || "",
-      region: currentBusinessSettings?.region || "",
-      postalCode: currentBusinessSettings?.postalCode || "",
-      country: currentBusinessSettings?.country || "Perú",
-      facebookUrl: currentBusinessSettings?.facebookUrl || "",
-      instagramUrl: currentBusinessSettings?.instagramUrl || "",
-      tiktokUrl: currentBusinessSettings?.tiktokUrl || "",
-      youtubeUrl: currentBusinessSettings?.youtubeUrl || "",
-      enablePublicBooking: currentBusinessSettings?.enablePublicBooking ?? true,
-      enableContactForm: currentBusinessSettings?.enableContactForm ?? true,
-      enableGallery: currentBusinessSettings?.enableGallery ?? true,
-      scheduleNotes: currentBusinessSettings?.scheduleNotes || "",
+      customUrl: "",
+      professionalTitle: "",
+      publicDescription: "",
+      profileImage: "",
+      coverImage: "",
+      publicEmail: "",
+      publicPhone: "",
+      streetAddress: "",
+      district: "",
+      region: "",
+      postalCode: "",
+      country: "Perú",
+      facebookUrl: "",
+      instagramUrl: "",
+      tiktokUrl: "",
+      youtubeUrl: "",
+      enablePublicBooking: true,
+      enableContactForm: true,
+      enableGallery: true,
+      scheduleNotes: "",
     },
   });
 
+  // Reset form when settings data loads
+  React.useEffect(() => {
+    if (currentBusinessSettings) {
+      micrositeForm.reset({
+        customUrl: currentBusinessSettings.customUrl || "",
+        professionalTitle: currentBusinessSettings.professionalTitle || "",
+        publicDescription: currentBusinessSettings.publicDescription || "",
+        profileImage: currentBusinessSettings.profileImage || "",
+        coverImage: currentBusinessSettings.coverImage || "",
+        publicEmail: currentBusinessSettings.publicEmail || "",
+        publicPhone: currentBusinessSettings.publicPhone || "",
+        streetAddress: currentBusinessSettings.streetAddress || "",
+        district: currentBusinessSettings.district || "",
+        region: currentBusinessSettings.region || "",
+        postalCode: currentBusinessSettings.postalCode || "",
+        country: currentBusinessSettings.country || "Perú",
+        facebookUrl: currentBusinessSettings.facebookUrl || "",
+        instagramUrl: currentBusinessSettings.instagramUrl || "",
+        tiktokUrl: currentBusinessSettings.tiktokUrl || "",
+        youtubeUrl: currentBusinessSettings.youtubeUrl || "",
+        enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
+        enableContactForm: currentBusinessSettings.enableContactForm ?? true,
+        enableGallery: currentBusinessSettings.enableGallery ?? true,
+        scheduleNotes: currentBusinessSettings.scheduleNotes || "",
+      });
+    }
+  }, [currentBusinessSettings, micrositeForm]);
+
   const updateMicrositeSettingsMutation = useMutation({
-    mutationFn: (data: MicrositeForm) => apiRequest(`/api/dashboard/businesses/${currentBusiness?.id}/settings`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    }),
+    mutationFn: (data: MicrositeForm) => {
+      console.log("Sending data to API:", data);
+      return apiRequest(`/api/dashboard/businesses/${currentBusiness?.id}/settings`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    },
     onSuccess: () => {
       toast({
         title: "Configuración guardada",
@@ -240,7 +274,8 @@ export default function SettingsPage() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"] });
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Error saving settings:", error);
       toast({
         title: "Error",
         description: "Hubo un problema al guardar la configuración.",
@@ -250,6 +285,7 @@ export default function SettingsPage() {
   });
 
   const onMicrositeSubmit = (data: MicrositeForm) => {
+    console.log("Submitting micrositio data:", data);
     updateMicrositeSettingsMutation.mutate(data);
   };
 
@@ -1132,6 +1168,43 @@ export default function SettingsPage() {
                     {...micrositeForm.register("scheduleNotes")}
                     className="mt-2"
                   />
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Save Button */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <Button 
+                    variant="outline" 
+                    className="flex items-center"
+                    onClick={() => {
+                      const customUrl = micrositeForm.getValues("customUrl");
+                      if (customUrl) {
+                        window.open(`/${customUrl}`, '_blank');
+                      } else {
+                        toast({
+                          title: "URL no configurada",
+                          description: "Primero configura la URL del micrositio.",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    Vista Previa del Micrositio
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </Button>
+                  <Button 
+                    type="submit"
+                    className="bg-red-600 hover:bg-red-700"
+                    onClick={micrositeForm.handleSubmit(onMicrositeSubmit)}
+                    disabled={updateMicrositeSettingsMutation.isPending}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {updateMicrositeSettingsMutation.isPending ? "Guardando..." : "Guardar Configuración"}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
