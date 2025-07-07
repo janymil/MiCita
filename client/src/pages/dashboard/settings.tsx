@@ -235,7 +235,7 @@ export default function SettingsPage() {
   const micrositeForm = useForm<MicrositeForm>({
     resolver: zodResolver(micrositeSchema),
     defaultValues: {
-      customUrl: "",
+      customUrl: currentBusiness?.slug || "",
       professionalTitle: "",
       publicDescription: "",
       profileImage: "",
@@ -259,16 +259,11 @@ export default function SettingsPage() {
     mode: "onChange"
   });
 
-  // Reset form when settings data loads - DEBUGGING VERSION
+  // Reset form when settings data loads
   React.useEffect(() => {
-    console.log("🔍 Effect triggered. currentBusinessSettings:", currentBusinessSettings);
-    console.log("🔍 Form current values:", micrositeForm.getValues());
-    
     if (currentBusinessSettings && Object.keys(currentBusinessSettings).length > 0) {
-      console.log("✅ LOADING SETTINGS - customUrl:", currentBusinessSettings.customUrl);
-      
       const formData = {
-        customUrl: currentBusinessSettings.customUrl || "",
+        customUrl: currentBusinessSettings.customUrl || currentBusiness?.slug || "",
         professionalTitle: currentBusinessSettings.professionalTitle || "",
         publicDescription: currentBusinessSettings.publicDescription || "",
         profileImage: currentBusinessSettings.profileImage || "",
@@ -290,8 +285,6 @@ export default function SettingsPage() {
         scheduleNotes: currentBusinessSettings.scheduleNotes || "",
       };
       
-      console.log("✅ SETTING FORM DATA:", formData);
-      
       // Load blocked dates and hours
       if (currentBusinessSettings.blockedDates) {
         setBlockedDates(currentBusinessSettings.blockedDates);
@@ -300,17 +293,12 @@ export default function SettingsPage() {
         setBlockedHours(currentBusinessSettings.blockedHours);
       }
       
-      // Force reset the form completely
       micrositeForm.reset(formData);
-      
-      // Force set the customUrl directly
-      setTimeout(() => {
-        console.log("✅ FORCE SETTING customUrl:", currentBusinessSettings.customUrl);
-        micrositeForm.setValue("customUrl", currentBusinessSettings.customUrl || "", { shouldValidate: true });
-        console.log("✅ Form values after force set:", micrositeForm.getValues());
-      }, 100);
+    } else if (currentBusiness?.slug) {
+      // If no settings exist yet, use the business slug
+      micrositeForm.setValue("customUrl", currentBusiness.slug);
     }
-  }, [currentBusinessSettings]);
+  }, [currentBusinessSettings, currentBusiness]);
 
   const updateMicrositeSettingsMutation = useMutation({
     mutationFn: async (data: MicrositeForm) => {
@@ -337,6 +325,8 @@ export default function SettingsPage() {
         description: "Los cambios del micrositio se han guardado correctamente.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"] });
+      // Also invalidate business data to update the slug
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses"] });
     },
     onError: (error) => {
       console.error("Error saving settings:", error);
@@ -408,15 +398,9 @@ export default function SettingsPage() {
 
   const createBusinessMutation = useMutation({
     mutationFn: async (data: CreateBusinessForm) => {
-      // Generate slug from name
-      const slug = data.name.toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-
+      // Don't generate slug automatically - it will be set when configuring micrositio
       return apiRequest("POST", "/api/dashboard/businesses", {
         ...data,
-        slug,
         country: "Perú",
       });
     },
@@ -424,10 +408,12 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses"] });
       toast({
         title: "Negocio creado",
-        description: "Tu negocio ha sido creado exitosamente.",
+        description: "Tu negocio ha sido creado exitosamente. Ahora configura tu micrositio.",
       });
       setShowCreateBusinessModal(false);
       createBusinessForm.reset();
+      // Switch to micrositio tab to configure the URL
+      setActiveTab("microsite");
     },
     onError: () => {
       toast({
@@ -447,7 +433,14 @@ export default function SettingsPage() {
   };
 
   const onCreateBusinessSubmit = (data: CreateBusinessForm) => {
-    createBusinessMutation.mutate(data);
+    if (currentBusiness) {
+      // If there's already a business, show a warning
+      if (window.confirm(`Ya tienes un negocio registrado (${currentBusiness.name}). \n\nAl crear un nuevo negocio, el anterior será eliminado. ¿Deseas continuar?`)) {
+        createBusinessMutation.mutate(data);
+      }
+    } else {
+      createBusinessMutation.mutate(data);
+    }
   };
 
   // Blocked dates functions
@@ -569,196 +562,6 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
-
-          {/* Create Business Modal */}
-          <Dialog open={showCreateBusinessModal} onOpenChange={setShowCreateBusinessModal}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Crear Tu Negocio</DialogTitle>
-                <DialogDescription>
-                  Completa la información para registrar tu negocio en nuestra plataforma
-                </DialogDescription>
-              </DialogHeader>
-
-              <Form {...createBusinessForm}>
-                <form onSubmit={createBusinessForm.handleSubmit(onCreateBusinessSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={createBusinessForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nombre del Negocio *</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ej: Spa Relajante Lima" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={createBusinessForm.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Categoría *</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecciona una categoría" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {BUSINESS_CATEGORIES.map((category) => (
-                                <SelectItem key={category.id} value={category.id}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={createBusinessForm.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Descripción</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Describe tu negocio y los servicios que ofreces..."
-                            {...field}
-                            rows={4}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={createBusinessForm.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Teléfono</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="+51 987 654 321"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={createBusinessForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder="info@tunegocio.pe"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={createBusinessForm.control}
-                      name="address"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Dirección</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Av. Larco 345, Miraflores"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={createBusinessForm.control}
-                      name="city"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Ciudad *</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecciona una ciudad" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {PERUVIAN_CITIES.map((city) => (
-                                <SelectItem key={city} value={city}>
-                                  {city}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={createBusinessForm.control}
-                    name="website"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Sitio Web</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="https://www.tunegocio.pe"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex justify-end space-x-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowCreateBusinessModal(false)}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={createBusinessMutation.isPending}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      {createBusinessMutation.isPending ? "Creando..." : "Crear Negocio"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
         </div>
       </DashboardLayout>
     );
@@ -967,14 +770,24 @@ export default function SettingsPage() {
                       )}
                     />
 
-                    <Button
-                      type="submit"
-                      disabled={updateBusinessMutation.isPending}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      {updateBusinessMutation.isPending ? "Guardando..." : "Guardar Cambios"}
-                    </Button>
+                    <div className="flex gap-4">
+                      <Button
+                        type="submit"
+                        disabled={updateBusinessMutation.isPending}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {updateBusinessMutation.isPending ? "Guardando..." : "Guardar Cambios"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowCreateBusinessModal(true)}
+                      >
+                        <Building2 className="w-4 h-4 mr-2" />
+                        Crear Nuevo Negocio
+                      </Button>
+                    </div>
                   </form>
                 </Form>
               </CardContent>
@@ -1003,24 +816,22 @@ export default function SettingsPage() {
                         {window.location.host}/
                       </span>
                       <Input 
-                        placeholder="barberianicolas" 
+                        placeholder="tunegocio" 
                         {...micrositeForm.register("customUrl")}
                         className="rounded-l-none"
-                        value={micrositeForm.watch("customUrl")}
-                        onChange={(e) => micrositeForm.setValue("customUrl", e.target.value)}
                       />
                     </div>
-                    {micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '' ? (
+                    {(micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '') || currentBusiness?.slug ? (
                       <div className="flex items-center space-x-2 mt-2">
                         <p className="text-xs text-green-600">
-                          ✓ Tu micrositio: /{micrositeForm.watch("customUrl")}
+                          ✓ Tu micrositio: /{micrositeForm.watch("customUrl") || currentBusiness?.slug}
                         </p>
                         <Button 
                           type="button" 
                           variant="outline" 
                           size="sm"
                           onClick={() => {
-                            const customUrl = micrositeForm.watch("customUrl");
+                            const customUrl = micrositeForm.watch("customUrl") || currentBusiness?.slug;
                             if (customUrl && customUrl.trim() !== '') {
                               const url = `/${customUrl}`;
                               window.open(url, '_blank');
@@ -1079,7 +890,9 @@ export default function SettingsPage() {
                   <div>
                     <Label className="text-base font-medium">Imagen de Perfil</Label>
                     <div className="mt-2">
-                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border overflow-hidden mb-2">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border overflow-hidden mb-2 relative group cursor-pointer"
+                        onClick={() => document.getElementById('profileImageInput')?.click()}
+                      >
                         {micrositeForm.watch("profileImage") ? (
                           <img 
                             src={micrositeForm.watch("profileImage")} 
@@ -1092,20 +905,72 @@ export default function SettingsPage() {
                         ) : (
                           <Camera className="w-6 h-6 text-gray-400" />
                         )}
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
+                          <Upload className="w-6 h-6 text-white" />
+                        </div>
                       </div>
-                      <Input 
-                        type="url" 
-                        placeholder="https://ejemplo.com/imagen.jpg" 
-                        {...micrositeForm.register("profileImage")}
+                      <input
+                        id="profileImageInput"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const formData = new FormData();
+                            formData.append('image', file);
+                            
+                            try {
+                              const response = await fetch('/api/upload', {
+                                method: 'POST',
+                                body: formData
+                              });
+                              
+                              if (response.ok) {
+                                const data = await response.json();
+                                micrositeForm.setValue('profileImage', window.location.origin + data.url);
+                              } else {
+                                toast({
+                                  title: "Error",
+                                  description: "No se pudo subir la imagen",
+                                  variant: "destructive"
+                                });
+                              }
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Error al subir la imagen",
+                                variant: "destructive"
+                              });
+                            }
+                          }
+                        }}
                       />
-                      <p className="text-xs text-gray-500 mt-1">URL de imagen de perfil</p>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="url" 
+                          placeholder="https://ejemplo.com/imagen.jpg" 
+                          {...micrositeForm.register("profileImage")}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('profileImageInput')?.click()}
+                        >
+                          <Upload className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Sube una imagen o ingresa una URL</p>
                     </div>
                   </div>
 
                   <div>
                     <Label className="text-base font-medium">Imagen de Portada</Label>
                     <div className="mt-2">
-                      <div className="w-full h-24 bg-gray-100 rounded-lg border flex items-center justify-center overflow-hidden mb-2">
+                      <div className="w-full h-24 bg-gray-100 rounded-lg border flex items-center justify-center overflow-hidden mb-2 relative group cursor-pointer"
+                        onClick={() => document.getElementById('coverImageInput')?.click()}
+                      >
                         {micrositeForm.watch("coverImage") ? (
                           <img 
                             src={micrositeForm.watch("coverImage")} 
@@ -1121,13 +986,63 @@ export default function SettingsPage() {
                             <span className="text-sm text-gray-500">Imagen de portada</span>
                           </div>
                         )}
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
+                          <Upload className="w-6 h-6 text-white" />
+                        </div>
                       </div>
-                      <Input 
-                        type="url" 
-                        placeholder="https://ejemplo.com/portada.jpg" 
-                        {...micrositeForm.register("coverImage")}
+                      <input
+                        id="coverImageInput"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const formData = new FormData();
+                            formData.append('image', file);
+                            
+                            try {
+                              const response = await fetch('/api/upload', {
+                                method: 'POST',
+                                body: formData
+                              });
+                              
+                              if (response.ok) {
+                                const data = await response.json();
+                                micrositeForm.setValue('coverImage', window.location.origin + data.url);
+                              } else {
+                                toast({
+                                  title: "Error",
+                                  description: "No se pudo subir la imagen",
+                                  variant: "destructive"
+                                });
+                              }
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Error al subir la imagen",
+                                variant: "destructive"
+                              });
+                            }
+                          }
+                        }}
                       />
-                      <p className="text-xs text-gray-500 mt-1">URL de imagen de portada - Recomendado 1200x400px</p>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="url" 
+                          placeholder="https://ejemplo.com/portada.jpg" 
+                          {...micrositeForm.register("coverImage")}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => document.getElementById('coverImageInput')?.click()}
+                        >
+                          <Upload className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Sube una imagen o ingresa una URL - Recomendado 1200x400px</p>
                     </div>
                   </div>
                 </div>
@@ -1358,7 +1273,7 @@ export default function SettingsPage() {
                     variant="outline" 
                     className="flex items-center"
                     onClick={() => {
-                      const customUrl = micrositeForm.getValues("customUrl");
+                      const customUrl = micrositeForm.getValues("customUrl") || currentBusiness?.slug;
                       if (customUrl && customUrl.trim() !== '') {
                         window.open(`/${customUrl}`, '_blank');
                       } else {
@@ -1733,7 +1648,198 @@ export default function SettingsPage() {
           </TabsContent>
         </Tabs>
 
+        {/* Create Business Modal - Available for both new and existing businesses */}
+        <Dialog open={showCreateBusinessModal} onOpenChange={setShowCreateBusinessModal}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Crear Tu Negocio</DialogTitle>
+              <DialogDescription>
+                {currentBusiness ? 
+                  "Atención: Al crear un nuevo negocio, tu negocio actual será eliminado." :
+                  "Completa la información para registrar tu negocio en nuestra plataforma"
+                }
+              </DialogDescription>
+            </DialogHeader>
 
+            <Form {...createBusinessForm}>
+              <form onSubmit={createBusinessForm.handleSubmit(onCreateBusinessSubmit)} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={createBusinessForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nombre del Negocio *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ej: Spa Relajante Lima" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={createBusinessForm.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categoría *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona una categoría" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {BUSINESS_CATEGORIES.map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={createBusinessForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Descripción</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe tu negocio y los servicios que ofreces..."
+                          {...field}
+                          rows={4}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={createBusinessForm.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Teléfono</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="+51 987 654 321"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={createBusinessForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="email"
+                            placeholder="info@tunegocio.pe"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={createBusinessForm.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Dirección</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Av. Larco 345, Miraflores"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={createBusinessForm.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ciudad *</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona una ciudad" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PERUVIAN_CITIES.map((city) => (
+                              <SelectItem key={city} value={city}>
+                                {city}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={createBusinessForm.control}
+                  name="website"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sitio Web</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="https://www.tunegocio.pe"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex justify-end space-x-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCreateBusinessModal(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={createBusinessMutation.isPending}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {createBusinessMutation.isPending ? "Creando..." : "Crear Negocio"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

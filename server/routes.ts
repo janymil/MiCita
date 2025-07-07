@@ -1,8 +1,46 @@
-import type { Express } from "express";
+import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const multerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage: multerStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Solo se permiten imágenes (jpeg, jpg, png, gif, webp)'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
@@ -121,15 +159,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const businessData = insertBusinessSchema.parse(req.body);
       const userId = 1; // Mock user ID
       
-      // Generate slug from name
-      const slug = businessData.name.toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
+      // Check if user already has a business and delete it
+      const existingBusinesses = await storage.getBusinessesByUserId(userId);
+      if (existingBusinesses.length > 0) {
+        // Delete the existing business (user can only have one)
+        for (const existingBusiness of existingBusinesses) {
+          await storage.deleteBusiness(existingBusiness.id);
+        }
+      }
       
+      // NO AUTO-SLUG GENERATION. Slug will be set ONLY when user configures micrositio
       const business = await storage.createBusiness({
         ...businessData,
-        slug,
+        slug: null, // Start with no slug
         userId
       });
       
@@ -301,9 +343,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const business of businesses) {
         const settings = await storage.getBusinessSettings(business.id);
-        console.log(`Business ${business.id} (${business.name}) has customUrl: ${settings?.customUrl}`);
+        console.log(`Business ${business.id} (${business.name}) has customUrl: ${settings?.customUrl}, slug: ${business.slug}`);
         
-        if (settings?.customUrl === slug) {
+        // ONLY check customUrl in settings - ignore business slug completely
+        if (settings?.customUrl && settings.customUrl === slug) {
           foundBusiness = business;
           foundSettings = settings;
           console.log(`Found matching business: ${business.name} with customUrl: ${settings.customUrl}`);
@@ -351,6 +394,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Received settings update request:", req.body);
       const body = insertBusinessSettingsSchema.parse(req.body);
       console.log("Parsed settings data:", body);
+      
+      // customUrl is stored in settings ONLY - do NOT touch business slug
+      
       const settings = await storage.updateBusinessSettings(businessId, body);
       console.log("Settings updated successfully:", settings);
       res.json(settings);
@@ -359,6 +405,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Error actualizando configuración", details: error?.message || "Unknown error" });
     }
   });
+
+  app.delete("/api/dashboard/businesses/:id", async (req, res) => {
+    try {
+      const businessId = parseInt(req.params.id);
+      await storage.deleteBusiness(businessId);
+      res.json({ message: "Negocio eliminado exitosamente" });
+    } catch (error) {
+      res.status(404).json({ message: error instanceof Error ? error.message : "Error eliminando negocio" });
+    }
+  });
+
+  // Image upload endpoint
+  app.post("/api/upload", upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No se proporcionó ninguna imagen" });
+      }
+      
+      // Return the URL of the uploaded file
+      const imageUrl = `/uploads/${req.file.filename}`;
+      res.json({ url: imageUrl });
+    } catch (error: any) {
+      console.error("Error uploading image:", error);
+      res.status(500).json({ error: "Error al subir la imagen" });
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', express.static(uploadsDir));
 
   return httpServer;
 }

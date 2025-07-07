@@ -16,7 +16,7 @@ export const businesses = pgTable("businesses", {
   id: serial("id").primaryKey(),
   userId: serial("user_id").references(() => users.id),
   name: text("name").notNull(),
-  slug: text("slug").notNull().unique(),
+  slug: text("slug").unique(),
   description: text("description"),
   category: text("category").notNull(),
   phone: text("phone"),

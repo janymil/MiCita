@@ -326,6 +326,28 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
+  async deleteBusiness(id: number): Promise<void> {
+    const existing = this.businesses.get(id);
+    if (!existing) throw new Error("Business not found");
+    
+    // Delete related data
+    const services = await this.getServicesByBusinessId(id);
+    services.forEach(service => this.services.delete(service.id));
+    
+    const clients = await this.getClientsByBusinessId(id);
+    clients.forEach(client => this.clients.delete(client.id));
+    
+    const appointments = await this.getAppointmentsByBusinessId(id);
+    appointments.forEach(appointment => this.appointments.delete(appointment.id));
+    
+    // Delete business settings
+    const settings = Array.from(this.businessSettings.values()).find(s => s.businessId === id);
+    if (settings) this.businessSettings.delete(settings.id);
+    
+    // Delete the business itself
+    this.businesses.delete(id);
+  }
+
   async getServicesByBusinessId(businessId: number): Promise<Service[]> {
     return Array.from(this.services.values()).filter(service => service.businessId === businessId);
   }
