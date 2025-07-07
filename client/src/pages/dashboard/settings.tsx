@@ -37,6 +37,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { BUSINESS_CATEGORIES, DEFAULT_BUSINESS_HOURS, PERUVIAN_CITIES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 const businessSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -107,7 +108,7 @@ export default function SettingsPage() {
   const [showCreateBusinessModal, setShowCreateBusinessModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const { data: businesses, isLoading } = useQuery({
     queryKey: ["/api/dashboard/businesses"],
@@ -522,7 +523,7 @@ export default function SettingsPage() {
                         <div className="w-24">
                           <Label className="font-medium">{day.label}</Label>
                         </div>
-                        
+
                         <div className="flex items-center space-x-2">
                           <Input
                             type="time"
@@ -538,7 +539,7 @@ export default function SettingsPage() {
                             className="w-32"
                           />
                         </div>
-                        
+
                         <div className="flex items-center space-x-2">
                           <Switch
                             checked={!hoursForm.watch(`${day.key}.closed` as any)}
@@ -580,20 +581,20 @@ export default function SettingsPage() {
                   <p className="text-sm text-gray-600 mb-4">
                     Personaliza la apariencia de tu micrositio público
                   </p>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
                       <div className="w-full h-20 bg-gradient-to-br from-red-500 to-yellow-500 rounded mb-3"></div>
                       <p className="font-medium">Clásico Peruano</p>
                       <p className="text-sm text-gray-600">Colores tradicionales</p>
                     </div>
-                    
+
                     <div className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
                       <div className="w-full h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded mb-3"></div>
                       <p className="font-medium">Moderno</p>
                       <p className="text-sm text-gray-600">Diseño contemporáneo</p>
                     </div>
-                    
+
                     <div className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
                       <div className="w-full h-20 bg-gradient-to-br from-green-500 to-blue-500 rounded mb-3"></div>
                       <p className="font-medium">Natural</p>
@@ -698,7 +699,7 @@ export default function SettingsPage() {
                 Completa la información para registrar tu negocio en nuestra plataforma
               </DialogDescription>
             </DialogHeader>
-            
+
             <Form {...createBusinessForm}>
               <form onSubmit={createBusinessForm.handleSubmit(onCreateBusinessSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
