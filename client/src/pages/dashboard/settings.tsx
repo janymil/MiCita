@@ -885,7 +885,7 @@ export default function SettingsPage() {
                     <Label>URL del Micrositio</Label>
                     <div className="flex mt-2">
                       <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                        /negocio/
+                        {window.location.host}/
                       </span>
                       <Input 
                         placeholder="barberianicolas" 
@@ -896,14 +896,14 @@ export default function SettingsPage() {
                     {micrositeForm.watch("customUrl") && (
                       <div className="flex items-center space-x-2 mt-2">
                         <p className="text-xs text-green-600">
-                          ✓ Tu micrositio: /negocio/{micrositeForm.watch("customUrl")}
+                          ✓ Tu micrositio: /{micrositeForm.watch("customUrl")}
                         </p>
                         <Button 
                           type="button" 
                           variant="outline" 
                           size="sm"
                           onClick={() => {
-                            const url = `/negocio/${micrositeForm.watch("customUrl")}`;
+                            const url = `/${micrositeForm.watch("customUrl")}`;
                             window.open(url, '_blank');
                           }}
                         >
