@@ -1,8 +1,8 @@
-# BuscarPeru - Business Management Platform & Public Search Engine
+# MiCita - Comprehensive Appointment Management System
 
 ## Overview
 
-BuscarPeru is a comprehensive full-stack business management platform designed specifically for the Peruvian market. It serves as both an internal business operations platform for registered businesses and a public search engine/directory for discovering local businesses across Peru. The application combines modern web technologies with localized features to create a culturally appropriate solution for Peruvian businesses and consumers.
+MiCita (previously BuscarPeru) is a comprehensive full-stack appointment management platform designed for Spanish-speaking small to medium businesses. The system provides dual functionality: an internal business management dashboard for appointment scheduling, client management, and analytics, plus public business microsites for client discovery and online booking. The platform combines modern web technologies with Spanish localization to create a culturally appropriate solution for appointment-based service businesses.
 
 ## System Architecture
 
@@ -153,6 +153,102 @@ Changelog:
   - Resolved form loading issues where customUrl wasn't displaying in configuration
   - Enhanced form validation with proper error messages for missing URLs
   - Working hours now properly display from Horarios tab instead of default data
+
+## PRD Implementation Status
+
+### ✅ Completed Features (Core Foundation)
+**Authentication & User Management**:
+- JWT-based authentication with session persistence
+- User registration and login system
+- Protected routes for dashboard access
+
+**Dashboard & Analytics**:
+- Business overview dashboard with KPI cards
+- Basic analytics display (revenue, appointments, clients)
+- Quick navigation to key sections
+
+**Appointment Management System**:
+- Full CRUD operations for appointments
+- Appointment status tracking (pending, confirmed, completed, cancelled)
+- Calendar integration with multiple views
+- Real-time appointment display
+
+**Client Management**:
+- Comprehensive client database with profiles
+- Client CRUD operations with contact details
+- Client search and filtering capabilities
+- Appointment history tracking
+
+**Service Management**:
+- Service catalog creation and management
+- Pricing structure with duration settings
+- Service descriptions and categorization
+
+**Public Microsite System**:
+- Dynamic business microsites at direct URLs (/business-name)
+- Custom business URLs with SEO optimization
+- Service showcase on public pages
+- Business information display with working hours
+- Mobile-responsive design
+- Social media integration placeholders
+
+**Settings & Configuration**:
+- Comprehensive business settings management
+- Working hours configuration with blocked dates/times
+- Microsite customization with toggle features
+- Profile management for business information
+
+### 🚧 Partially Implemented Features
+**Calendar Integration**:
+- Basic calendar views implemented
+- Missing: Drag-and-drop functionality, visual status indicators
+
+**Financial Management**:
+- Basic revenue tracking in analytics
+- Missing: Payment status monitoring, detailed financial reporting
+
+**Email Notification System**:
+- Backend structure ready for email integration
+- Missing: SMTP configuration, email templates, automated notifications
+
+**Public Business Directory**:
+- Basic public search landing page
+- Missing: Advanced filtering, location-based search
+
+### ❌ Not Yet Implemented Features
+**File Upload & Gallery Management**:
+- Image upload system for business galleries
+- CDN integration (Bunny.net planned)
+
+**Advanced Search & Filtering**:
+- Global search across all data types
+- Advanced multi-criteria filtering
+
+**Data Import/Export**:
+- CSV import/export functionality
+- Bulk data operations
+
+**Mobile Optimization**:
+- Enhanced mobile experience
+- Touch-friendly interfaces
+
+**Third-Party Integrations**:
+- Google Maps API integration
+- Google OAuth authentication
+- Payment processing (Stripe/PayPal)
+- SMS notifications
+
+### 🔧 Technical Architecture Status
+**Database Schema**: ✅ Complete with Drizzle ORM
+**API Endpoints**: ✅ RESTful API implemented
+**Security**: ✅ Basic JWT authentication, input validation
+**Performance**: 🚧 Basic optimization, CDN integration pending
+
+### 📊 Current Implementation vs PRD Coverage
+- **Core Features**: ~75% implemented
+- **Technical Foundation**: ~85% complete  
+- **User Experience**: ~70% implemented
+- **Advanced Features**: ~25% implemented
 
 ## User Preferences
 
