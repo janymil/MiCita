@@ -506,12 +506,15 @@ export class MemStorage implements IStorage {
         updatedAt: new Date()
       };
       
-      // Update only non-empty string fields
+      // Update only non-empty string fields OR explicit boolean/object updates
       Object.keys(settings).forEach(key => {
         const value = settings[key as keyof InsertBusinessSettings];
         if (value !== undefined && value !== null) {
-          if (typeof value === 'string' && value.trim() !== '') {
-            (updated as any)[key] = value;
+          if (typeof value === 'string') {
+            // Only update strings if they're not empty, unless it's an explicit clear
+            if (value.trim() !== '' || existing[key as keyof BusinessSettings] !== '') {
+              (updated as any)[key] = value;
+            }
           } else if (typeof value === 'boolean') {
             (updated as any)[key] = value;
           } else if (Array.isArray(value)) {

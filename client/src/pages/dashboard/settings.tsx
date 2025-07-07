@@ -233,43 +233,45 @@ export default function SettingsPage() {
   // Reset form when settings data loads - FIXED VERSION
   React.useEffect(() => {
     if (currentBusinessSettings && Object.keys(currentBusinessSettings).length > 0) {
-      console.log("Loading settings into form:", currentBusinessSettings);
+      console.log("✅ Loading settings into form:", currentBusinessSettings);
       
-      // Wait for next tick to ensure form is ready
+      const formData = {
+        customUrl: currentBusinessSettings.customUrl || "",
+        professionalTitle: currentBusinessSettings.professionalTitle || "",
+        publicDescription: currentBusinessSettings.publicDescription || "",
+        profileImage: currentBusinessSettings.profileImage || "",
+        coverImage: currentBusinessSettings.coverImage || "",
+        publicEmail: currentBusinessSettings.publicEmail || "",
+        publicPhone: currentBusinessSettings.publicPhone || "",
+        streetAddress: currentBusinessSettings.streetAddress || "",
+        district: currentBusinessSettings.district || "",
+        region: currentBusinessSettings.region || "",
+        postalCode: currentBusinessSettings.postalCode || "",
+        country: currentBusinessSettings.country || "Perú",
+        facebookUrl: currentBusinessSettings.facebookUrl || "",
+        instagramUrl: currentBusinessSettings.instagramUrl || "",
+        tiktokUrl: currentBusinessSettings.tiktokUrl || "",
+        youtubeUrl: currentBusinessSettings.youtubeUrl || "",
+        enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
+        enableContactForm: currentBusinessSettings.enableContactForm ?? true,
+        enableGallery: currentBusinessSettings.enableGallery ?? true,
+        scheduleNotes: currentBusinessSettings.scheduleNotes || "",
+      };
+      
+      console.log("✅ Setting form values:", formData);
+      
+      // Reset form with the data
+      micrositeForm.reset(formData);
+      
+      // Force update all form fields immediately
       setTimeout(() => {
-        const formData = {
-          customUrl: currentBusinessSettings.customUrl || "",
-          professionalTitle: currentBusinessSettings.professionalTitle || "",
-          publicDescription: currentBusinessSettings.publicDescription || "",
-          profileImage: currentBusinessSettings.profileImage || "",
-          coverImage: currentBusinessSettings.coverImage || "",
-          publicEmail: currentBusinessSettings.publicEmail || "",
-          publicPhone: currentBusinessSettings.publicPhone || "",
-          streetAddress: currentBusinessSettings.streetAddress || "",
-          district: currentBusinessSettings.district || "",
-          region: currentBusinessSettings.region || "",
-          postalCode: currentBusinessSettings.postalCode || "",
-          country: currentBusinessSettings.country || "Perú",
-          facebookUrl: currentBusinessSettings.facebookUrl || "",
-          instagramUrl: currentBusinessSettings.instagramUrl || "",
-          tiktokUrl: currentBusinessSettings.tiktokUrl || "",
-          youtubeUrl: currentBusinessSettings.youtubeUrl || "",
-          enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
-          enableContactForm: currentBusinessSettings.enableContactForm ?? true,
-          enableGallery: currentBusinessSettings.enableGallery ?? true,
-          scheduleNotes: currentBusinessSettings.scheduleNotes || "",
-        };
-        
-        console.log("Setting form values:", formData);
-        micrositeForm.reset(formData);
-        
-        // Force update all form fields
         Object.keys(formData).forEach(key => {
-          micrositeForm.setValue(key as any, formData[key as keyof typeof formData]);
+          const value = formData[key as keyof typeof formData];
+          micrositeForm.setValue(key as any, value, { shouldValidate: true });
         });
-      }, 100);
+      }, 50);
     }
-  }, [currentBusinessSettings, micrositeForm]);
+  }, [currentBusinessSettings]);
 
   const updateMicrositeSettingsMutation = useMutation({
     mutationFn: async (data: MicrositeForm) => {
@@ -900,10 +902,13 @@ export default function SettingsPage() {
                           type="button" 
                           variant="outline" 
                           size="sm"
-                          onClick={() => window.open(`/negocio/${micrositeForm.watch("customUrl")}`, '_blank')}
+                          onClick={() => {
+                            const url = `/negocio/${micrositeForm.watch("customUrl")}`;
+                            window.open(url, '_blank');
+                          }}
                         >
                           <ExternalLink className="w-3 h-3 mr-1" />
-                          Ver
+                          Vista Previa
                         </Button>
                       </div>
                     )}
