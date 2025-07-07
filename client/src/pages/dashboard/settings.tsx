@@ -809,6 +809,7 @@ export default function SettingsPage() {
 
           {/* Microsite Configuration */}
           <TabsContent value="microsite" className="space-y-6">
+            <form onSubmit={micrositeForm.handleSubmit(onMicrositeSubmit)} className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -820,66 +821,40 @@ export default function SettingsPage() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <Form {...micrositeForm}>
-                  <form onSubmit={micrositeForm.handleSubmit(onMicrositeSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={micrositeForm.control}
-                        name="customUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>URL del Micrositio</FormLabel>
-                            <FormControl>
-                              <div className="flex">
-                                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                                  buscarperu.com/negocio/
-                                </span>
-                                <Input 
-                                  placeholder="mi-negocio" 
-                                  {...field} 
-                                  className="rounded-l-none"
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={micrositeForm.control}
-                        name="professionalTitle"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Título Profesional</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Ej: Barbería" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label>URL del Micrositio</Label>
+                    <div className="flex mt-2">
+                      <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                        buscarperu.com/negocio/
+                      </span>
+                      <Input 
+                        placeholder="mi-negocio" 
+                        {...micrositeForm.register("customUrl")}
+                        className="rounded-l-none"
                       />
                     </div>
+                  </div>
 
-                    <FormField
-                      control={micrositeForm.control}
-                      name="publicDescription"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Descripción Pública</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Descripción que verán tus clientes en tu micrositio público..."
-                              rows={4}
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                  <div>
+                    <Label>Título Profesional</Label>
+                    <Input 
+                      placeholder="Ej: Barbería" 
+                      {...micrositeForm.register("professionalTitle")}
+                      className="mt-2"
                     />
-                  </form>
-                </Form>
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Descripción Pública</Label>
+                  <Textarea
+                    placeholder="Descripción que verán tus clientes en tu micrositio público..."
+                    rows={4}
+                    {...micrositeForm.register("publicDescription")}
+                    className="mt-2"
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -928,110 +903,72 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={micrositeForm.control}
-                    name="publicEmail"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email Público</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="email" 
-                            placeholder="contacto@negocio.com" 
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label>Email Público</Label>
+                    <Input 
+                      type="email" 
+                      placeholder="contacto@negocio.com" 
+                      {...micrositeForm.register("publicEmail")}
+                      className="mt-2"
+                    />
+                  </div>
 
-                  <FormField
-                    control={micrositeForm.control}
-                    name="publicPhone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Teléfono Público</FormLabel>
-                        <FormControl>
-                          <Input placeholder="+51 987 654 321" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label>Teléfono Público</Label>
+                    <Input 
+                      placeholder="+51 987 654 321" 
+                      {...micrositeForm.register("publicPhone")}
+                      className="mt-2"
+                    />
+                  </div>
                 </div>
 
-                <FormField
-                  control={micrositeForm.control}
-                  name="streetAddress"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Calle y Número</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Av. Larco 345" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div>
+                  <Label>Calle y Número</Label>
+                  <Input 
+                    placeholder="Av. Larco 345" 
+                    {...micrositeForm.register("streetAddress")}
+                    className="mt-2"
+                  />
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <FormField
-                    control={micrositeForm.control}
-                    name="district"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ciudad / Distrito</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Miraflores" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label>Ciudad / Distrito</Label>
+                    <Input 
+                      placeholder="Miraflores" 
+                      {...micrositeForm.register("district")}
+                      className="mt-2"
+                    />
+                  </div>
 
-                  <FormField
-                    control={micrositeForm.control}
-                    name="region"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Referencia / Región</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Cerca al parque Kennedy" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label>Referencia / Región</Label>
+                    <Input 
+                      placeholder="Cerca al parque Kennedy" 
+                      {...micrositeForm.register("region")}
+                      className="mt-2"
+                    />
+                  </div>
 
-                  <FormField
-                    control={micrositeForm.control}
-                    name="postalCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Código Postal</FormLabel>
-                        <FormControl>
-                          <Input placeholder="15074" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label>Código Postal</Label>
+                    <Input 
+                      placeholder="15074" 
+                      {...micrositeForm.register("postalCode")}
+                      className="mt-2"
+                    />
+                  </div>
                 </div>
 
-                <FormField
-                  control={micrositeForm.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>País</FormLabel>
-                      <FormControl>
-                        <Input {...field} disabled />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div>
+                  <Label>País</Label>
+                  <Input 
+                    {...micrositeForm.register("country")}
+                    disabled 
+                    className="mt-2"
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -1045,73 +982,53 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={micrositeForm.control}
-                    name="facebookUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center">
-                          <Facebook className="w-4 h-4 mr-2 text-blue-600" />
-                          Facebook
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://facebook.com/tu-negocio" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label className="flex items-center">
+                      <Facebook className="w-4 h-4 mr-2 text-blue-600" />
+                      Facebook
+                    </Label>
+                    <Input 
+                      placeholder="https://facebook.com/tu-negocio" 
+                      {...micrositeForm.register("facebookUrl")}
+                      className="mt-2"
+                    />
+                  </div>
 
-                  <FormField
-                    control={micrositeForm.control}
-                    name="instagramUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center">
-                          <Instagram className="w-4 h-4 mr-2 text-pink-600" />
-                          Instagram
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://instagram.com/tu-negocio" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label className="flex items-center">
+                      <Instagram className="w-4 h-4 mr-2 text-pink-600" />
+                      Instagram
+                    </Label>
+                    <Input 
+                      placeholder="https://instagram.com/tu-negocio" 
+                      {...micrositeForm.register("instagramUrl")}
+                      className="mt-2"
+                    />
+                  </div>
 
-                  <FormField
-                    control={micrositeForm.control}
-                    name="tiktokUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center">
-                          <Twitter className="w-4 h-4 mr-2 text-black" />
-                          TikTok
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://tiktok.com/@tu-negocio" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label className="flex items-center">
+                      <Twitter className="w-4 h-4 mr-2 text-black" />
+                      TikTok
+                    </Label>
+                    <Input 
+                      placeholder="https://tiktok.com/@tu-negocio" 
+                      {...micrositeForm.register("tiktokUrl")}
+                      className="mt-2"
+                    />
+                  </div>
 
-                  <FormField
-                    control={micrositeForm.control}
-                    name="youtubeUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center">
-                          <Youtube className="w-4 h-4 mr-2 text-red-600" />
-                          YouTube
-                        </FormLabel>
-                        <FormControl>
-                          <Input placeholder="https://youtube.com/@tu-negocio" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <Label className="flex items-center">
+                      <Youtube className="w-4 h-4 mr-2 text-red-600" />
+                      YouTube
+                    </Label>
+                    <Input 
+                      placeholder="https://youtube.com/@tu-negocio" 
+                      {...micrositeForm.register("youtubeUrl")}
+                      className="mt-2"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1208,26 +1125,17 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <FormField
-                    control={micrositeForm.control}
-                    name="scheduleNotes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-base font-medium text-purple-600">Notas de Horario de Apertura</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Ej: Martes a Domingo, 9.00 - 22.00. Atendemos con cita previa los lunes."
-                            rows={3}
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                  <Label className="text-base font-medium text-purple-600">Notas de Horario de Apertura</Label>
+                  <Textarea
+                    placeholder="Ej: Martes a Domingo, 9.00 - 22.00. Atendemos con cita previa los lunes."
+                    rows={3}
+                    {...micrositeForm.register("scheduleNotes")}
+                    className="mt-2"
                   />
                 </div>
               </CardContent>
             </Card>
+            </form>
           </TabsContent>
 
           {/* Business Hours */}
