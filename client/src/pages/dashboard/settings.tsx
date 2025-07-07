@@ -251,7 +251,7 @@ export default function SettingsPage() {
   const micrositeForm = useForm<MicrositeForm>({
     resolver: zodResolver(micrositeSchema),
     defaultValues: {
-      customUrl: currentBusiness?.slug || "",
+      customUrl: "",
       professionalTitle: "",
       publicDescription: "",
       profileImage: "",
@@ -309,9 +309,10 @@ export default function SettingsPage() {
         setBlockedHours(currentBusinessSettings.blockedHours);
       }
       
+      console.log("🔄 Resetting form with data:", formData);
       micrositeForm.reset(formData);
     }
-  }, [currentBusinessSettings, currentBusiness]);
+  }, [currentBusinessSettings, micrositeForm]);
 
   const updateMicrositeSettingsMutation = useMutation({
     mutationFn: async (data: MicrositeForm) => {
