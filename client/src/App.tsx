@@ -48,8 +48,6 @@ function Router() {
       {/* Business micrositio route - catch-all for business slugs */}
       <Route path="/:slug" component={BusinessMicrosite} />
       
-
-      
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

@@ -289,22 +289,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Micrositio routes
   app.get("/api/micrositio/:slug", async (req, res) => {
     const slug = req.params.slug;
+    console.log(`Looking for micrositio with slug: ${slug}`);
+    
     try {
       // Get all business settings to find one with matching custom URL
       const businesses = await storage.searchBusinesses("");
+      console.log(`Found ${businesses.length} businesses to search through`);
+      
       let foundBusiness = null;
       let foundSettings = null;
 
       for (const business of businesses) {
         const settings = await storage.getBusinessSettings(business.id);
+        console.log(`Business ${business.id} (${business.name}) has customUrl: ${settings?.customUrl}`);
+        
         if (settings?.customUrl === slug) {
           foundBusiness = business;
           foundSettings = settings;
+          console.log(`Found matching business: ${business.name} with customUrl: ${settings.customUrl}`);
           break;
         }
       }
 
       if (!foundBusiness || !foundSettings) {
+        console.log(`No business found with customUrl: ${slug}`);
         return res.status(404).json({ error: "Negocio no encontrado" });
       }
 
@@ -312,6 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const gallery = await storage.getGalleryByBusinessId(foundBusiness.id);
       const reviews = await storage.getReviewsByBusinessId(foundBusiness.id);
 
+      console.log(`Returning micrositio data for: ${foundBusiness.name}`);
       res.json({
         business: foundBusiness,
         settings: foundSettings,
@@ -320,6 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         reviews
       });
     } catch (error) {
+      console.error("Error in micrositio route:", error);
       res.status(500).json({ error: "Error obteniendo datos del negocio" });
     }
   });

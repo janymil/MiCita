@@ -14,10 +14,16 @@ import { categories } from "@/lib/constants";
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
   
+  console.log("BusinessMicrosite: slug =", slug);
+  
   const { data: micrositeData, isLoading, error } = useQuery({
-    queryKey: ["/api/micrositio", slug],
+    queryKey: [`/api/micrositio/${slug}`],
     enabled: !!slug,
   });
+  
+  console.log("BusinessMicrosite: micrositeData =", micrositeData);
+  console.log("BusinessMicrosite: isLoading =", isLoading);
+  console.log("BusinessMicrosite: error =", error);
 
   if (isLoading) {
     return (
