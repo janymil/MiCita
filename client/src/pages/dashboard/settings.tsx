@@ -280,24 +280,13 @@ export default function SettingsPage() {
     mutationFn: async (data: MicrositeForm) => {
       console.log("🔄 Sending data to API:", data);
       
-      // Only send non-empty fields to prevent overwriting existing data
-      const filteredData = Object.entries(data).reduce((acc, [key, value]) => {
-        if (typeof value === 'string' && value.trim() !== '') {
-          acc[key] = value;
-        } else if (typeof value === 'boolean') {
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as any);
-      
-      console.log("🔄 Filtered data (non-empty only):", filteredData);
-      
+      // Send all data, including empty strings for proper updates
       const response = await fetch(`/api/dashboard/businesses/${currentBusiness?.id}/settings`, {
         method: "PUT",
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(filteredData),
+        body: JSON.stringify(data),
       });
       
       if (!response.ok) {
@@ -326,16 +315,7 @@ export default function SettingsPage() {
   const onMicrositeSubmit = (data: MicrositeForm) => {
     console.log("✅ Submitting micrositio data:", data);
     
-    // Validate that we have essential data before submitting
-    if (!data.customUrl || data.customUrl.trim() === '') {
-      toast({
-        title: "Error",
-        description: "Primero configura la URL del negocio.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+    // Always submit the data, even if customUrl is empty - let the server handle it
     updateMicrositeSettingsMutation.mutate(data);
   };
 
@@ -1271,12 +1251,12 @@ export default function SettingsPage() {
                     className="flex items-center"
                     onClick={() => {
                       const customUrl = micrositeForm.getValues("customUrl");
-                      if (customUrl) {
+                      if (customUrl && customUrl.trim() !== '') {
                         window.open(`/${customUrl}`, '_blank');
                       } else {
                         toast({
                           title: "URL no configurada",
-                          description: "Primero configura la URL del micrositio.",
+                          description: "Primero guarda una URL personalizada para ver la vista previa.",
                           variant: "destructive",
                         });
                       }
