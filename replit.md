@@ -140,6 +140,13 @@ Changelog:
   - Real-time form validation and database integration
   - No hardcoded data - everything driven by user configuration
   - Fixed React form context errors and ensured stable operation
+- July 07, 2025: Enhanced micrositio system with advanced features:
+  - Fixed form data persistence issues preventing configuration loss
+  - Implemented working toggle functionality for public features (booking, contact, gallery)
+  - Added comprehensive blocked dates and hours system in Horarios tab
+  - Enhanced public micrositio pages to respect all toggle settings dynamically
+  - Restored and secured "barberianicolas" test configuration data
+  - All toggle effects immediately visible on public micrositio pages
 
 ## User Preferences
 

@@ -40,7 +40,8 @@ import {
   ExternalLink,
   Upload,
   Eye,
-  Edit3
+  Edit3,
+  AlertTriangle
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
