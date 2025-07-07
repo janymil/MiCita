@@ -244,8 +244,10 @@ export default function SettingsPage() {
   });
 
   const { data: currentBusinessSettings } = useQuery({
-    queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"],
+    queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`],
     enabled: !!currentBusiness?.id,
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true,
   });
 
   const micrositeForm = useForm<MicrositeForm>({
@@ -275,64 +277,30 @@ export default function SettingsPage() {
     mode: "onChange"
   });
 
-  // Set form values when settings load - WITHOUT RESETTING
+  // Set form values when settings load - ALWAYS update to reflect current data
   React.useEffect(() => {
     if (currentBusinessSettings) {
-      // Only set values if they're empty (first load)
-      if (!micrositeForm.getValues("customUrl")) {
-        micrositeForm.setValue("customUrl", currentBusinessSettings.customUrl || "");
-      }
-      if (!micrositeForm.getValues("professionalTitle")) {
-        micrositeForm.setValue("professionalTitle", currentBusinessSettings.professionalTitle || "");
-      }
-      if (!micrositeForm.getValues("publicDescription")) {
-        micrositeForm.setValue("publicDescription", currentBusinessSettings.publicDescription || "");
-      }
-      if (!micrositeForm.getValues("profileImage")) {
-        micrositeForm.setValue("profileImage", currentBusinessSettings.profileImage || "");
-      }
-      if (!micrositeForm.getValues("coverImage")) {
-        micrositeForm.setValue("coverImage", currentBusinessSettings.coverImage || "");
-      }
-      if (!micrositeForm.getValues("publicEmail")) {
-        micrositeForm.setValue("publicEmail", currentBusinessSettings.publicEmail || "");
-      }
-      if (!micrositeForm.getValues("publicPhone")) {
-        micrositeForm.setValue("publicPhone", currentBusinessSettings.publicPhone || "");
-      }
-      if (!micrositeForm.getValues("streetAddress")) {
-        micrositeForm.setValue("streetAddress", currentBusinessSettings.streetAddress || "");
-      }
-      if (!micrositeForm.getValues("district")) {
-        micrositeForm.setValue("district", currentBusinessSettings.district || "");
-      }
-      if (!micrositeForm.getValues("region")) {
-        micrositeForm.setValue("region", currentBusinessSettings.region || "");
-      }
-      if (!micrositeForm.getValues("postalCode")) {
-        micrositeForm.setValue("postalCode", currentBusinessSettings.postalCode || "");
-      }
-      if (!micrositeForm.getValues("country")) {
-        micrositeForm.setValue("country", currentBusinessSettings.country || "Perú");
-      }
-      if (!micrositeForm.getValues("facebookUrl")) {
-        micrositeForm.setValue("facebookUrl", currentBusinessSettings.facebookUrl || "");
-      }
-      if (!micrositeForm.getValues("instagramUrl")) {
-        micrositeForm.setValue("instagramUrl", currentBusinessSettings.instagramUrl || "");
-      }
-      if (!micrositeForm.getValues("tiktokUrl")) {
-        micrositeForm.setValue("tiktokUrl", currentBusinessSettings.tiktokUrl || "");
-      }
-      if (!micrositeForm.getValues("youtubeUrl")) {
-        micrositeForm.setValue("youtubeUrl", currentBusinessSettings.youtubeUrl || "");
-      }
+      // Always set values to match current settings from server
+      micrositeForm.setValue("customUrl", currentBusinessSettings.customUrl || "");
+      micrositeForm.setValue("professionalTitle", currentBusinessSettings.professionalTitle || "");
+      micrositeForm.setValue("publicDescription", currentBusinessSettings.publicDescription || "");
+      micrositeForm.setValue("profileImage", currentBusinessSettings.profileImage || "");
+      micrositeForm.setValue("coverImage", currentBusinessSettings.coverImage || "");
+      micrositeForm.setValue("publicEmail", currentBusinessSettings.publicEmail || "");
+      micrositeForm.setValue("publicPhone", currentBusinessSettings.publicPhone || "");
+      micrositeForm.setValue("streetAddress", currentBusinessSettings.streetAddress || "");
+      micrositeForm.setValue("district", currentBusinessSettings.district || "");
+      micrositeForm.setValue("region", currentBusinessSettings.region || "");
+      micrositeForm.setValue("postalCode", currentBusinessSettings.postalCode || "");
+      micrositeForm.setValue("country", currentBusinessSettings.country || "Perú");
+      micrositeForm.setValue("facebookUrl", currentBusinessSettings.facebookUrl || "");
+      micrositeForm.setValue("instagramUrl", currentBusinessSettings.instagramUrl || "");
+      micrositeForm.setValue("tiktokUrl", currentBusinessSettings.tiktokUrl || "");
+      micrositeForm.setValue("youtubeUrl", currentBusinessSettings.youtubeUrl || "");
       micrositeForm.setValue("enablePublicBooking", currentBusinessSettings.enablePublicBooking ?? true);
       micrositeForm.setValue("enableContactForm", currentBusinessSettings.enableContactForm ?? true);
       micrositeForm.setValue("enableGallery", currentBusinessSettings.enableGallery ?? true);
-      if (!micrositeForm.getValues("scheduleNotes")) {
-        micrositeForm.setValue("scheduleNotes", currentBusinessSettings.scheduleNotes || "");
-      }
+      micrositeForm.setValue("scheduleNotes", currentBusinessSettings.scheduleNotes || "");
     }
   }, [currentBusinessSettings]);
 
@@ -373,7 +341,7 @@ export default function SettingsPage() {
         title: "Configuración guardada",
         description: "Los cambios del micrositio se han guardado correctamente.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`] });
       // Also invalidate business data to update the slug
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses"] });
     },
@@ -947,7 +915,7 @@ export default function SettingsPage() {
                       >
                         {micrositeForm.watch("profileImage") ? (
                           <img 
-                            src={micrositeForm.watch("profileImage")} 
+                            src={`${micrositeForm.watch("profileImage")}?t=${Date.now()}`} 
                             alt="Perfil" 
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -981,6 +949,8 @@ export default function SettingsPage() {
                               if (response.ok) {
                                 const data = await response.json();
                                 micrositeForm.setValue('profileImage', window.location.origin + data.url);
+                                // Invalidate cache when image is uploaded
+                                queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`] });
                               } else {
                                 toast({
                                   title: "Error",
@@ -1020,12 +990,12 @@ export default function SettingsPage() {
                   <div>
                     <Label className="text-base font-medium">Imagen de Portada</Label>
                     <div className="mt-2">
-                      <div className="w-full h-24 bg-gray-100 rounded-lg border flex items-center justify-center overflow-hidden mb-2 relative group cursor-pointer"
+                      <div className="w-full h-40 bg-gray-100 rounded-lg border flex items-center justify-center overflow-hidden mb-2 relative group cursor-pointer"
                         onClick={() => document.getElementById('coverImageInput')?.click()}
                       >
                         {micrositeForm.watch("coverImage") ? (
                           <img 
-                            src={micrositeForm.watch("coverImage")} 
+                            src={`${micrositeForm.watch("coverImage")}?t=${Date.now()}`} 
                             alt="Portada" 
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -1062,6 +1032,8 @@ export default function SettingsPage() {
                               if (response.ok) {
                                 const data = await response.json();
                                 micrositeForm.setValue('coverImage', window.location.origin + data.url);
+                                // Invalidate cache when image is uploaded
+                                queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`] });
                               } else {
                                 toast({
                                   title: "Error",
