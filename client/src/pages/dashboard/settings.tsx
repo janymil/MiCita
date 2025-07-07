@@ -250,34 +250,56 @@ export default function SettingsPage() {
 
   const micrositeForm = useForm<MicrositeForm>({
     resolver: zodResolver(micrositeSchema),
+    defaultValues: {
+      customUrl: currentBusinessSettings?.customUrl || "",
+      professionalTitle: currentBusinessSettings?.professionalTitle || "",
+      publicDescription: currentBusinessSettings?.publicDescription || "",
+      profileImage: currentBusinessSettings?.profileImage || "",
+      coverImage: currentBusinessSettings?.coverImage || "",
+      publicEmail: currentBusinessSettings?.publicEmail || "",
+      publicPhone: currentBusinessSettings?.publicPhone || "",
+      streetAddress: currentBusinessSettings?.streetAddress || "",
+      district: currentBusinessSettings?.district || "",
+      region: currentBusinessSettings?.region || "",
+      postalCode: currentBusinessSettings?.postalCode || "",
+      country: currentBusinessSettings?.country || "Perú",
+      facebookUrl: currentBusinessSettings?.facebookUrl || "",
+      instagramUrl: currentBusinessSettings?.instagramUrl || "",
+      tiktokUrl: currentBusinessSettings?.tiktokUrl || "",
+      youtubeUrl: currentBusinessSettings?.youtubeUrl || "",
+      enablePublicBooking: currentBusinessSettings?.enablePublicBooking ?? true,
+      enableContactForm: currentBusinessSettings?.enableContactForm ?? true,
+      enableGallery: currentBusinessSettings?.enableGallery ?? true,
+      scheduleNotes: currentBusinessSettings?.scheduleNotes || "",
+    },
     mode: "onChange"
   });
 
-  // Set default values when data loads - ONLY ONCE
+  // Reset form when settings change
   React.useEffect(() => {
     if (currentBusinessSettings) {
-      console.log("🔄 Loading form data:", currentBusinessSettings.customUrl);
-      console.log("🔄 Full settings:", currentBusinessSettings);
-      micrositeForm.setValue("customUrl", currentBusinessSettings.customUrl || "");
-      micrositeForm.setValue("professionalTitle", currentBusinessSettings.professionalTitle || "");
-      micrositeForm.setValue("publicDescription", currentBusinessSettings.publicDescription || "");
-      micrositeForm.setValue("profileImage", currentBusinessSettings.profileImage || "");
-      micrositeForm.setValue("coverImage", currentBusinessSettings.coverImage || "");
-      micrositeForm.setValue("publicEmail", currentBusinessSettings.publicEmail || "");
-      micrositeForm.setValue("publicPhone", currentBusinessSettings.publicPhone || "");
-      micrositeForm.setValue("streetAddress", currentBusinessSettings.streetAddress || "");
-      micrositeForm.setValue("district", currentBusinessSettings.district || "");
-      micrositeForm.setValue("region", currentBusinessSettings.region || "");
-      micrositeForm.setValue("postalCode", currentBusinessSettings.postalCode || "");
-      micrositeForm.setValue("country", currentBusinessSettings.country || "Perú");
-      micrositeForm.setValue("facebookUrl", currentBusinessSettings.facebookUrl || "");
-      micrositeForm.setValue("instagramUrl", currentBusinessSettings.instagramUrl || "");
-      micrositeForm.setValue("tiktokUrl", currentBusinessSettings.tiktokUrl || "");
-      micrositeForm.setValue("youtubeUrl", currentBusinessSettings.youtubeUrl || "");
-      micrositeForm.setValue("enablePublicBooking", currentBusinessSettings.enablePublicBooking ?? true);
-      micrositeForm.setValue("enableContactForm", currentBusinessSettings.enableContactForm ?? true);
-      micrositeForm.setValue("enableGallery", currentBusinessSettings.enableGallery ?? true);
-      micrositeForm.setValue("scheduleNotes", currentBusinessSettings.scheduleNotes || "");
+      micrositeForm.reset({
+        customUrl: currentBusinessSettings.customUrl || "",
+        professionalTitle: currentBusinessSettings.professionalTitle || "",
+        publicDescription: currentBusinessSettings.publicDescription || "",
+        profileImage: currentBusinessSettings.profileImage || "",
+        coverImage: currentBusinessSettings.coverImage || "",
+        publicEmail: currentBusinessSettings.publicEmail || "",
+        publicPhone: currentBusinessSettings.publicPhone || "",
+        streetAddress: currentBusinessSettings.streetAddress || "",
+        district: currentBusinessSettings.district || "",
+        region: currentBusinessSettings.region || "",
+        postalCode: currentBusinessSettings.postalCode || "",
+        country: currentBusinessSettings.country || "Perú",
+        facebookUrl: currentBusinessSettings.facebookUrl || "",
+        instagramUrl: currentBusinessSettings.instagramUrl || "",
+        tiktokUrl: currentBusinessSettings.tiktokUrl || "",
+        youtubeUrl: currentBusinessSettings.youtubeUrl || "",
+        enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
+        enableContactForm: currentBusinessSettings.enableContactForm ?? true,
+        enableGallery: currentBusinessSettings.enableGallery ?? true,
+        scheduleNotes: currentBusinessSettings.scheduleNotes || "",
+      });
     }
   }, [currentBusinessSettings]);
 
@@ -814,18 +836,9 @@ export default function SettingsPage() {
                       </span>
                       <Input 
                         placeholder="tunegocio" 
-                        value={currentBusinessSettings?.customUrl || ""}
-                        onChange={(e) => {
-                          micrositeForm.setValue("customUrl", e.target.value);
-                          console.log("🔧 Input changed to:", e.target.value);
-                        }}
+                        {...micrositeForm.register("customUrl")}
                         className="rounded-l-none"
                       />
-                      {currentBusinessSettings?.customUrl && (
-                        <div className="text-xs text-green-600 mt-1">
-                          Debug: Database value = "{currentBusinessSettings.customUrl}"
-                        </div>
-                      )}
                     </div>
                     {micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '' ? (
                       <div className="flex items-center space-x-2 mt-2">
