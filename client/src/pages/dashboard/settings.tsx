@@ -228,12 +228,16 @@ export default function SettingsPage() {
       enableGallery: true,
       scheduleNotes: "",
     },
+    mode: "onChange"
   });
 
-  // Reset form when settings data loads - FIXED VERSION
+  // Reset form when settings data loads - DEBUGGING VERSION
   React.useEffect(() => {
+    console.log("🔍 Effect triggered. currentBusinessSettings:", currentBusinessSettings);
+    console.log("🔍 Form current values:", micrositeForm.getValues());
+    
     if (currentBusinessSettings && Object.keys(currentBusinessSettings).length > 0) {
-      console.log("✅ Loading settings into form:", currentBusinessSettings);
+      console.log("✅ LOADING SETTINGS - customUrl:", currentBusinessSettings.customUrl);
       
       const formData = {
         customUrl: currentBusinessSettings.customUrl || "",
@@ -258,18 +262,17 @@ export default function SettingsPage() {
         scheduleNotes: currentBusinessSettings.scheduleNotes || "",
       };
       
-      console.log("✅ Setting form values:", formData);
+      console.log("✅ SETTING FORM DATA:", formData);
       
-      // Reset form with the data
+      // Force reset the form completely
       micrositeForm.reset(formData);
       
-      // Force update all form fields immediately
+      // Force set the customUrl directly
       setTimeout(() => {
-        Object.keys(formData).forEach(key => {
-          const value = formData[key as keyof typeof formData];
-          micrositeForm.setValue(key as any, value, { shouldValidate: true });
-        });
-      }, 50);
+        console.log("✅ FORCE SETTING customUrl:", currentBusinessSettings.customUrl);
+        micrositeForm.setValue("customUrl", currentBusinessSettings.customUrl || "", { shouldValidate: true });
+        console.log("✅ Form values after force set:", micrositeForm.getValues());
+      }, 100);
     }
   }, [currentBusinessSettings]);
 
@@ -915,6 +918,8 @@ export default function SettingsPage() {
                         placeholder="barberianicolas" 
                         {...micrositeForm.register("customUrl")}
                         className="rounded-l-none"
+                        value={micrositeForm.watch("customUrl")}
+                        onChange={(e) => micrositeForm.setValue("customUrl", e.target.value)}
                       />
                     </div>
                     {micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '' ? (
