@@ -253,37 +253,32 @@ export default function SettingsPage() {
     mode: "onChange"
   });
 
-  // Set default values when data loads
+  // Set default values when data loads - ONLY ONCE
   React.useEffect(() => {
-    if (currentBusinessSettings) {
-      const formData = {
-        customUrl: currentBusinessSettings.customUrl || "",
-        professionalTitle: currentBusinessSettings.professionalTitle || "",
-        publicDescription: currentBusinessSettings.publicDescription || "",
-        profileImage: currentBusinessSettings.profileImage || "",
-        coverImage: currentBusinessSettings.coverImage || "",
-        publicEmail: currentBusinessSettings.publicEmail || "",
-        publicPhone: currentBusinessSettings.publicPhone || "",
-        streetAddress: currentBusinessSettings.streetAddress || "",
-        district: currentBusinessSettings.district || "",
-        region: currentBusinessSettings.region || "",
-        postalCode: currentBusinessSettings.postalCode || "",
-        country: currentBusinessSettings.country || "Perú",
-        facebookUrl: currentBusinessSettings.facebookUrl || "",
-        instagramUrl: currentBusinessSettings.instagramUrl || "",
-        tiktokUrl: currentBusinessSettings.tiktokUrl || "",
-        youtubeUrl: currentBusinessSettings.youtubeUrl || "",
-        enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
-        enableContactForm: currentBusinessSettings.enableContactForm ?? true,
-        enableGallery: currentBusinessSettings.enableGallery ?? true,
-        scheduleNotes: currentBusinessSettings.scheduleNotes || "",
-      };
-      
-      Object.keys(formData).forEach(key => {
-        micrositeForm.setValue(key as keyof MicrositeForm, formData[key as keyof typeof formData]);
-      });
+    if (currentBusinessSettings && !micrositeForm.formState.isDirty) {
+      console.log("🔄 Loading form data:", currentBusinessSettings.customUrl);
+      micrositeForm.setValue("customUrl", currentBusinessSettings.customUrl || "");
+      micrositeForm.setValue("professionalTitle", currentBusinessSettings.professionalTitle || "");
+      micrositeForm.setValue("publicDescription", currentBusinessSettings.publicDescription || "");
+      micrositeForm.setValue("profileImage", currentBusinessSettings.profileImage || "");
+      micrositeForm.setValue("coverImage", currentBusinessSettings.coverImage || "");
+      micrositeForm.setValue("publicEmail", currentBusinessSettings.publicEmail || "");
+      micrositeForm.setValue("publicPhone", currentBusinessSettings.publicPhone || "");
+      micrositeForm.setValue("streetAddress", currentBusinessSettings.streetAddress || "");
+      micrositeForm.setValue("district", currentBusinessSettings.district || "");
+      micrositeForm.setValue("region", currentBusinessSettings.region || "");
+      micrositeForm.setValue("postalCode", currentBusinessSettings.postalCode || "");
+      micrositeForm.setValue("country", currentBusinessSettings.country || "Perú");
+      micrositeForm.setValue("facebookUrl", currentBusinessSettings.facebookUrl || "");
+      micrositeForm.setValue("instagramUrl", currentBusinessSettings.instagramUrl || "");
+      micrositeForm.setValue("tiktokUrl", currentBusinessSettings.tiktokUrl || "");
+      micrositeForm.setValue("youtubeUrl", currentBusinessSettings.youtubeUrl || "");
+      micrositeForm.setValue("enablePublicBooking", currentBusinessSettings.enablePublicBooking ?? true);
+      micrositeForm.setValue("enableContactForm", currentBusinessSettings.enableContactForm ?? true);
+      micrositeForm.setValue("enableGallery", currentBusinessSettings.enableGallery ?? true);
+      micrositeForm.setValue("scheduleNotes", currentBusinessSettings.scheduleNotes || "");
     }
-  }, [currentBusinessSettings, micrositeForm]);
+  }, [currentBusinessSettings]);
 
   // Update form values whenever settings change
   React.useEffect(() => {
@@ -818,8 +813,8 @@ export default function SettingsPage() {
                       </span>
                       <Input 
                         placeholder="tunegocio" 
-                        defaultValue={currentBusinessSettings?.customUrl || ""}
-                        {...micrositeForm.register("customUrl")}
+                        value={micrositeForm.watch("customUrl") || currentBusinessSettings?.customUrl || ""}
+                        onChange={(e) => micrositeForm.setValue("customUrl", e.target.value)}
                         className="rounded-l-none"
                       />
                     </div>
