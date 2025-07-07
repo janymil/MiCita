@@ -500,13 +500,28 @@ export class MemStorage implements IStorage {
     const existing = Array.from(this.businessSettings.values()).find(s => s.businessId === businessId);
     
     if (existing) {
+      // Only update fields that have actual values to prevent overwriting with empty strings
       const updated = { 
         ...existing, 
-        ...settings,
-        blockedDates: settings.blockedDates || existing.blockedDates || [],
-        blockedHours: settings.blockedHours || existing.blockedHours || [],
         updatedAt: new Date()
       };
+      
+      // Update only non-empty string fields
+      Object.keys(settings).forEach(key => {
+        const value = settings[key as keyof InsertBusinessSettings];
+        if (value !== undefined && value !== null) {
+          if (typeof value === 'string' && value.trim() !== '') {
+            (updated as any)[key] = value;
+          } else if (typeof value === 'boolean') {
+            (updated as any)[key] = value;
+          } else if (Array.isArray(value)) {
+            (updated as any)[key] = value;
+          } else if (typeof value === 'object' && value !== null) {
+            (updated as any)[key] = value;
+          }
+        }
+      });
+      
       this.businessSettings.set(existing.id, updated);
       return updated;
     } else {

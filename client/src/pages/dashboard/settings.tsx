@@ -1312,6 +1312,9 @@ export default function SettingsPage() {
                       <p className="text-sm text-gray-600 text-center">
                         No hay fechas bloqueadas configuradas
                       </p>
+                      <p className="text-xs text-gray-500 text-center mt-2">
+                        Las fechas bloqueadas no estarán disponibles para reservas
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -1331,6 +1334,9 @@ export default function SettingsPage() {
                     <div className="bg-gray-50 rounded-lg p-4 min-h-[100px]">
                       <p className="text-sm text-gray-600 text-center">
                         No hay horarios específicos bloqueados
+                      </p>
+                      <p className="text-xs text-gray-500 text-center mt-2">
+                        Bloquea horarios específicos en días particulares
                       </p>
                     </div>
                   </div>
