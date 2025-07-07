@@ -15,7 +15,7 @@ export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
   
   const { data: micrositeData, isLoading, error } = useQuery({
-    queryKey: ["/api/negocio", slug],
+    queryKey: ["/api/micrositio", slug],
     enabled: !!slug,
   });
 
@@ -31,6 +31,12 @@ export default function BusinessMicrosite() {
   }
 
   if (error || !micrositeData) {
+    // If the slug doesn't match any business, show 404 or redirect to home
+    // This prevents showing business microsite for system routes like /dashboard
+    if (slug && (slug.startsWith('dashboard') || slug === 'login' || slug === 'registro' || slug === 'business' || slug === 'buscar')) {
+      return null; // Let the router handle these routes normally
+    }
+    
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

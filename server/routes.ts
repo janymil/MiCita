@@ -287,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   // Micrositio routes
-  app.get("/api/negocio/:slug", async (req, res) => {
+  app.get("/api/micrositio/:slug", async (req, res) => {
     const slug = req.params.slug;
     try {
       // Get all business settings to find one with matching custom URL

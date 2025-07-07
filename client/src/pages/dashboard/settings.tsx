@@ -826,7 +826,7 @@ export default function SettingsPage() {
                     <Label>URL del Micrositio</Label>
                     <div className="flex mt-2">
                       <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                        buscarperu.com/negocio/
+                        {window.location.host}/
                       </span>
                       <Input 
                         placeholder="mi-negocio" 
