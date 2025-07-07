@@ -296,32 +296,9 @@ export default function SettingsPage() {
     mode: "onChange"
   });
 
-  // Reset form when settings data loads
+  // Update form values whenever settings change
   React.useEffect(() => {
-    if (currentBusinessSettings && Object.keys(currentBusinessSettings).length > 0) {
-      const formData = {
-        customUrl: currentBusinessSettings.customUrl || "",
-        professionalTitle: currentBusinessSettings.professionalTitle || "",
-        publicDescription: currentBusinessSettings.publicDescription || "",
-        profileImage: currentBusinessSettings.profileImage || "",
-        coverImage: currentBusinessSettings.coverImage || "",
-        publicEmail: currentBusinessSettings.publicEmail || "",
-        publicPhone: currentBusinessSettings.publicPhone || "",
-        streetAddress: currentBusinessSettings.streetAddress || "",
-        district: currentBusinessSettings.district || "",
-        region: currentBusinessSettings.region || "",
-        postalCode: currentBusinessSettings.postalCode || "",
-        country: currentBusinessSettings.country || "Perú",
-        facebookUrl: currentBusinessSettings.facebookUrl || "",
-        instagramUrl: currentBusinessSettings.instagramUrl || "",
-        tiktokUrl: currentBusinessSettings.tiktokUrl || "",
-        youtubeUrl: currentBusinessSettings.youtubeUrl || "",
-        enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
-        enableContactForm: currentBusinessSettings.enableContactForm ?? true,
-        enableGallery: currentBusinessSettings.enableGallery ?? true,
-        scheduleNotes: currentBusinessSettings.scheduleNotes || "",
-      };
-      
+    if (currentBusinessSettings) {
       // Load blocked dates and hours
       if (currentBusinessSettings.blockedDates) {
         setBlockedDates(currentBusinessSettings.blockedDates);
@@ -329,18 +306,8 @@ export default function SettingsPage() {
       if (currentBusinessSettings.blockedHours) {
         setBlockedHours(currentBusinessSettings.blockedHours);
       }
-      
-      console.log("🔄 Resetting form with data:", formData);
-      console.log("🔍 customUrl value being set:", formData.customUrl);
-      micrositeForm.reset(formData);
-      
-      // Force setValue to ensure the field is properly updated
-      if (formData.customUrl) {
-        micrositeForm.setValue("customUrl", formData.customUrl, { shouldValidate: true });
-        console.log("🔧 Force setting customUrl:", formData.customUrl);
-      }
     }
-  }, [currentBusinessSettings, micrositeForm]);
+  }, [currentBusinessSettings]);
 
   const updateMicrositeSettingsMutation = useMutation({
     mutationFn: async (data: MicrositeForm) => {
@@ -862,21 +829,22 @@ export default function SettingsPage() {
                       </span>
                       <Input 
                         placeholder="tunegocio" 
-                        {...micrositeForm.register("customUrl")}
+                        value={currentBusinessSettings?.customUrl || ""}
+                        onChange={(e) => micrositeForm.setValue("customUrl", e.target.value)}
                         className="rounded-l-none"
                       />
                     </div>
-                    {micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '' ? (
+                    {currentBusinessSettings?.customUrl && currentBusinessSettings.customUrl.trim() !== '' ? (
                       <div className="flex items-center space-x-2 mt-2">
                         <p className="text-xs text-green-600">
-                          ✓ Tu micrositio: /{micrositeForm.watch("customUrl")}
+                          ✓ Tu micrositio: /{currentBusinessSettings?.customUrl}
                         </p>
                         <Button 
                           type="button" 
                           variant="outline" 
                           size="sm"
                           onClick={() => {
-                            const customUrl = micrositeForm.watch("customUrl");
+                            const customUrl = currentBusinessSettings?.customUrl;
                             if (customUrl && customUrl.trim() !== '') {
                               const url = `/${customUrl}`;
                               window.open(url, '_blank');
