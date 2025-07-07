@@ -255,8 +255,9 @@ export default function SettingsPage() {
 
   // Set default values when data loads - ONLY ONCE
   React.useEffect(() => {
-    if (currentBusinessSettings && !micrositeForm.formState.isDirty) {
+    if (currentBusinessSettings) {
       console.log("🔄 Loading form data:", currentBusinessSettings.customUrl);
+      console.log("🔄 Full settings:", currentBusinessSettings);
       micrositeForm.setValue("customUrl", currentBusinessSettings.customUrl || "");
       micrositeForm.setValue("professionalTitle", currentBusinessSettings.professionalTitle || "");
       micrositeForm.setValue("publicDescription", currentBusinessSettings.publicDescription || "");
@@ -813,10 +814,18 @@ export default function SettingsPage() {
                       </span>
                       <Input 
                         placeholder="tunegocio" 
-                        value={micrositeForm.watch("customUrl") || currentBusinessSettings?.customUrl || ""}
-                        onChange={(e) => micrositeForm.setValue("customUrl", e.target.value)}
+                        value={currentBusinessSettings?.customUrl || ""}
+                        onChange={(e) => {
+                          micrositeForm.setValue("customUrl", e.target.value);
+                          console.log("🔧 Input changed to:", e.target.value);
+                        }}
                         className="rounded-l-none"
                       />
+                      {currentBusinessSettings?.customUrl && (
+                        <div className="text-xs text-green-600 mt-1">
+                          Debug: Database value = "{currentBusinessSettings.customUrl}"
+                        </div>
+                      )}
                     </div>
                     {micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '' ? (
                       <div className="flex items-center space-x-2 mt-2">
