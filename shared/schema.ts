@@ -163,6 +163,13 @@ export const businessSettings = pgTable("business_settings", {
     sunday: { enabled: false, start: "09:00", end: "17:00" },
   }),
   
+  // Blocked dates and hours for appointments
+  blockedDates: jsonb("blocked_dates").$type<string[]>().default([]),
+  blockedHours: jsonb("blocked_hours").$type<{
+    date: string;
+    hours: string[];
+  }[]>().default([]),
+  
   // Existing fields
   theme: text("theme").default("default"),
   primaryColor: text("primary_color"),

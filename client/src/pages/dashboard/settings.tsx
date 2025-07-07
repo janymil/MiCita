@@ -231,6 +231,7 @@ export default function SettingsPage() {
   // Reset form when settings data loads
   React.useEffect(() => {
     if (currentBusinessSettings) {
+      console.log("Loading settings into form:", currentBusinessSettings);
       micrositeForm.reset({
         customUrl: currentBusinessSettings.customUrl || "",
         professionalTitle: currentBusinessSettings.professionalTitle || "",

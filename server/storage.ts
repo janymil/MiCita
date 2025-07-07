@@ -500,7 +500,13 @@ export class MemStorage implements IStorage {
     const existing = Array.from(this.businessSettings.values()).find(s => s.businessId === businessId);
     
     if (existing) {
-      const updated = { ...existing, ...settings };
+      const updated = { 
+        ...existing, 
+        ...settings,
+        blockedDates: settings.blockedDates || existing.blockedDates || [],
+        blockedHours: settings.blockedHours || existing.blockedHours || [],
+        updatedAt: new Date()
+      };
       this.businessSettings.set(existing.id, updated);
       return updated;
     } else {
@@ -538,6 +544,8 @@ export class MemStorage implements IStorage {
           saturday: { enabled: true, start: "09:00", end: "17:00" },
           sunday: { enabled: false, start: "09:00", end: "17:00" },
         },
+        blockedDates: Array.isArray(settings.blockedDates) ? settings.blockedDates : [],
+        blockedHours: Array.isArray(settings.blockedHours) ? settings.blockedHours : [],
         
         // Existing fields
         theme: settings.theme || null,
