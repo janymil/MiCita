@@ -1,0 +1,114 @@
+Create a Full-Stack Business Management Platform with Public Search Engine for the Peruvian Market
+
+Build a sophisticated multi-tenant business management application that serves as both an internal business operations platform AND a public search engine/directory for discovering local businesses in Peru. This should be a React + Node.js + Supabase full-stack application with the following comprehensive features:
+
+Core Business Management System:
+
+Complete dashboard with business analytics, KPIs, and revenue tracking
+Advanced appointment scheduling with react-big-calendar integration
+Comprehensive client management with detailed profiles, history, and notes
+Service catalog management with pricing, descriptions, and duration
+Financial tracking with revenue analytics and reporting
+Statistics dashboard with charts and business insights
+Real-time notifications and email integration with Nodemailer
+Public Search Engine & Business Directory:
+
+Landing page that functions as a comprehensive search engine for discovering businesses
+Advanced search functionality with category filtering, location-based search, and GPS integration
+Public business directory combining both registered microsites AND external business listings
+Google Maps integration for location display and navigation
+Category-based browsing with Peruvian market focus (belleza, salud, fitness, restaurantes, cafeterías, mecánica, educación, etc.)
+Search results with both registered businesses (with microsites) and public directory listings
+Location detection and "near me" functionality
+Individual Business Microsites:
+
+Each registered business gets a professional microsite at custom URLs (domain.com/business-slug)
+Public booking interface for customers with real-time availability
+Professional photo galleries with Bunny CDN integration
+Service showcase with detailed descriptions and pricing
+Public contact forms and business information display
+Business hours and availability display
+Professional landing page design with customizable themes
+Peruvian Market Specialization:
+
+Spanish language throughout the entire interface
+Peruvian business categories with proper icons and color coding:
+Belleza (peluquerías, salones) - Pink theme
+Salud (médicos, clínicas, dentistas) - Green theme
+Fitness (gimnasios, deportes) - Blue theme
+Restaurantes y comida - Orange theme
+Cafeterías y coffee shops - Amber theme
+Automotriz (mecánica, talleres) - Red theme
+Educación (escuelas, universidades) - Purple theme
+Hogar y reparaciones - Yellow theme
+Arte y diseño - Indigo theme
+Lima, Perú as default location with Peruvian geography support
+Cultural preferences and local business types integration
+Peruvian-inspired design with gradients and animations
+Advanced Technical Architecture:
+
+Frontend: React 18 + Vite with modern hooks and context
+Styling: Tailwind CSS with custom Peruvian-inspired animations and gradients
+Backend: Express.js API server with comprehensive REST endpoints
+Database: Supabase (PostgreSQL) with Row Level Security (RLS)
+Authentication: Supabase Auth with email/password and social login
+File Storage: Bunny CDN for images and media files
+UI Components: Radix UI components with shadcn/ui styling
+Email: Nodemailer integration for appointment notifications
+File Handling: Multer for CSV imports and image uploads
+State Management: React Context with custom hooks
+Calendar: react-big-calendar for appointment scheduling
+Maps: Google Maps API integration
+Animation: Framer Motion for smooth interactions
+Comprehensive Page Structure:
+
+Public Landing Page: Search engine with business discovery
+Public Business Search: Advanced search with filters and maps
+Individual Microsites: Professional business pages
+Business Dashboard: Analytics and overview
+Appointments Management: Scheduling and calendar view
+Client Directory: Customer management
+Services Management: Catalog and pricing
+Financial Tracking: Revenue and reports
+Statistics: Business insights and charts
+Settings: Business configuration and microsite customization
+Calendar View: Appointment scheduling interface
+Photo Gallery Management: Microsite media handling
+Advanced Features:
+
+Multi-tenancy: Each business operates independently
+CSV Import: Bulk client data import functionality
+Email Notifications: Automated appointment reminders
+Real-time Updates: Live appointment status changes
+Mobile-first Design: Responsive across all devices
+Dark/Light Themes: User preference support
+Advanced Search: Autocomplete, filters, and sorting
+Export Functionality: Reports and data export
+Professional UI: Polished design with loading states and error handling
+SEO Optimization: Meta tags and structured data for microsites
+Database Schema Requirements:
+
+Users/Profiles: Authentication and business owner information
+Businesses: Complete business information and settings
+Clients: Customer data with appointment history
+Appointments: Scheduling with status tracking
+Services: Business offerings with pricing
+Gallery: Microsite photos and media
+Availability: Business hours and booking windows
+Public Businesses: External directory listings
+Settings: Customization and configuration data
+Unique Dual-Purpose Nature:
+This platform uniquely serves as:
+
+B2B SaaS: Complete business management solution for service providers
+B2C Marketplace: Public search engine for customers to discover and book services
+Business Directory: Comprehensive listing of both registered and external businesses
+Business Model Integration:
+
+Registered businesses get full management tools + professional microsites
+Public businesses appear in search directory with basic information
+Seamless integration between business management and public discovery
+Professional microsites drive customer acquisition for registered businesses
+The app should handle the complexity of serving both business owners managing their operations internally AND customers discovering and booking services through beautiful public interfaces. Include proper error handling, loading states, professional UI throughout, and ensure the Peruvian market focus is evident in categories, language, and cultural preferences.
+
+Create this as a production-ready application with proper authentication, data validation, and a scalable architecture that can handle multiple businesses and their customers simultaneously.
