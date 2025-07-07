@@ -124,6 +124,9 @@ Changelog:
 - July 07, 2025: Integrated PostgreSQL database using Replit's PostgreSQL service
 - July 07, 2025: Set up Drizzle ORM with schema-first approach
 - July 07, 2025: Implemented database storage layer with automatic fallback to memory storage
+- July 07, 2025: Created two separate modern landing pages:
+  - Public search landing page (/) - Business discovery with modern search UI
+  - Business landing page (/business) - Business registration and SaaS features
 
 ## User Preferences
 

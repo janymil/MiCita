@@ -637,7 +637,7 @@ export default function Register() {
         {/* Footer */}
         <div className="text-center mt-8">
           <Link href="/" className="text-gray-600 hover:text-gray-900">
-            ← Volver a la página principal
+            ← Volver a búsqueda
           </Link>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { Search, Heart, Dumbbell, Utensils, Coffee, Car, GraduationCap, Home } from "lucide-react";
+import { Search, Heart, Dumbbell, Utensils, Coffee, Car, GraduationCap, HomeIcon } from "lucide-react";
 
 export const BUSINESS_CATEGORIES = [
   {
@@ -52,8 +52,8 @@ export const BUSINESS_CATEGORIES = [
   },
   {
     id: "hogar",
-    name: "Hogar",
-    icon: "home",
+    name: "Hogar", 
+    icon: "homeicon",
     color: "category-hogar",
     description: "Reparaciones, limpieza, jardinería"
   }

@@ -7,7 +7,8 @@ import { AuthProvider } from "@/contexts/auth-context";
 import NotFound from "@/pages/not-found";
 
 // Public pages
-import Home from "@/pages/home";
+import PublicSearchPage from "@/pages/public-search";
+import BusinessLandingPage from "@/pages/business-landing";
 import Search from "@/pages/search";
 import BusinessMicrosite from "@/pages/business-microsite";
 
@@ -27,7 +28,8 @@ function Router() {
   return (
     <Switch>
       {/* Public routes */}
-      <Route path="/" component={Home} />
+      <Route path="/" component={PublicSearchPage} />
+      <Route path="/business" component={BusinessLandingPage} />
       <Route path="/buscar" component={Search} />
       <Route path="/negocio/:slug" component={BusinessMicrosite} />
       
