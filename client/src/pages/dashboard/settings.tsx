@@ -27,7 +27,20 @@ import {
   Phone,
   Mail,
   Clock,
-  Save
+  Save,
+  Link,
+  Image,
+  Facebook,
+  Instagram,
+  Twitter,
+  Youtube,
+  Camera,
+  Calendar,
+  MessageSquare,
+  ExternalLink,
+  Upload,
+  Eye,
+  Edit3
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -63,7 +76,42 @@ const createBusinessSchema = z.object({
   website: z.string().url("URL inválida").optional().or(z.literal("")),
 });
 
+const micrositeSchema = z.object({
+  // Identidad y Acceso
+  customUrl: z.string().optional(),
+  professionalTitle: z.string().optional(),
+  publicDescription: z.string().optional(),
+  
+  // Imágenes de Marca
+  profileImage: z.string().optional(),
+  coverImage: z.string().optional(),
+  
+  // Información de Contacto Extendida
+  publicEmail: z.string().email("Email inválido").optional().or(z.literal("")),
+  publicPhone: z.string().optional(),
+  streetAddress: z.string().optional(),
+  district: z.string().optional(),
+  region: z.string().optional(),
+  postalCode: z.string().optional(),
+  country: z.string().optional(),
+  
+  // Redes Sociales
+  facebookUrl: z.string().url("URL inválida").optional().or(z.literal("")),
+  instagramUrl: z.string().url("URL inválida").optional().or(z.literal("")),
+  tiktokUrl: z.string().url("URL inválida").optional().or(z.literal("")),
+  youtubeUrl: z.string().url("URL inválida").optional().or(z.literal("")),
+  
+  // Funcionalidades
+  enablePublicBooking: z.boolean(),
+  enableContactForm: z.boolean(),
+  enableGallery: z.boolean(),
+  
+  // Horario de Apertura (Notas)
+  scheduleNotes: z.string().optional(),
+});
+
 type CreateBusinessForm = z.infer<typeof createBusinessSchema>;
+type MicrositeForm = z.infer<typeof micrositeSchema>;
 
 const hoursSchema = z.object({
   monday: z.object({
@@ -146,6 +194,32 @@ export default function SettingsPage() {
       address: "",
       city: "Lima",
       website: "",
+    },
+  });
+
+  const micrositeForm = useForm<MicrositeForm>({
+    resolver: zodResolver(micrositeSchema),
+    defaultValues: {
+      customUrl: "",
+      professionalTitle: "",
+      publicDescription: "",
+      profileImage: "",
+      coverImage: "",
+      publicEmail: "",
+      publicPhone: "",
+      streetAddress: "",
+      district: "",
+      region: "",
+      postalCode: "",
+      country: "Perú",
+      facebookUrl: "",
+      instagramUrl: "",
+      tiktokUrl: "",
+      youtubeUrl: "",
+      enablePublicBooking: true,
+      enableContactForm: true,
+      enableGallery: true,
+      scheduleNotes: "",
     },
   });
 
@@ -498,10 +572,14 @@ export default function SettingsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="business" className="flex items-center">
               <Building2 className="w-4 h-4 mr-2" />
               Negocio
+            </TabsTrigger>
+            <TabsTrigger value="microsite" className="flex items-center">
+              <Globe className="w-4 h-4 mr-2" />
+              Micrositio
             </TabsTrigger>
             <TabsTrigger value="hours" className="flex items-center">
               <Clock className="w-4 h-4 mr-2" />
@@ -695,6 +773,311 @@ export default function SettingsPage() {
                     </Button>
                   </form>
                 </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Microsite Configuration */}
+          <TabsContent value="microsite" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Link className="w-5 h-5 mr-2" />
+                  Tu Micrositio Público
+                </CardTitle>
+                <p className="text-sm text-gray-600">
+                  Así se muestra tu información a los clientes. Haz clic en editar para modificarla.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-purple-900">Identidad y Acceso</h3>
+                    <Button variant="outline" size="sm">
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Editar
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-purple-700">URL del Micrositio</Label>
+                      <div className="flex mt-1">
+                        <span className="text-blue-600 underline">
+                          https://buscarperu.com/barberia-nicolas
+                        </span>
+                        <ExternalLink className="w-4 h-4 ml-2 text-gray-400" />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-purple-700">Título Profesional</Label>
+                      <p className="mt-1 text-gray-900">Barbería</p>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-purple-700">Descripción Pública</Label>
+                      <p className="mt-1 text-gray-900">
+                        Cortes clásicos y modernos, afeitado profesional y cuidado masculino en un ambiente cómodo y relajado. 
+                        Reserva tu cita y vive una experiencia de barbería de calidad.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Imágenes de Marca */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Image className="w-5 h-5 mr-2 text-purple-600" />
+                  Imágenes de Marca
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label className="text-base font-medium">Imagen de Perfil</Label>
+                    <div className="mt-2">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border">
+                        <img 
+                          src="https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?w=80&h=80&fit=crop&crop=face" 
+                          alt="Profile" 
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-base font-medium">Imagen de Portada</Label>
+                    <div className="mt-2">
+                      <div className="w-full h-24 bg-gray-100 rounded-lg border flex items-center justify-center">
+                        <p className="text-sm text-gray-500">Sin imagen de portada</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Información de Contacto */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <MapPin className="w-5 h-5 mr-2 text-purple-600" />
+                  Información de Contacto y Ubicación
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <Mail className="w-4 h-4 mr-2 text-gray-500" />
+                    <div>
+                      <Label className="text-gray-600">Email Público</Label>
+                      <p>jan.milata@gmail.com</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Phone className="w-4 h-4 mr-2 text-gray-500" />
+                    <div>
+                      <Label className="text-gray-600">Teléfono Público</Label>
+                      <p>+51 938 693 848</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start">
+                  <MapPin className="w-4 h-4 mr-2 text-gray-500 mt-1" />
+                  <div>
+                    <Label className="text-gray-600">Calle y Número</Label>
+                    <p>Tulipanes 468</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                    <div>
+                      <Label className="text-gray-600">Ciudad / Distrito</Label>
+                      <p>Lima</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                    <div>
+                      <Label className="text-gray-600">Referencia / Región</Label>
+                      <p>2 cuadras de San Felipe con Universitaria</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                    <div>
+                      <Label className="text-gray-600">Código Postal</Label>
+                      <p>15313</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Globe className="w-4 h-4 mr-2 text-gray-500" />
+                    <div>
+                      <Label className="text-gray-600">País</Label>
+                      <p>Peru</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Redes Sociales */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Users className="w-5 h-5 mr-2 text-purple-600" />
+                  Redes Sociales
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center">
+                    <Facebook className="w-4 h-4 mr-2 text-blue-600" />
+                    <div>
+                      <Label className="text-gray-600">Facebook</Label>
+                      <p className="text-blue-600 hover:underline cursor-pointer">
+                        https://www.facebook.com/groups/101574817164424
+                        <ExternalLink className="w-3 h-3 ml-1 inline" />
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Instagram className="w-4 h-4 mr-2 text-pink-600" />
+                    <div>
+                      <Label className="text-gray-600">Instagram</Label>
+                      <p className="text-gray-500 italic">No configurado</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Twitter className="w-4 h-4 mr-2 text-black" />
+                    <div>
+                      <Label className="text-gray-600">TikTok</Label>
+                      <p className="text-gray-500 italic">No configurado</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center">
+                    <Youtube className="w-4 h-4 mr-2 text-red-600" />
+                    <div>
+                      <Label className="text-gray-600">YouTube</Label>
+                      <p className="text-gray-500 italic">No configurado</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Funcionalidades */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Settings className="w-5 h-5 mr-2 text-purple-600" />
+                  Funcionalidades
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-3 text-green-600" />
+                      <div>
+                        <Label className="text-base font-medium">Reservas Públicas</Label>
+                        <p className="text-sm text-gray-600">
+                          Permite que los clientes reserven citas desde tu micrositio
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
+                      Activado
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center">
+                      <MessageSquare className="w-4 h-4 mr-3 text-green-600" />
+                      <div>
+                        <Label className="text-base font-medium">Formulario de Contacto</Label>
+                        <p className="text-sm text-gray-600">
+                          Formulario para que los clientes te envíen mensajes
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
+                      Activado
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                    <div className="flex items-center">
+                      <Camera className="w-4 h-4 mr-3 text-green-600" />
+                      <div>
+                        <Label className="text-base font-medium">Galería de Trabajos</Label>
+                        <p className="text-sm text-gray-600">
+                          Muestra tus trabajos y servicios en una galería
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
+                      Activado
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Horarios */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-purple-600" />
+                  Horario Laboral (Disponibilidad)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  {[
+                    { day: "Domingo", hours: "09:00 - 17:00" },
+                    { day: "Lunes", hours: "Día Libre", free: true },
+                    { day: "Martes", hours: "09:00 - 17:00" },
+                    { day: "Miércoles", hours: "09:00 - 17:00" },
+                    { day: "Jueves", hours: "09:00 - 17:00" },
+                    { day: "Viernes", hours: "09:00 - 17:00" },
+                    { day: "Sábado", hours: "09:00 - 17:00" }
+                  ].map((item, index) => (
+                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="font-medium">{item.day}:</span>
+                      <span className={item.free ? "text-gray-500 italic" : "text-gray-900"}>
+                        {item.hours}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <Label className="text-base font-medium text-purple-600">Fechas Bloqueadas</Label>
+                  <p className="text-sm text-gray-600 mt-1">No hay fechas bloqueadas.</p>
+                </div>
+
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <Label className="text-base font-medium text-purple-600">Notas de Horario de Apertura</Label>
+                  <p className="text-sm text-gray-600 mt-1">Martes a Domingo, 9.00 - 22.00</p>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

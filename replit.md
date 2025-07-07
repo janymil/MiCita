@@ -127,6 +127,13 @@ Changelog:
 - July 07, 2025: Created two separate modern landing pages:
   - Public search landing page (/) - Business discovery with modern search UI
   - Business landing page (/business) - Business registration and SaaS features
+- July 07, 2025: Enhanced micrositio configuration with comprehensive settings:
+  - Identity and access configuration (custom URL, professional title, public description)
+  - Brand images management (profile and cover images)
+  - Extended contact information (address, district, region, postal code)
+  - Social media links (Facebook, Instagram, TikTok, YouTube)
+  - Feature toggles (public booking, contact form, gallery)
+  - Business hours display and schedule notes
 
 ## User Preferences
 
