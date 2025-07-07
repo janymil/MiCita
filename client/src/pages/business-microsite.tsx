@@ -115,6 +115,9 @@ export default function BusinessMicrosite() {
             src={settings.coverImage} 
             alt="Portada"
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
           />
         </div>
       )}
@@ -233,17 +236,17 @@ export default function BusinessMicrosite() {
                 <CardTitle>Información de Contacto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {settings?.publicPhone && (
+                {(settings?.publicPhone || business.phone) && (
                   <div className="flex items-center">
                     <Phone className="w-4 h-4 mr-3 text-gray-500" />
-                    <span>{settings.publicPhone}</span>
+                    <span>{settings?.publicPhone || business.phone}</span>
                   </div>
                 )}
                 
-                {settings?.publicEmail && (
+                {(settings?.publicEmail || business.email) && (
                   <div className="flex items-center">
                     <Mail className="w-4 h-4 mr-3 text-gray-500" />
-                    <span>{settings.publicEmail}</span>
+                    <span>{settings?.publicEmail || business.email}</span>
                   </div>
                 )}
                 
@@ -251,9 +254,56 @@ export default function BusinessMicrosite() {
                   <div className="flex items-start">
                     <MapPin className="w-4 h-4 mr-3 text-gray-500 mt-1" />
                     <div>
-                      <p>{settings?.streetAddress || business.address}</p>
-                      {settings?.district && <p className="text-sm text-gray-600">{settings.district}</p>}
-                      {settings?.region && <p className="text-sm text-gray-600">{settings.region}</p>}
+                      {settings?.streetAddress ? (
+                        <>
+                          <p>{settings.streetAddress}</p>
+                          {settings.district && <p className="text-sm text-gray-600">{settings.district}</p>}
+                          {settings.region && <p className="text-sm text-gray-600">{settings.region}</p>}
+                          {settings.postalCode && <p className="text-sm text-gray-600">{settings.postalCode}</p>}
+                          {settings.country && <p className="text-sm text-gray-600">{settings.country}</p>}
+                        </>
+                      ) : (
+                        <p>{business.address}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Social Media Links */}
+                {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
+                  <div>
+                    <div className="border-t pt-4 mt-4">
+                      <Label className="text-sm text-gray-600 mb-3 block">Redes Sociales</Label>
+                      <div className="flex space-x-3">
+                        {settings?.facebookUrl && (
+                          <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                          </a>
+                        )}
+                        {settings?.instagramUrl && (
+                          <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987 6.62 0 11.987-5.367 11.987-11.987C24.014 5.367 18.637.001 12.017.001z"/>
+                            </svg>
+                          </a>
+                        )}
+                        {settings?.tiktokUrl && (
+                          <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-.88-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
+                            </svg>
+                          </a>
+                        )}
+                        {settings?.youtubeUrl && (
+                          <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}

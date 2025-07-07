@@ -913,22 +913,55 @@ export default function SettingsPage() {
                   <div>
                     <Label className="text-base font-medium">Imagen de Perfil</Label>
                     <div className="mt-2">
-                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border">
-                        <img 
-                          src="https://images.unsplash.com/photo-1622287162716-f311baa1a2b8?w=80&h=80&fit=crop&crop=face" 
-                          alt="Profile" 
-                          className="w-full h-full rounded-full object-cover"
-                        />
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center border overflow-hidden mb-2">
+                        {micrositeForm.watch("profileImage") ? (
+                          <img 
+                            src={micrositeForm.watch("profileImage")} 
+                            alt="Perfil" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <Camera className="w-6 h-6 text-gray-400" />
+                        )}
                       </div>
+                      <Input 
+                        type="url" 
+                        placeholder="https://ejemplo.com/imagen.jpg" 
+                        {...micrositeForm.register("profileImage")}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">URL de imagen de perfil</p>
                     </div>
                   </div>
 
                   <div>
                     <Label className="text-base font-medium">Imagen de Portada</Label>
                     <div className="mt-2">
-                      <div className="w-full h-24 bg-gray-100 rounded-lg border flex items-center justify-center">
-                        <p className="text-sm text-gray-500">Sin imagen de portada</p>
+                      <div className="w-full h-24 bg-gray-100 rounded-lg border flex items-center justify-center overflow-hidden mb-2">
+                        {micrositeForm.watch("coverImage") ? (
+                          <img 
+                            src={micrositeForm.watch("coverImage")} 
+                            alt="Portada" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div className="text-center">
+                            <Camera className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                            <span className="text-sm text-gray-500">Imagen de portada</span>
+                          </div>
+                        )}
                       </div>
+                      <Input 
+                        type="url" 
+                        placeholder="https://ejemplo.com/portada.jpg" 
+                        {...micrositeForm.register("coverImage")}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">URL de imagen de portada - Recomendado 1200x400px</p>
                     </div>
                   </div>
                 </div>
@@ -1085,9 +1118,9 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-3 text-green-600" />
+                      <Calendar className="w-4 h-4 mr-3 text-blue-600" />
                       <div>
                         <Label className="text-base font-medium">Reservas Públicas</Label>
                         <p className="text-sm text-gray-600">
@@ -1095,14 +1128,15 @@ export default function SettingsPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
-                      Activado
-                    </span>
+                    <Switch
+                      checked={micrositeForm.watch("enablePublicBooking")}
+                      onCheckedChange={(checked) => micrositeForm.setValue("enablePublicBooking", checked)}
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center">
-                      <MessageSquare className="w-4 h-4 mr-3 text-green-600" />
+                      <MessageSquare className="w-4 h-4 mr-3 text-blue-600" />
                       <div>
                         <Label className="text-base font-medium">Formulario de Contacto</Label>
                         <p className="text-sm text-gray-600">
@@ -1110,14 +1144,15 @@ export default function SettingsPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
-                      Activado
-                    </span>
+                    <Switch
+                      checked={micrositeForm.watch("enableContactForm")}
+                      onCheckedChange={(checked) => micrositeForm.setValue("enableContactForm", checked)}
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 border rounded-lg">
                     <div className="flex items-center">
-                      <Camera className="w-4 h-4 mr-3 text-green-600" />
+                      <Camera className="w-4 h-4 mr-3 text-blue-600" />
                       <div>
                         <Label className="text-base font-medium">Galería de Trabajos</Label>
                         <p className="text-sm text-gray-600">
@@ -1125,49 +1160,18 @@ export default function SettingsPage() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
-                      Activado
-                    </span>
+                    <Switch
+                      checked={micrositeForm.watch("enableGallery")}
+                      onCheckedChange={(checked) => micrositeForm.setValue("enableGallery", checked)}
+                    />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Horarios */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Clock className="w-5 h-5 mr-2 text-purple-600" />
-                  Horario Laboral (Disponibilidad)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  {[
-                    { day: "Domingo", hours: "09:00 - 17:00" },
-                    { day: "Lunes", hours: "Día Libre", free: true },
-                    { day: "Martes", hours: "09:00 - 17:00" },
-                    { day: "Miércoles", hours: "09:00 - 17:00" },
-                    { day: "Jueves", hours: "09:00 - 17:00" },
-                    { day: "Viernes", hours: "09:00 - 17:00" },
-                    { day: "Sábado", hours: "09:00 - 17:00" }
-                  ].map((item, index) => (
-                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100">
-                      <span className="font-medium">{item.day}:</span>
-                      <span className={item.free ? "text-gray-500 italic" : "text-gray-900"}>
-                        {item.hours}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                  <Label className="text-base font-medium text-purple-600">Fechas Bloqueadas</Label>
-                  <p className="text-sm text-gray-600 mt-1">No hay fechas bloqueadas.</p>
                 </div>
 
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <Label className="text-base font-medium text-purple-600">Notas de Horario de Apertura</Label>
+                  <Label className="text-base font-medium">Notas de Horario</Label>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Información adicional sobre horarios especiales o días festivos
+                  </p>
                   <Textarea
                     placeholder="Ej: Martes a Domingo, 9.00 - 22.00. Atendemos con cita previa los lunes."
                     rows={3}
@@ -1177,6 +1181,8 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+
             
             {/* Save Button */}
             <Card>
