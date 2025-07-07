@@ -135,9 +135,12 @@ export default function Appointments() {
   };
 
   const filteredAppointments = appointments?.filter((appointment: any) => {
-    const matchesStatus = !statusFilter || appointment.status === statusFilter;
+    const matchesSearch = !searchTerm || 
+      clients?.find((c: any) => c.id === appointment.clientId)?.name
+        ?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || statusFilter === "all" || appointment.status === statusFilter;
     const matchesDate = !dateFilter || new Date(appointment.date).toISOString().split('T')[0] === dateFilter;
-    return matchesStatus && matchesDate;
+    return matchesSearch && matchesStatus && matchesDate;
   }) || [];
 
   const timeSlots = [
@@ -348,7 +351,7 @@ export default function Appointments() {
                     <SelectValue placeholder="Todos los estados" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos los estados</SelectItem>
+                    <SelectItem value="all">Todos los estados</SelectItem>
                     {Object.entries(APPOINTMENT_STATUSES).map(([key, status]) => (
                       <SelectItem key={key} value={key}>
                         {status.label}
@@ -373,7 +376,7 @@ export default function Appointments() {
                   variant="outline"
                   onClick={() => {
                     setSearchTerm("");
-                    setStatusFilter("");
+                    setStatusFilter("all");
                     setDateFilter("");
                   }}
                   className="w-full"
