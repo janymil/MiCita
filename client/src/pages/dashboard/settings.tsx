@@ -250,51 +250,40 @@ export default function SettingsPage() {
 
   const micrositeForm = useForm<MicrositeForm>({
     resolver: zodResolver(micrositeSchema),
-    defaultValues: currentBusinessSettings ? {
-      customUrl: currentBusinessSettings.customUrl || "",
-      professionalTitle: currentBusinessSettings.professionalTitle || "",
-      publicDescription: currentBusinessSettings.publicDescription || "",
-      profileImage: currentBusinessSettings.profileImage || "",
-      coverImage: currentBusinessSettings.coverImage || "",
-      publicEmail: currentBusinessSettings.publicEmail || "",
-      publicPhone: currentBusinessSettings.publicPhone || "",
-      streetAddress: currentBusinessSettings.streetAddress || "",
-      district: currentBusinessSettings.district || "",
-      region: currentBusinessSettings.region || "",
-      postalCode: currentBusinessSettings.postalCode || "",
-      country: currentBusinessSettings.country || "Perú",
-      facebookUrl: currentBusinessSettings.facebookUrl || "",
-      instagramUrl: currentBusinessSettings.instagramUrl || "",
-      tiktokUrl: currentBusinessSettings.tiktokUrl || "",
-      youtubeUrl: currentBusinessSettings.youtubeUrl || "",
-      enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
-      enableContactForm: currentBusinessSettings.enableContactForm ?? true,
-      enableGallery: currentBusinessSettings.enableGallery ?? true,
-      scheduleNotes: currentBusinessSettings.scheduleNotes || "",
-    } : {
-      customUrl: "",
-      professionalTitle: "",
-      publicDescription: "",
-      profileImage: "",
-      coverImage: "",
-      publicEmail: "",
-      publicPhone: "",
-      streetAddress: "",
-      district: "",
-      region: "",
-      postalCode: "",
-      country: "Perú",
-      facebookUrl: "",
-      instagramUrl: "",
-      tiktokUrl: "",
-      youtubeUrl: "",
-      enablePublicBooking: true,
-      enableContactForm: true,
-      enableGallery: true,
-      scheduleNotes: "",
-    },
     mode: "onChange"
   });
+
+  // Set default values when data loads
+  React.useEffect(() => {
+    if (currentBusinessSettings) {
+      const formData = {
+        customUrl: currentBusinessSettings.customUrl || "",
+        professionalTitle: currentBusinessSettings.professionalTitle || "",
+        publicDescription: currentBusinessSettings.publicDescription || "",
+        profileImage: currentBusinessSettings.profileImage || "",
+        coverImage: currentBusinessSettings.coverImage || "",
+        publicEmail: currentBusinessSettings.publicEmail || "",
+        publicPhone: currentBusinessSettings.publicPhone || "",
+        streetAddress: currentBusinessSettings.streetAddress || "",
+        district: currentBusinessSettings.district || "",
+        region: currentBusinessSettings.region || "",
+        postalCode: currentBusinessSettings.postalCode || "",
+        country: currentBusinessSettings.country || "Perú",
+        facebookUrl: currentBusinessSettings.facebookUrl || "",
+        instagramUrl: currentBusinessSettings.instagramUrl || "",
+        tiktokUrl: currentBusinessSettings.tiktokUrl || "",
+        youtubeUrl: currentBusinessSettings.youtubeUrl || "",
+        enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
+        enableContactForm: currentBusinessSettings.enableContactForm ?? true,
+        enableGallery: currentBusinessSettings.enableGallery ?? true,
+        scheduleNotes: currentBusinessSettings.scheduleNotes || "",
+      };
+      
+      Object.keys(formData).forEach(key => {
+        micrositeForm.setValue(key as keyof MicrositeForm, formData[key as keyof typeof formData]);
+      });
+    }
+  }, [currentBusinessSettings, micrositeForm]);
 
   // Update form values whenever settings change
   React.useEffect(() => {
@@ -829,22 +818,22 @@ export default function SettingsPage() {
                       </span>
                       <Input 
                         placeholder="tunegocio" 
-                        value={currentBusinessSettings?.customUrl || ""}
-                        onChange={(e) => micrositeForm.setValue("customUrl", e.target.value)}
+                        defaultValue={currentBusinessSettings?.customUrl || ""}
+                        {...micrositeForm.register("customUrl")}
                         className="rounded-l-none"
                       />
                     </div>
-                    {currentBusinessSettings?.customUrl && currentBusinessSettings.customUrl.trim() !== '' ? (
+                    {micrositeForm.watch("customUrl") && micrositeForm.watch("customUrl").trim() !== '' ? (
                       <div className="flex items-center space-x-2 mt-2">
                         <p className="text-xs text-green-600">
-                          ✓ Tu micrositio: /{currentBusinessSettings?.customUrl}
+                          ✓ Tu micrositio: /{micrositeForm.watch("customUrl")}
                         </p>
                         <Button 
                           type="button" 
                           variant="outline" 
                           size="sm"
                           onClick={() => {
-                            const customUrl = currentBusinessSettings?.customUrl;
+                            const customUrl = micrositeForm.watch("customUrl");
                             if (customUrl && customUrl.trim() !== '') {
                               const url = `/${customUrl}`;
                               window.open(url, '_blank');
