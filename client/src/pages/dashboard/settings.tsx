@@ -310,7 +310,14 @@ export default function SettingsPage() {
       }
       
       console.log("🔄 Resetting form with data:", formData);
+      console.log("🔍 customUrl value being set:", formData.customUrl);
       micrositeForm.reset(formData);
+      
+      // Force setValue to ensure the field is properly updated
+      if (formData.customUrl) {
+        micrositeForm.setValue("customUrl", formData.customUrl, { shouldValidate: true });
+        console.log("🔧 Force setting customUrl:", formData.customUrl);
+      }
     }
   }, [currentBusinessSettings, micrositeForm]);
 
