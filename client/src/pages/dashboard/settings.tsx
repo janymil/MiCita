@@ -275,31 +275,64 @@ export default function SettingsPage() {
     mode: "onChange"
   });
 
-  // Reset form when settings change
+  // Set form values when settings load - WITHOUT RESETTING
   React.useEffect(() => {
     if (currentBusinessSettings) {
-      micrositeForm.reset({
-        customUrl: currentBusinessSettings.customUrl || "",
-        professionalTitle: currentBusinessSettings.professionalTitle || "",
-        publicDescription: currentBusinessSettings.publicDescription || "",
-        profileImage: currentBusinessSettings.profileImage || "",
-        coverImage: currentBusinessSettings.coverImage || "",
-        publicEmail: currentBusinessSettings.publicEmail || "",
-        publicPhone: currentBusinessSettings.publicPhone || "",
-        streetAddress: currentBusinessSettings.streetAddress || "",
-        district: currentBusinessSettings.district || "",
-        region: currentBusinessSettings.region || "",
-        postalCode: currentBusinessSettings.postalCode || "",
-        country: currentBusinessSettings.country || "Perú",
-        facebookUrl: currentBusinessSettings.facebookUrl || "",
-        instagramUrl: currentBusinessSettings.instagramUrl || "",
-        tiktokUrl: currentBusinessSettings.tiktokUrl || "",
-        youtubeUrl: currentBusinessSettings.youtubeUrl || "",
-        enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
-        enableContactForm: currentBusinessSettings.enableContactForm ?? true,
-        enableGallery: currentBusinessSettings.enableGallery ?? true,
-        scheduleNotes: currentBusinessSettings.scheduleNotes || "",
-      });
+      // Only set values if they're empty (first load)
+      if (!micrositeForm.getValues("customUrl")) {
+        micrositeForm.setValue("customUrl", currentBusinessSettings.customUrl || "");
+      }
+      if (!micrositeForm.getValues("professionalTitle")) {
+        micrositeForm.setValue("professionalTitle", currentBusinessSettings.professionalTitle || "");
+      }
+      if (!micrositeForm.getValues("publicDescription")) {
+        micrositeForm.setValue("publicDescription", currentBusinessSettings.publicDescription || "");
+      }
+      if (!micrositeForm.getValues("profileImage")) {
+        micrositeForm.setValue("profileImage", currentBusinessSettings.profileImage || "");
+      }
+      if (!micrositeForm.getValues("coverImage")) {
+        micrositeForm.setValue("coverImage", currentBusinessSettings.coverImage || "");
+      }
+      if (!micrositeForm.getValues("publicEmail")) {
+        micrositeForm.setValue("publicEmail", currentBusinessSettings.publicEmail || "");
+      }
+      if (!micrositeForm.getValues("publicPhone")) {
+        micrositeForm.setValue("publicPhone", currentBusinessSettings.publicPhone || "");
+      }
+      if (!micrositeForm.getValues("streetAddress")) {
+        micrositeForm.setValue("streetAddress", currentBusinessSettings.streetAddress || "");
+      }
+      if (!micrositeForm.getValues("district")) {
+        micrositeForm.setValue("district", currentBusinessSettings.district || "");
+      }
+      if (!micrositeForm.getValues("region")) {
+        micrositeForm.setValue("region", currentBusinessSettings.region || "");
+      }
+      if (!micrositeForm.getValues("postalCode")) {
+        micrositeForm.setValue("postalCode", currentBusinessSettings.postalCode || "");
+      }
+      if (!micrositeForm.getValues("country")) {
+        micrositeForm.setValue("country", currentBusinessSettings.country || "Perú");
+      }
+      if (!micrositeForm.getValues("facebookUrl")) {
+        micrositeForm.setValue("facebookUrl", currentBusinessSettings.facebookUrl || "");
+      }
+      if (!micrositeForm.getValues("instagramUrl")) {
+        micrositeForm.setValue("instagramUrl", currentBusinessSettings.instagramUrl || "");
+      }
+      if (!micrositeForm.getValues("tiktokUrl")) {
+        micrositeForm.setValue("tiktokUrl", currentBusinessSettings.tiktokUrl || "");
+      }
+      if (!micrositeForm.getValues("youtubeUrl")) {
+        micrositeForm.setValue("youtubeUrl", currentBusinessSettings.youtubeUrl || "");
+      }
+      micrositeForm.setValue("enablePublicBooking", currentBusinessSettings.enablePublicBooking ?? true);
+      micrositeForm.setValue("enableContactForm", currentBusinessSettings.enableContactForm ?? true);
+      micrositeForm.setValue("enableGallery", currentBusinessSettings.enableGallery ?? true);
+      if (!micrositeForm.getValues("scheduleNotes")) {
+        micrositeForm.setValue("scheduleNotes", currentBusinessSettings.scheduleNotes || "");
+      }
     }
   }, [currentBusinessSettings]);
 
