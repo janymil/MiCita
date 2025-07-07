@@ -230,36 +230,46 @@ export default function SettingsPage() {
     },
   });
 
-  // Reset form when settings data loads
+  // Reset form when settings data loads - FIXED VERSION
   React.useEffect(() => {
-    if (currentBusinessSettings) {
+    if (currentBusinessSettings && Object.keys(currentBusinessSettings).length > 0) {
       console.log("Loading settings into form:", currentBusinessSettings);
-      const formData = {
-        customUrl: currentBusinessSettings.customUrl || "",
-        professionalTitle: currentBusinessSettings.professionalTitle || "",
-        publicDescription: currentBusinessSettings.publicDescription || "",
-        profileImage: currentBusinessSettings.profileImage || "",
-        coverImage: currentBusinessSettings.coverImage || "",
-        publicEmail: currentBusinessSettings.publicEmail || "",
-        publicPhone: currentBusinessSettings.publicPhone || "",
-        streetAddress: currentBusinessSettings.streetAddress || "",
-        district: currentBusinessSettings.district || "",
-        region: currentBusinessSettings.region || "",
-        postalCode: currentBusinessSettings.postalCode || "",
-        country: currentBusinessSettings.country || "Perú",
-        facebookUrl: currentBusinessSettings.facebookUrl || "",
-        instagramUrl: currentBusinessSettings.instagramUrl || "",
-        tiktokUrl: currentBusinessSettings.tiktokUrl || "",
-        youtubeUrl: currentBusinessSettings.youtubeUrl || "",
-        enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
-        enableContactForm: currentBusinessSettings.enableContactForm ?? true,
-        enableGallery: currentBusinessSettings.enableGallery ?? true,
-        scheduleNotes: currentBusinessSettings.scheduleNotes || "",
-      };
-      console.log("Form data being set:", formData);
-      micrositeForm.reset(formData);
+      
+      // Wait for next tick to ensure form is ready
+      setTimeout(() => {
+        const formData = {
+          customUrl: currentBusinessSettings.customUrl || "",
+          professionalTitle: currentBusinessSettings.professionalTitle || "",
+          publicDescription: currentBusinessSettings.publicDescription || "",
+          profileImage: currentBusinessSettings.profileImage || "",
+          coverImage: currentBusinessSettings.coverImage || "",
+          publicEmail: currentBusinessSettings.publicEmail || "",
+          publicPhone: currentBusinessSettings.publicPhone || "",
+          streetAddress: currentBusinessSettings.streetAddress || "",
+          district: currentBusinessSettings.district || "",
+          region: currentBusinessSettings.region || "",
+          postalCode: currentBusinessSettings.postalCode || "",
+          country: currentBusinessSettings.country || "Perú",
+          facebookUrl: currentBusinessSettings.facebookUrl || "",
+          instagramUrl: currentBusinessSettings.instagramUrl || "",
+          tiktokUrl: currentBusinessSettings.tiktokUrl || "",
+          youtubeUrl: currentBusinessSettings.youtubeUrl || "",
+          enablePublicBooking: currentBusinessSettings.enablePublicBooking ?? true,
+          enableContactForm: currentBusinessSettings.enableContactForm ?? true,
+          enableGallery: currentBusinessSettings.enableGallery ?? true,
+          scheduleNotes: currentBusinessSettings.scheduleNotes || "",
+        };
+        
+        console.log("Setting form values:", formData);
+        micrositeForm.reset(formData);
+        
+        // Force update all form fields
+        Object.keys(formData).forEach(key => {
+          micrositeForm.setValue(key as any, formData[key as keyof typeof formData]);
+        });
+      }, 100);
     }
-  }, [currentBusinessSettings]);
+  }, [currentBusinessSettings, micrositeForm]);
 
   const updateMicrositeSettingsMutation = useMutation({
     mutationFn: async (data: MicrositeForm) => {
@@ -297,18 +307,6 @@ export default function SettingsPage() {
 
   const onMicrositeSubmit = (data: MicrositeForm) => {
     console.log("Submitting micrositio data:", data);
-    // Prevent empty submissions that would overwrite existing data
-    const hasContent = Object.values(data).some(value => {
-      if (typeof value === 'boolean') return true;
-      if (typeof value === 'string') return value.trim() !== '';
-      return false;
-    });
-    
-    if (!hasContent && currentBusinessSettings) {
-      console.log("Preventing empty submission, keeping existing data");
-      return;
-    }
-    
     updateMicrositeSettingsMutation.mutate(data);
   };
 
@@ -885,14 +883,30 @@ export default function SettingsPage() {
                     <Label>URL del Micrositio</Label>
                     <div className="flex mt-2">
                       <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
-                        {window.location.host}/
+                        /negocio/
                       </span>
                       <Input 
-                        placeholder="mi-negocio" 
+                        placeholder="barberianicolas" 
                         {...micrositeForm.register("customUrl")}
                         className="rounded-l-none"
                       />
                     </div>
+                    {micrositeForm.watch("customUrl") && (
+                      <div className="flex items-center space-x-2 mt-2">
+                        <p className="text-xs text-green-600">
+                          ✓ Tu micrositio: /negocio/{micrositeForm.watch("customUrl")}
+                        </p>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(`/negocio/${micrositeForm.watch("customUrl")}`, '_blank')}
+                        >
+                          <ExternalLink className="w-3 h-3 mr-1" />
+                          Ver
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   <div>

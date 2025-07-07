@@ -164,10 +164,16 @@ export const businessSettings = pgTable("business_settings", {
   }),
   
   // Blocked dates and hours for appointments
-  blockedDates: jsonb("blocked_dates").$type<string[]>().default([]),
+  blockedDates: jsonb("blocked_dates").$type<{
+    startDate: string;
+    endDate: string;
+    reason?: string;
+  }[]>().default([]),
   blockedHours: jsonb("blocked_hours").$type<{
     date: string;
-    hours: string[];
+    startTime: string;
+    endTime: string;
+    reason?: string;
   }[]>().default([]),
   
   // Existing fields
