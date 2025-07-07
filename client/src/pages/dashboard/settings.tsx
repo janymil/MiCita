@@ -257,15 +257,21 @@ export default function SettingsPage() {
   }, [currentBusinessSettings, micrositeForm]);
 
   const updateMicrositeSettingsMutation = useMutation({
-    mutationFn: (data: MicrositeForm) => {
+    mutationFn: async (data: MicrositeForm) => {
       console.log("Sending data to API:", data);
-      return apiRequest(`/api/dashboard/businesses/${currentBusiness?.id}/settings`, {
+      const response = await fetch(`/api/dashboard/businesses/${currentBusiness?.id}/settings`, {
         method: "PUT",
-        body: JSON.stringify(data),
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify(data),
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
