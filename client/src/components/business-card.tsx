@@ -25,7 +25,7 @@ interface BusinessCardProps {
 export default function BusinessCard({ business, onBookClick, onViewClick }: BusinessCardProps) {
   const category = BUSINESS_CATEGORIES.find(c => c.id === business.category);
   const rating = parseFloat(business.rating || "0");
-  
+
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300 animate-fade-in">
       <div className="relative h-48">
@@ -36,7 +36,7 @@ export default function BusinessCard({ business, onBookClick, onViewClick }: Bus
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
       </div>
-      
+
       <div className="p-6">
         <div className="flex items-center justify-between mb-2">
           {category && (
@@ -54,7 +54,7 @@ export default function BusinessCard({ business, onBookClick, onViewClick }: Bus
               {category.name}
             </Badge>
           )}
-          
+
           {rating > 0 && (
             <div className="flex items-center">
               <div className="flex text-yellow-400 mr-1">
@@ -78,13 +78,13 @@ export default function BusinessCard({ business, onBookClick, onViewClick }: Bus
         <h3 className="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
           {business.name}
         </h3>
-        
+
         {business.description && (
           <p className="text-gray-600 mb-4 line-clamp-2">
             {business.description}
           </p>
         )}
-        
+
         {business.address && (
           <div className="flex items-center text-sm text-gray-500 mb-4">
             <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -107,7 +107,7 @@ export default function BusinessCard({ business, onBookClick, onViewClick }: Bus
               Ver Detalles
             </Button>
           </div>
-          
+
           {business.type === "registered" && (
             <Button
               className="bg-red-600 hover:bg-red-700"

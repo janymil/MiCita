@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/auth-context";
 import NotFound from "@/pages/not-found";
 
 // Public pages
+import Home from "@/pages/home";
 import PublicSearchPage from "@/pages/public-search";
 import BusinessLandingPage from "@/pages/business-landing";
 import Search from "@/pages/search";
