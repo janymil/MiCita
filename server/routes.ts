@@ -9,6 +9,8 @@ import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClie
 import { emailService } from "./email-service.js";
 import { AppointmentData } from "./email-templates";
 import { googlePlacesService } from "./google-places-service.js";
+import { GooglePlacesCacheService } from "./google-places-cache-service-simple.js";
+import { DBStorage } from "./db-storage.js";
 
 // Helper function to send email notifications for status changes
 async function sendStatusChangeEmail(appointment: any, previousAppointment: any, businessId: number) {
@@ -262,6 +264,9 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Initialize cache service
+  const cacheService = new GooglePlacesCacheService(storage as DBStorage, googlePlacesService);
+  
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -301,11 +306,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const query = (q as string) || "";
 
       console.log('Search request:', { query, category, city });
+      console.log('🔧 Using cache service for Google Places search');
       
       const [businesses, publicBusinesses, googlePlaces] = await Promise.all([
         storage.searchBusinesses(query, category as string, city as string),
         storage.searchPublicBusinesses(query, category as string),
-        googlePlacesService.searchBusinesses(query, category as string, city as string || 'Lima, Peru')
+        cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru')
       ]);
       
       console.log('Search results:', { 
@@ -353,6 +359,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching place details:", error);
       res.status(500).json({ message: "Error obteniendo detalles del negocio" });
+    }
+  });
+
+  // Cache management endpoint
+  app.post("/api/cache/clean", async (req, res) => {
+    try {
+      await cacheService.cleanExpiredCache();
+      res.json({ message: "Cache limpiado exitosamente" });
+    } catch (error) {
+      console.error("Error cleaning cache:", error);
+      res.status(500).json({ message: "Error limpiando cache" });
     }
   });
 

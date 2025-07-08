@@ -271,7 +271,7 @@ export class MemStorage implements IStorage {
       id: this.currentBusinessId++,
       userId: business.userId,
       name: business.name,
-      slug: business.slug,
+      slug: business.slug ?? null,
       description: business.description || null,
       category: business.category,
       phone: business.phone || null,
@@ -564,8 +564,8 @@ export class MemStorage implements IStorage {
           saturday: { enabled: true, start: "09:00", end: "17:00" },
           sunday: { enabled: false, start: "09:00", end: "17:00" },
         },
-        blockedDates: Array.isArray(settings.blockedDates) ? settings.blockedDates : [],
-        blockedHours: Array.isArray(settings.blockedHours) ? settings.blockedHours : [],
+        blockedDates: Array.isArray(settings.blockedDates) ? settings.blockedDates as { startDate: string; endDate: string; reason?: string }[] : [],
+        blockedHours: Array.isArray(settings.blockedHours) ? settings.blockedHours as { date: string; startTime: string; endTime: string; reason?: string }[] : [],
         
         // Existing fields
         theme: settings.theme || null,
