@@ -75,14 +75,7 @@ export default function SimpleMap({
         draggable: true,
         keyboardShortcuts: true,
         scrollwheel: true,
-        restriction: {
-          latLngBounds: {
-            north: 85,
-            south: -85,
-            west: -180,
-            east: 180
-          }
-        }
+        // Remove restrictions that might cause resistance
       });
 
       mapInstanceRef.current = map;
@@ -90,11 +83,15 @@ export default function SimpleMap({
       // Create info window
       infoWindowRef.current = new window.google.maps.InfoWindow();
 
-      // Add bounds change listener
+      // Add bounds change listener with debouncing
       if (onMapBoundsChange) {
+        let boundsTimeout: NodeJS.Timeout;
         map.addListener("bounds_changed", () => {
-          const bounds = map.getBounds();
-          if (bounds) onMapBoundsChange(bounds);
+          clearTimeout(boundsTimeout);
+          boundsTimeout = setTimeout(() => {
+            const bounds = map.getBounds();
+            if (bounds) onMapBoundsChange(bounds);
+          }, 300);
         });
       }
     } catch (err) {
@@ -202,7 +199,7 @@ export default function SimpleMap({
           height: '100%',
           minHeight: '400px',
           position: 'relative',
-          touchAction: 'none' // Ensure touch events work properly
+          touchAction: 'manipulation' // Better touch handling
         }}
       >
         {!isLoaded && (
