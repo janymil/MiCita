@@ -667,6 +667,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/dashboard/clients/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const clientData = insertClientSchema.partial().parse(req.body);
+      
+      const client = await storage.updateClient(id, clientData);
+      res.json(client);
+    } catch (error) {
+      res.status(400).json({ message: "Error actualizando cliente" });
+    }
+  });
+
+  app.delete("/api/dashboard/clients/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteClient(id);
+      res.json({ message: "Cliente eliminado exitosamente" });
+    } catch (error) {
+      console.error("Error deleting client:", error);
+      res.status(500).json({ message: "Error eliminando cliente" });
+    }
+  });
+
   // Clients routes
   app.get("/api/dashboard/businesses/:businessId/clients", async (req, res) => {
     try {
