@@ -48,8 +48,14 @@ export default function SearchPage() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [filteredResults, setFilteredResults] = useState([]);
-  const resultsPerPage = 20;
+  const [paginationInfo, setPaginationInfo] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalResults: 0,
+    resultsPerPage: 20,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
   // Parse URL parameters and force re-render
   useEffect(() => {
@@ -115,6 +121,12 @@ export default function SearchPage() {
         throw new Error('Search failed');
       }
       const data = await response.json();
+      
+      // Store pagination info for the component
+      if (data.pagination) {
+        setPaginationInfo(data.pagination);
+      }
+      
       return data.results || data; // Handle both old and new response formats
     },
     enabled: !mapFilterEnabled || !!debouncedMapBounds,
@@ -893,39 +905,39 @@ export default function SearchPage() {
             )}
 
             {/* Pagination Controls */}
-            {totalResults > 0 && totalPages > 1 && (
+            {paginationInfo.totalResults > 0 && paginationInfo.totalPages > 1 && (
               <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
                 <div className="text-sm text-gray-600">
-                  Mostrando {Math.min((currentPage - 1) * 20 + 1, totalResults)} - {Math.min(currentPage * 20, totalResults)} de {totalResults} resultados
+                  Mostrando {Math.min((paginationInfo.currentPage - 1) * 20 + 1, paginationInfo.totalResults)} - {Math.min(paginationInfo.currentPage * 20, paginationInfo.totalResults)} de {paginationInfo.totalResults} resultados
                 </div>
                 
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(Math.max(1, paginationInfo.currentPage - 1))}
+                    disabled={paginationInfo.currentPage === 1}
                   >
                     Anterior
                   </Button>
                   
                   <div className="flex items-center space-x-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
                       let pageNum;
-                      if (totalPages <= 5) {
+                      if (paginationInfo.totalPages <= 5) {
                         pageNum = i + 1;
-                      } else if (currentPage <= 3) {
+                      } else if (paginationInfo.currentPage <= 3) {
                         pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
+                      } else if (paginationInfo.currentPage >= paginationInfo.totalPages - 2) {
+                        pageNum = paginationInfo.totalPages - 4 + i;
                       } else {
-                        pageNum = currentPage - 2 + i;
+                        pageNum = paginationInfo.currentPage - 2 + i;
                       }
                       
                       return (
                         <Button
                           key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
+                          variant={paginationInfo.currentPage === pageNum ? "default" : "outline"}
                           size="sm"
                           onClick={() => setCurrentPage(pageNum)}
                           className="w-8 h-8 p-0"
@@ -939,8 +951,8 @@ export default function SearchPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(Math.min(paginationInfo.totalPages, paginationInfo.currentPage + 1))}
+                    disabled={paginationInfo.currentPage === paginationInfo.totalPages}
                   >
                     Siguiente
                   </Button>
