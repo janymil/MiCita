@@ -426,7 +426,7 @@ export class MemStorage implements IStorage {
   async getAppointmentsByDate(businessId: number, date: string): Promise<Appointment[]> {
     return Array.from(this.appointments.values()).filter(appointment => 
       appointment.businessId === businessId && 
-      appointment.date.toISOString().split('T')[0] === date
+      appointment.date === date
     );
   }
 
@@ -441,6 +441,7 @@ export class MemStorage implements IStorage {
       clientId: appointment.clientId || 0,
       serviceId: appointment.serviceId || 0,
       date: appointment.date,
+      time: appointment.time,
       duration: appointment.duration,
       status: appointment.status || "scheduled",
       notes: appointment.notes || null,

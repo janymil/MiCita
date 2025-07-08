@@ -18,7 +18,7 @@ function generateAvailableTimeSlots(
 ) {
   const slots = [];
   const selectedDate = new Date(date);
-  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'lowercase' });
+  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
   
   // Check if the day is a working day
   const daySchedule = workingHours[dayName];
@@ -77,8 +77,8 @@ function generateAvailableTimeSlots(
       const [appointmentHour, appointmentMin] = appointment.time.split(':').map(Number);
       const appointmentMinutes = appointmentHour * 60 + appointmentMin;
       
-      // Assume appointments take at least 30 minutes if no duration is specified
-      const appointmentDuration = 30; // Could be enhanced to get actual service duration
+      // Use actual service duration for conflict detection
+      const appointmentDuration = serviceDuration;
       const appointmentEndMinutes = appointmentMinutes + appointmentDuration;
       
       // Check for overlap

@@ -171,14 +171,10 @@ export class DBStorage implements IStorage {
   }
 
   async getAppointmentsByDate(businessId: number, date: string): Promise<Appointment[]> {
-    const startDate = new Date(date);
-    const endDate = new Date(date);
-    endDate.setDate(endDate.getDate() + 1);
-
     return await db.select().from(appointments)
       .where(and(
         eq(appointments.businessId, businessId),
-        sql`${appointments.date} >= ${startDate} AND ${appointments.date} < ${endDate}`
+        eq(appointments.date, date)
       ));
   }
 

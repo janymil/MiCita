@@ -66,7 +66,8 @@ export const appointments = pgTable("appointments", {
   businessId: serial("business_id").references(() => businesses.id),
   clientId: serial("client_id").references(() => clients.id),
   serviceId: serial("service_id").references(() => services.id),
-  date: timestamp("date").notNull(),
+  date: text("date").notNull(), // Store as 'YYYY-MM-DD' format
+  time: text("time").notNull(), // Store as 'HH:MM' format
   duration: integer("duration").notNull(),
   status: text("status").notNull().default("scheduled"), // scheduled, confirmed, completed, cancelled
   notes: text("notes"),
