@@ -173,7 +173,7 @@ export class GooglePlacesService {
       let allBusinesses: BusinessFromPlaces[] = [];
       let nextPageToken: string | undefined;
       let requestCount = 0;
-      const maxRequests = 3; // Get up to 60 results (3 pages × 20 results)
+      const maxRequests = 10; // Get up to 200 results (10 pages × 20 results)
       
       do {
         const url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es&region=pe${nextPageToken ? `&pagetoken=${nextPageToken}` : ''}`;

@@ -345,8 +345,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
         }
       } else {
+        // Use cache service for standard searches, but get more results if needed
         console.log('🔧 Using cache service for Google Places search');
-        googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
+        
+        // Calculate how many results we need for this page
+        const resultsNeeded = currentPage * resultsPerPage;
+        
+        // If we need more results than typically cached (60), fetch more from Google
+        if (resultsNeeded > 60) {
+          console.log(`📄 Page ${currentPage} needs ${resultsNeeded} results - fetching fresh from Google Places`);
+          googlePlaces = await googlePlacesService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
+        } else {
+          googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
+        }
       }
       
       const [businesses, publicBusinesses] = await Promise.all([
@@ -380,20 +391,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...googlePlaces.map(p => ({ ...p, type: "google" }))
       ];
 
-      // Apply server-side pagination
+      // Apply server-side pagination with smart total estimation
       const totalResults = combinedResults.length;
-      const totalPages = Math.ceil(totalResults / resultsPerPage);
+      const googlePlacesCount = googlePlaces.length;
+      
+      // If we have exactly multiples of 20 Google Places results, there might be more available
+      const mightHaveMore = googlePlacesCount >= 60 && googlePlacesCount % 20 === 0;
+      
+      // Estimate total available results - Google Places can have hundreds of results
+      const estimatedTotalResults = mightHaveMore ? Math.max(totalResults, 200) : totalResults;
+      const totalPages = Math.ceil(estimatedTotalResults / resultsPerPage);
+      
       const startIndex = (currentPage - 1) * resultsPerPage;
       const endIndex = startIndex + resultsPerPage;
       const paginatedResults = combinedResults.slice(startIndex, endIndex);
 
       console.log('Pagination applied:', { 
-        totalResults, 
+        actualResults: totalResults,
+        estimatedTotalResults, 
         totalPages, 
         currentPage, 
         startIndex, 
         endIndex,
-        paginatedResults: paginatedResults.length 
+        paginatedResults: paginatedResults.length,
+        mightHaveMore 
       });
 
       res.json({
@@ -401,10 +422,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pagination: {
           currentPage,
           totalPages,
-          totalResults,
+          totalResults: estimatedTotalResults, // Use estimated total for frontend
+          actualResults: totalResults, // Keep track of actual fetched results
           resultsPerPage,
           hasNextPage: currentPage < totalPages,
-          hasPrevPage: currentPage > 1
+          hasPrevPage: currentPage > 1,
+          mightHaveMore
         }
       });
     } catch (error) {
