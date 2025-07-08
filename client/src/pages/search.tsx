@@ -107,7 +107,7 @@ export default function SearchPage() {
   });
 
   const handleCityChange = (newCity: string) => {
-    setSelectedCity(newCity);
+    setSelectedCity(newCity === "all" ? "" : newCity);
     // Reset district when city changes
     setSelectedDistrict("all");
   };
@@ -338,12 +338,12 @@ export default function SearchPage() {
               
               <div className="flex items-center bg-gray-50 rounded-lg px-4 py-3 lg:w-64">
                 <MapPin className="text-gray-400 mr-3 w-5 h-5" />
-                <Select value={selectedCity} onValueChange={handleCityChange}>
+                <Select value={selectedCity || "all"} onValueChange={handleCityChange}>
                   <SelectTrigger className="border-0 bg-transparent focus:ring-0">
                     <SelectValue placeholder="Ubicación" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas las ciudades</SelectItem>
+                    <SelectItem value="all">Todas las ciudades</SelectItem>
                     {PERUVIAN_CITIES.map((city) => (
                       <SelectItem key={city} value={city}>
                         {city}
