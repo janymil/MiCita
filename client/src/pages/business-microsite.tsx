@@ -1,6 +1,5 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { getMicrositioTemplate } from "@/components/micrositio-templates";
 import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
