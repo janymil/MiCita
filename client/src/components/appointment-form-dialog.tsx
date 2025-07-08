@@ -110,10 +110,20 @@ export default function AppointmentFormDialog({
         status: "confirmed" // Business-created appointments are confirmed by default
       };
 
-      return apiRequest(`/api/dashboard/businesses/${businessId}/appointments`, {
+      const response = await fetch(`/api/dashboard/businesses/${businessId}/appointments`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(payload),
       });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Error creating appointment');
+      }
+
+      return response.json();
     },
     onSuccess: () => {
       toast({
