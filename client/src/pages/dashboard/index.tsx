@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +19,7 @@ import {
 import DashboardLayout from "@/components/dashboard-layout";
 
 export default function Dashboard() {
+  const [revenueChartView, setRevenueChartView] = useState("weekly");
   const { data: businesses, isLoading: businessesLoading } = useQuery({
     queryKey: ["/api/dashboard/businesses"],
   });
@@ -238,7 +241,22 @@ export default function Dashboard() {
           {/* Revenue Chart */}
           <Card>
             <CardHeader>
-              <CardTitle>Ingresos Semanales</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle>Ingresos por Período</CardTitle>
+                <Select value={revenueChartView} onValueChange={setRevenueChartView}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="daily">Ingresos Diarios</SelectItem>
+                    <SelectItem value="weekly">Ingresos Semanales</SelectItem>
+                    <SelectItem value="monthly">Ingresos Mensuales</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-sm text-gray-600">
+                Solo citas completadas (pagadas) generan ingresos
+              </p>
             </CardHeader>
             <CardContent>
               <div className="h-64 flex items-end justify-between space-x-2 p-4">
@@ -318,6 +336,75 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* Financial Summary */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Resumen Financiero</h3>
+            <Link href="/dashboard/finanzas">
+              <Button variant="outline" size="sm" className="text-teal-600 hover:text-teal-700">
+                Ver Finanzas Completas
+              </Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Ingresos Totales</p>
+                    <p className="text-xl font-bold text-green-600">
+                      S/ {analytics?.totalRevenue?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+                  <DollarSign className="w-8 h-8 text-green-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Pagos Pendientes</p>
+                    <p className="text-xl font-bold text-orange-600">
+                      S/ {analytics?.pendingPayments?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+                  <Clock className="w-8 h-8 text-orange-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Valor Promedio</p>
+                    <p className="text-xl font-bold text-blue-600">
+                      S/ {analytics?.averageAppointmentValue?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+                  <TrendingUp className="w-8 h-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Citas Completadas</p>
+                    <p className="text-xl font-bold text-purple-600">
+                      {analytics?.completedAppointments || 0}
+                    </p>
+                  </div>
+                  <Calendar className="w-8 h-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Quick Actions */}

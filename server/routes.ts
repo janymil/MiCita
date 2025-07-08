@@ -818,7 +818,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       thisMonth.setDate(1);
       
       const monthlyAppointments = appointments.filter(a => a.createdAt && a.createdAt >= thisMonth);
-      const monthlyRevenue = monthlyAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
+      const completedAppointments = appointments.filter(a => a.status === 'completed');
+      const monthlyRevenue = completedAppointments
+        .filter(a => a.createdAt && a.createdAt >= thisMonth)
+        .reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
       const newClientsThisMonth = clients.filter(c => c.createdAt && c.createdAt >= thisMonth);
       
       // Calculate real weekly revenue for the last 7 weeks
@@ -837,7 +840,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (!a.createdAt) return false;
           const appointmentDate = new Date(a.createdAt);
           return appointmentDate >= weekStart && appointmentDate <= weekEnd && 
-                 (a.status === 'confirmed' || a.status === 'completed');
+                 a.status === 'completed'; // Only count completed appointments for revenue
         });
         
         const weekRevenue = weekAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
@@ -878,6 +881,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return a.date === today && a.status === 'confirmed';
       }).length;
       
+      // Financial analytics
+      const totalRevenue = completedAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
+      const pendingPayments = appointments
+        .filter(a => a.status === 'confirmed')
+        .reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
+      const averageAppointmentValue = completedAppointments.length > 0 
+        ? totalRevenue / completedAppointments.length 
+        : 0;
+
       const analytics = {
         revenue: monthlyRevenue,
         appointments: monthlyAppointments.length,
@@ -887,7 +899,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pendingAppointments,
         confirmedToday,
         weeklyRevenue,
-        upcomingAppointments
+        upcomingAppointments,
+        // Financial data
+        totalRevenue,
+        pendingPayments,
+        averageAppointmentValue,
+        completedAppointments: completedAppointments.length
       };
       
       res.json(analytics);

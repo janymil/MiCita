@@ -24,6 +24,7 @@ import Calendar from "@/pages/dashboard/calendar";
 import Clients from "@/pages/dashboard/clients";
 import Services from "@/pages/dashboard/services";
 import Analytics from "@/pages/dashboard/analytics";
+import Finanzas from "@/pages/dashboard/finanzas";
 import Settings from "@/pages/dashboard/settings";
 
 function Router() {
@@ -45,6 +46,7 @@ function Router() {
       <Route path="/dashboard/clientes" component={Clients} />
       <Route path="/dashboard/servicios" component={Services} />
       <Route path="/dashboard/analytics" component={Analytics} />
+      <Route path="/dashboard/finanzas" component={Finanzas} />
       <Route path="/dashboard/configuracion" component={Settings} />
       
       {/* Business micrositio route - catch-all for business slugs */}

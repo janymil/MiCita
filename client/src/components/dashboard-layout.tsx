@@ -9,7 +9,8 @@ import {
   BarChart3, 
   Settings, 
   LogOut,
-  Search
+  Search,
+  DollarSign
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const navigation = [
   { name: "Calendario", href: "/dashboard/calendario", icon: Calendar },
   { name: "Clientes", href: "/dashboard/clientes", icon: Users },
   { name: "Servicios", href: "/dashboard/servicios", icon: Package },
+  { name: "Finanzas", href: "/dashboard/finanzas", icon: DollarSign },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Configuración", href: "/dashboard/configuracion", icon: Settings },
 ];
