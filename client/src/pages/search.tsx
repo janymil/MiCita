@@ -31,7 +31,7 @@ export default function SearchPage() {
     setSelectedCity(newCity);
   }, [location]);
 
-  const { data: searchResults, isLoading, refetch } = useQuery({
+  const { data: searchResults, isLoading, error, refetch } = useQuery({
     queryKey: [
       "/api/search", 
       searchQuery,
@@ -41,19 +41,22 @@ export default function SearchPage() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append("q", searchQuery);
-      if (selectedCategory) params.append("category", selectedCategory);
+      if (selectedCategory && selectedCategory !== "all") params.append("category", selectedCategory);
       if (selectedCity) params.append("city", selectedCity);
       
+      console.log('Fetching search results with params:', params.toString());
       const response = await fetch(`/api/search?${params}`);
       if (!response.ok) {
-        throw new Error('Search failed');
+        console.error('Search API error:', response.status, response.statusText);
+        throw new Error(`Search failed: ${response.status}`);
       }
       const data = await response.json();
+      console.log('Search API response:', data);
       return data;
     },
-    enabled: true,
-    staleTime: 0,
-    cacheTime: 0,
+    enabled: searchQuery.length > 0 || selectedCategory.length > 0,
+    staleTime: 30000, // Cache for 30 seconds
+    cacheTime: 300000, // Keep in cache for 5 minutes
     refetchOnWindowFocus: false,
     refetchOnMount: true
   });
@@ -240,6 +243,11 @@ export default function SearchPage() {
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
             <p className="text-gray-600 mt-4">Buscando negocios...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <p className="text-red-600 mb-4">Error al buscar negocios: {error.message}</p>
+            <Button onClick={() => refetch()}>Reintentar</Button>
           </div>
         ) : (
           <div className="space-y-8">

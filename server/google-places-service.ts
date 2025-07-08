@@ -127,11 +127,13 @@ export class GooglePlacesService {
 
   async searchBusinesses(query: string, category?: string, location = 'Lima, Peru'): Promise<BusinessFromPlaces[]> {
     if (!this.apiKey) {
-      console.error('Google Places API not configured');
+      console.warn('Google Places API not configured - skipping Google results');
       return [];
     }
 
     try {
+      console.log(`Google Places search: query="${query}", category="${category}", location="${location}"`);
+      
       const types = this.getCategoryTypes(category);
       
       // Build search query - if no query, use category or general business search
@@ -226,7 +228,8 @@ export class GooglePlacesService {
       return allBusinesses;
 
     } catch (error) {
-      console.error('Error searching Google Places:', error);
+      console.error('Error searching Google Places:', error instanceof Error ? error.message : error);
+      // Return empty array instead of failing the entire search
       return [];
     }
   }
