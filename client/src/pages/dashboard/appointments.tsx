@@ -6,8 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import {
   Calendar,
   Clock,
@@ -20,27 +18,12 @@ import {
   XCircle,
   User
 } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import DashboardLayout from "@/components/dashboard-layout";
 import { APPOINTMENT_STATUSES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import EditAppointmentDialog from "@/components/edit-appointment-dialog";
 import AppointmentFormDialog from "@/components/appointment-form-dialog";
-
-const appointmentSchema = z.object({
-  clientId: z.string().min(1, "Selecciona un cliente"),
-  serviceId: z.string().min(1, "Selecciona un servicio"),
-  date: z.string().min(1, "Selecciona una fecha"),
-  time: z.string().min(1, "Selecciona una hora"),
-  duration: z.number().min(15, "La duración mínima es 15 minutos"),
-  notes: z.string().optional(),
-  price: z.string().min(1, "Ingresa el precio"),
-});
-
-type AppointmentForm = z.infer<typeof appointmentSchema>;
 
 export default function Appointments() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -65,51 +48,12 @@ export default function Appointments() {
     queryKey: ["/api/dashboard/businesses/1/services"],
   });
 
-  const form = useForm<AppointmentForm>({
-    resolver: zodResolver(appointmentSchema),
-    defaultValues: {
-      clientId: "",
-      serviceId: "",
-      date: "",
-      time: "",
-      duration: 60,
-      notes: "",
-      price: "",
-    },
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const appointmentDate = new Date(`${data.date}T${data.time}`);
-      return apiRequest("POST", "/api/dashboard/businesses/1/appointments", {
-        ...data,
-        clientId: parseInt(data.clientId),
-        serviceId: parseInt(data.serviceId),
-        date: appointmentDate.toISOString(),
-        price: parseFloat(data.price),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/appointments"] });
-      setIsDialogOpen(false);
-      form.reset();
-      toast({
-        title: "Cita creada",
-        description: "La cita ha sido programada exitosamente.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "No se pudo crear la cita. Inténtalo nuevamente.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return apiRequest("PUT", `/api/dashboard/appointments/${id}`, { status });
+      return apiRequest(`/api/dashboard/businesses/1/appointments/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/appointments"] });
@@ -122,7 +66,9 @@ export default function Appointments() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest("DELETE", `/api/dashboard/appointments/${id}`);
+      return apiRequest(`/api/dashboard/businesses/1/appointments/${id}`, {
+        method: "DELETE",
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/appointments"] });
@@ -133,10 +79,6 @@ export default function Appointments() {
     },
   });
 
-  const onSubmit = (data: AppointmentForm) => {
-    createMutation.mutate(data);
-  };
-
   const filteredAppointments = appointments?.filter((appointment: any) => {
     const matchesSearch = !searchTerm || 
       clients?.find((c: any) => c.id === appointment.clientId)?.name
@@ -145,12 +87,6 @@ export default function Appointments() {
     const matchesDate = !dateFilter || new Date(appointment.date).toISOString().split('T')[0] === dateFilter;
     return matchesSearch && matchesStatus && matchesDate;
   }) || [];
-
-  const timeSlots = [
-    "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-    "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
-    "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00"
-  ];
 
   return (
     <DashboardLayout>
@@ -169,161 +105,6 @@ export default function Appointments() {
             <Plus className="w-4 h-4 mr-2" />
             Nueva Cita
           </Button>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Nueva Cita</DialogTitle>
-              </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="clientId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Cliente</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecciona un cliente" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {clients?.map((client: any) => (
-                              <SelectItem key={client.id} value={client.id.toString()}>
-                                {client.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="serviceId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Servicio</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecciona un servicio" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {services?.map((service: any) => (
-                              <SelectItem key={service.id} value={service.id.toString()}>
-                                {service.name} - S/ {service.price}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="date"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Fecha</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="date"
-                              {...field}
-                              min={new Date().toISOString().split('T')[0]}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="time"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Hora</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Hora" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {timeSlots.map((time) => (
-                                <SelectItem key={time} value={time}>
-                                  {time}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Precio (S/)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notas (opcional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Notas adicionales"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsDialogOpen(false)}
-                      className="flex-1"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={createMutation.isPending}
-                      className="flex-1 bg-red-600 hover:bg-red-700"
-                    >
-                      {createMutation.isPending ? "Creando..." : "Crear Cita"}
-                    </Button>
-                  </div>
-                </form>
         </div>
 
         {/* Filters */}
@@ -432,12 +213,13 @@ export default function Appointments() {
                           </div>
                           <div className="text-sm text-gray-500 flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
-                            {new Date(appointment.date).toLocaleDateString()} a las{" "}
-                            {new Date(appointment.date).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                            {appointment.date} a las {appointment.time}
                           </div>
+                          {appointment.clientNotes && (
+                            <div className="text-xs text-gray-500 mt-1 max-w-md">
+                              <strong>Nota del cliente:</strong> {appointment.clientNotes}
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -461,7 +243,7 @@ export default function Appointments() {
                         </div>
 
                         <div className="flex items-center space-x-2">
-                          {appointment.status === "scheduled" && (
+                          {appointment.status === "pending" && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -516,6 +298,14 @@ export default function Appointments() {
         </Card>
       </div>
 
+      {/* Unified Appointment Creation Dialog */}
+      <AppointmentFormDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        businessId={1}
+        title="Nueva Cita"
+      />
+
       {/* Edit Appointment Dialog */}
       {editingAppointment && (
         <EditAppointmentDialog
@@ -525,7 +315,7 @@ export default function Appointments() {
             setIsEditDialogOpen(false);
             setEditingAppointment(null);
           }}
-          businessId={1} // TODO: Get from context
+          businessId={1}
         />
       )}
     </DashboardLayout>

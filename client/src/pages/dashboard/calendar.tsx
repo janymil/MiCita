@@ -4,16 +4,10 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import AppointmentFormDialog from "@/components/appointment-form-dialog";
 import { ChevronLeft, ChevronRight, MapPin, RefreshCw, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { insertAppointmentSchema, type Appointment, type Service, type Client } from "@shared/schema";
+import { z } from "zod";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/queryClient";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks, addDays, subDays } from "date-fns";
@@ -44,7 +38,7 @@ function CalendarContent() {
 
   // Fetch appointments
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
-    queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "appointments"],
+    queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/appointments`],
     enabled: !!currentBusiness?.id,
   });
 
@@ -325,101 +319,14 @@ function CalendarContent() {
         </CardContent>
       </Card>
 
-      {/* Create Appointment Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Nueva Cita</DialogTitle>
-          </DialogHeader>
-          
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="date">Fecha</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  {...form.register("date")}
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="time">Hora</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  {...form.register("time")}
-                />
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="clientId">Cliente</Label>
-              <Select onValueChange={(value) => form.setValue("clientId", parseInt(value))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client: Client) => (
-                    <SelectItem key={client.id} value={client.id.toString()}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="serviceId">Servicio</Label>
-              <Select onValueChange={(value) => form.setValue("serviceId", parseInt(value))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar servicio" />
-                </SelectTrigger>
-                <SelectContent>
-                  {services.map((service: Service) => (
-                    <SelectItem key={service.id} value={service.id.toString()}>
-                      {service.name} - S/ {service.price}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="status">Estado</Label>
-              <Select onValueChange={(value) => form.setValue("status", value as any)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pendiente</SelectItem>
-                  <SelectItem value="confirmed">Confirmada</SelectItem>
-                  <SelectItem value="completed">Completada</SelectItem>
-                  <SelectItem value="cancelled">Cancelada</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div>
-              <Label htmlFor="notes">Notas</Label>
-              <Textarea
-                id="notes"
-                placeholder="Notas adicionales..."
-                {...form.register("notes")}
-              />
-            </div>
-            
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={createAppointmentMutation.isPending}>
-                {createAppointmentMutation.isPending ? "Guardando..." : "Guardar Cita"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Unified Appointment Creation Dialog */}
+      <AppointmentFormDialog
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        businessId={currentBusiness?.id || 1}
+        initialDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined}
+        title="Nueva Cita"
+      />
     </div>
   );
 }
