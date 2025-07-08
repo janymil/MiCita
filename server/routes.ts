@@ -7,7 +7,155 @@ import path from "path";
 import fs from "fs";
 import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
 
-// Helper function to generate available time slots
+// Smart scheduling algorithm to prevent double bookings
+class SmartScheduler {
+  // Check if two time periods overlap
+  static hasTimeOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
+    return start1 < end2 && start2 < end1;
+  }
+  
+  // Convert time string to minutes since midnight
+  static timeToMinutes(time: string): number {
+    const [hour, min] = time.split(':').map(Number);
+    return hour * 60 + min;
+  }
+  
+  // Get the actual service duration for an appointment
+  static async getServiceDuration(serviceId: number): Promise<number> {
+    try {
+      const service = await storage.getService(serviceId);
+      return service?.duration || 30; // Default to 30 minutes if not found
+    } catch {
+      return 30;
+    }
+  }
+  
+  // Advanced conflict detection considering actual appointment durations
+  static async detectConflicts(
+    proposedStart: number,
+    proposedDuration: number,
+    existingAppointments: any[],
+    date: string
+  ): Promise<{ hasConflict: boolean; conflictingAppointments: any[] }> {
+    const proposedEnd = proposedStart + proposedDuration;
+    const conflictingAppointments = [];
+    
+    for (const appointment of existingAppointments) {
+      if (appointment.date !== date) continue;
+      
+      const appointmentStart = this.timeToMinutes(appointment.time);
+      const appointmentDuration = await this.getServiceDuration(appointment.serviceId);
+      const appointmentEnd = appointmentStart + appointmentDuration;
+      
+      if (this.hasTimeOverlap(proposedStart, proposedEnd, appointmentStart, appointmentEnd)) {
+        conflictingAppointments.push({
+          ...appointment,
+          calculatedDuration: appointmentDuration,
+          calculatedEndTime: appointmentEnd
+        });
+      }
+    }
+    
+    return {
+      hasConflict: conflictingAppointments.length > 0,
+      conflictingAppointments
+    };
+  }
+  
+  // Find optimal time slots with buffer time
+  static generateOptimalSlots(
+    date: string,
+    workingHours: any,
+    blockedDates: any[],
+    blockedHours: any[],
+    existingAppointments: any[],
+    serviceDuration: number,
+    bufferMinutes: number = 15 // 15-minute buffer between appointments
+  ): any[] {
+    const slots = [];
+    const selectedDate = new Date(date);
+    const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    
+    // Check if the day is a working day
+    const daySchedule = workingHours[dayName];
+    if (!daySchedule || !daySchedule.enabled) {
+      return slots;
+    }
+    
+    // Check if the date is blocked
+    const isDateBlocked = blockedDates?.some(blocked => {
+      const startDate = new Date(blocked.startDate);
+      const endDate = new Date(blocked.endDate);
+      return selectedDate >= startDate && selectedDate <= endDate;
+    });
+    
+    if (isDateBlocked) {
+      return slots;
+    }
+    
+    const startTime = daySchedule.start;
+    const endTime = daySchedule.end;
+    const startMinutes = this.timeToMinutes(startTime);
+    const endMinutes = this.timeToMinutes(endTime);
+    
+    // Generate appointment slots (not just 30-min intervals)
+    // Consider service duration + buffer time
+    const totalSlotTime = serviceDuration + bufferMinutes;
+    
+    for (let minutes = startMinutes; minutes <= endMinutes - serviceDuration; minutes += 15) {
+      const hour = Math.floor(minutes / 60);
+      const min = minutes % 60;
+      const timeSlot = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+      
+      // Check if proposed appointment would end before business closes
+      if (minutes + serviceDuration > endMinutes) {
+        continue;
+      }
+      
+      // Check if the time slot is manually blocked
+      const isTimeBlocked = blockedHours?.some(blocked => {
+        if (blocked.date !== date) return false;
+        
+        const blockedStart = this.timeToMinutes(blocked.startTime);
+        const blockedEnd = this.timeToMinutes(blocked.endTime);
+        
+        return this.hasTimeOverlap(minutes, minutes + serviceDuration, blockedStart, blockedEnd);
+      });
+      
+      if (isTimeBlocked) {
+        continue;
+      }
+      
+      // Advanced conflict detection with actual service durations
+      const hasAppointmentConflict = existingAppointments.some(appointment => {
+        if (appointment.date !== date) return false;
+        
+        const appointmentStart = this.timeToMinutes(appointment.time);
+        // Use a conservative estimate for existing appointments if duration unknown
+        const estimatedDuration = 60; // Conservative 60-minute estimate
+        const appointmentEnd = appointmentStart + estimatedDuration;
+        
+        // Check for overlap including buffer time
+        return this.hasTimeOverlap(
+          minutes, 
+          minutes + serviceDuration + bufferMinutes,
+          appointmentStart - bufferMinutes, 
+          appointmentEnd
+        );
+      });
+      
+      slots.push({
+        time: timeSlot,
+        available: !hasAppointmentConflict,
+        reason: hasAppointmentConflict ? 'conflicto_cita' : null
+      });
+    }
+    
+    return slots;
+  }
+}
+
+// Enhanced helper function using smart scheduler
 function generateAvailableTimeSlots(
   date: string,
   workingHours: any,
@@ -16,82 +164,15 @@ function generateAvailableTimeSlots(
   existingAppointments: any[],
   serviceDuration: number
 ) {
-  const slots = [];
-  const selectedDate = new Date(date);
-  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-  
-  // Check if the day is a working day
-  const daySchedule = workingHours[dayName];
-  if (!daySchedule || !daySchedule.enabled) {
-    return slots;
-  }
-  
-  // Check if the date is blocked
-  const isDateBlocked = blockedDates?.some(blocked => {
-    const startDate = new Date(blocked.startDate);
-    const endDate = new Date(blocked.endDate);
-    return selectedDate >= startDate && selectedDate <= endDate;
-  });
-  
-  if (isDateBlocked) {
-    return slots;
-  }
-  
-  // Generate time slots based on working hours
-  const startTime = daySchedule.start;
-  const endTime = daySchedule.end;
-  
-  const [startHour, startMin] = startTime.split(':').map(Number);
-  const [endHour, endMin] = endTime.split(':').map(Number);
-  
-  const startMinutes = startHour * 60 + startMin;
-  const endMinutes = endHour * 60 + endMin;
-  
-  // Generate 30-minute slots
-  for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
-    const hour = Math.floor(minutes / 60);
-    const min = minutes % 60;
-    const timeSlot = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-    
-    // Check if this slot has enough time for the service
-    const slotEndMinutes = minutes + serviceDuration;
-    if (slotEndMinutes > endMinutes) {
-      continue;
-    }
-    
-    // Check if the time slot is blocked
-    const isTimeBlocked = blockedHours?.some(blocked => {
-      if (blocked.date !== date) return false;
-      
-      const [blockedStartHour, blockedStartMin] = blocked.startTime.split(':').map(Number);
-      const [blockedEndHour, blockedEndMin] = blocked.endTime.split(':').map(Number);
-      
-      const blockedStartMinutes = blockedStartHour * 60 + blockedStartMin;
-      const blockedEndMinutes = blockedEndHour * 60 + blockedEndMin;
-      
-      return minutes >= blockedStartMinutes && minutes < blockedEndMinutes;
-    });
-    
-    // Check if there's an existing appointment that conflicts
-    const hasConflict = existingAppointments.some(appointment => {
-      const [appointmentHour, appointmentMin] = appointment.time.split(':').map(Number);
-      const appointmentMinutes = appointmentHour * 60 + appointmentMin;
-      
-      // Use actual service duration for conflict detection
-      const appointmentDuration = serviceDuration;
-      const appointmentEndMinutes = appointmentMinutes + appointmentDuration;
-      
-      // Check for overlap
-      return (minutes < appointmentEndMinutes && slotEndMinutes > appointmentMinutes);
-    });
-    
-    slots.push({
-      time: timeSlot,
-      available: !isTimeBlocked && !hasConflict
-    });
-  }
-  
-  return slots;
+  return SmartScheduler.generateOptimalSlots(
+    date,
+    workingHours,
+    blockedDates,
+    blockedHours,
+    existingAppointments,
+    serviceDuration,
+    15 // 15-minute buffer between appointments
+  );
 }
 
 // Ensure uploads directory exists
@@ -237,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public appointment creation endpoint
+  // Enhanced appointment creation with smart scheduling validation
   app.post("/api/appointments/public", async (req, res) => {
     try {
       const appointmentData = req.body;
@@ -249,58 +330,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Todos los campos son requeridos" });
       }
       
-      // Check if the time slot is still available
+      // Get business settings and service information
       const settings = await storage.getBusinessSettings(appointmentData.businessId);
       const service = await storage.getService(appointmentData.serviceId);
+      
+      if (!service) {
+        return res.status(404).json({ message: "Servicio no encontrado" });
+      }
+      
+      // Get all existing appointments for conflict detection
       const existingAppointments = await storage.getAppointmentsByDate(appointmentData.businessId, appointmentData.date);
       
+      // Advanced conflict detection using SmartScheduler
+      const proposedStartMinutes = SmartScheduler.timeToMinutes(appointmentData.time);
+      const conflictCheck = await SmartScheduler.detectConflicts(
+        proposedStartMinutes,
+        service.duration,
+        existingAppointments,
+        appointmentData.date
+      );
+      
+      if (conflictCheck.hasConflict) {
+        return res.status(409).json({ 
+          message: "El horario seleccionado tiene conflicto con otra cita",
+          conflicts: conflictCheck.conflictingAppointments,
+          suggestedAction: "Por favor selecciona otro horario"
+        });
+      }
+      
+      // Double-check availability using the slot generation
       const availableSlots = generateAvailableTimeSlots(
         appointmentData.date,
         settings?.workingHours || {},
         settings?.blockedDates || [],
         settings?.blockedHours || [],
         existingAppointments,
-        service?.duration || 30
+        service.duration
       );
       
       const requestedSlot = availableSlots.find(slot => slot.time === appointmentData.time);
       
       if (!requestedSlot || !requestedSlot.available) {
-        return res.status(400).json({ message: "El horario seleccionado ya no está disponible" });
+        return res.status(400).json({ 
+          message: "El horario seleccionado ya no está disponible",
+          reason: requestedSlot?.reason || "slot_unavailable"
+        });
       }
       
-      // Create or find client
+      // Create or find client (with duplicate prevention)
       let client = await storage.getClientsByBusinessId(appointmentData.businessId)
-        .then(clients => clients.find(c => c.email === appointmentData.clientEmail));
+        .then(clients => clients.find(c => 
+          c.email.toLowerCase() === appointmentData.clientEmail.toLowerCase() ||
+          c.phone === appointmentData.clientPhone
+        ));
       
       if (!client) {
         client = await storage.createClient({
           businessId: appointmentData.businessId,
           name: appointmentData.clientName,
           phone: appointmentData.clientPhone,
-          email: appointmentData.clientEmail
+          email: appointmentData.clientEmail.toLowerCase()
         });
       }
       
-      // Create appointment
+      // Create appointment with additional metadata
       const appointment = await storage.createAppointment({
         businessId: appointmentData.businessId,
         clientId: client.id,
         serviceId: appointmentData.serviceId,
         date: appointmentData.date,
         time: appointmentData.time,
-        status: appointmentData.status || 'pending',
-        notes: appointmentData.notes || ''
+        duration: service.duration,
+        status: 'pending', // Always start as pending for public bookings
+        notes: `Reserva online - ${service.name}${appointmentData.notes ? ` | ${appointmentData.notes}` : ''}`,
+        price: service.price
       });
       
       res.json({ 
         success: true, 
-        appointment,
-        message: "Cita creada exitosamente"
+        appointment: {
+          ...appointment,
+          serviceName: service.name,
+          clientName: client.name,
+          duration: service.duration
+        },
+        message: "Cita creada exitosamente",
+        bookingDetails: {
+          service: service.name,
+          date: appointmentData.date,
+          time: appointmentData.time,
+          duration: `${service.duration} minutos`,
+          price: `S/ ${service.price}`
+        }
       });
     } catch (error) {
       console.error("Error creating appointment:", error);
       res.status(500).json({ message: "Error creando la cita" });
+    }
+  });
+
+  // Endpoint to check real-time availability for a specific time slot
+  app.post("/api/appointments/check-availability", async (req, res) => {
+    try {
+      const { businessId, serviceId, date, time } = req.body;
+      
+      if (!businessId || !serviceId || !date || !time) {
+        return res.status(400).json({ message: "Todos los campos son requeridos" });
+      }
+      
+      const service = await storage.getService(serviceId);
+      if (!service) {
+        return res.status(404).json({ message: "Servicio no encontrado" });
+      }
+      
+      const existingAppointments = await storage.getAppointmentsByDate(businessId, date);
+      const proposedStartMinutes = SmartScheduler.timeToMinutes(time);
+      
+      const conflictCheck = await SmartScheduler.detectConflicts(
+        proposedStartMinutes,
+        service.duration,
+        existingAppointments,
+        date
+      );
+      
+      res.json({
+        available: !conflictCheck.hasConflict,
+        conflicts: conflictCheck.conflictingAppointments,
+        serviceInfo: {
+          name: service.name,
+          duration: service.duration,
+          price: service.price
+        }
+      });
+    } catch (error) {
+      console.error("Error checking availability:", error);
+      res.status(500).json({ message: "Error verificando disponibilidad" });
     }
   });
 

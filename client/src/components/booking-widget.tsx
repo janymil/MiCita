@@ -50,7 +50,26 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
     }
   });
 
-  // Create appointment mutation
+  // Real-time availability check mutation
+  const checkAvailability = useMutation({
+    mutationFn: async ({ serviceId, date, time }: { serviceId: string, date: string, time: string }) => {
+      const response = await fetch('/api/appointments/check-availability', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessId,
+          serviceId: parseInt(serviceId),
+          date,
+          time
+        }),
+      });
+      return response.json();
+    }
+  });
+
+  // Enhanced appointment creation with conflict handling
   const createAppointment = useMutation({
     mutationFn: async (appointmentData: any) => {
       const response = await fetch('/api/appointments/public', {
@@ -61,17 +80,22 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
         body: JSON.stringify(appointmentData),
       });
       
+      const result = await response.json();
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error creating appointment');
+        if (response.status === 409) {
+          // Conflict detected
+          throw new Error(`${result.message}\n\nCitas en conflicto: ${result.conflicts?.length || 0}`);
+        }
+        throw new Error(result.message || 'Error creating appointment');
       }
       
-      return response.json();
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "¡Reserva exitosa!",
-        description: "Tu cita ha sido programada. Recibirás una confirmación por email.",
+        description: `Tu cita para ${data.bookingDetails?.service} el ${data.bookingDetails?.date} a las ${data.bookingDetails?.time} ha sido confirmada.`,
       });
       
       // Reset form
@@ -87,11 +111,17 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
       queryClient.invalidateQueries({ queryKey: [`/api/appointments/availability/${businessId}`] });
     },
     onError: (error: any) => {
+      const isConflict = error.message.includes('conflicto');
       toast({
-        title: "Error en la reserva",
+        title: isConflict ? "Conflicto de horario" : "Error en la reserva",
         description: error.message,
         variant: "destructive"
       });
+      
+      // If there's a conflict, refresh availability
+      if (isConflict) {
+        queryClient.invalidateQueries({ queryKey: [`/api/appointments/availability/${businessId}`] });
+      }
     }
   });
 
@@ -109,11 +139,39 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
     }
   };
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!selectedService || !selectedDate || !selectedTime || !customerName || !customerPhone || !customerEmail) {
       toast({
         title: "Información incompleta",
         description: "Por favor completa todos los campos para hacer la reserva.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Real-time availability check before booking
+    try {
+      const availabilityCheck = await checkAvailability.mutateAsync({
+        serviceId: selectedService,
+        date: selectedDate,
+        time: selectedTime
+      });
+
+      if (!availabilityCheck.available) {
+        toast({
+          title: "Horario ya no disponible",
+          description: "Este horario fue reservado por otro cliente. Por favor selecciona otro horario.",
+          variant: "destructive"
+        });
+        
+        // Refresh availability data
+        queryClient.invalidateQueries({ queryKey: [`/api/appointments/availability/${businessId}`] });
+        return;
+      }
+    } catch (error) {
+      toast({
+        title: "Error verificando disponibilidad",
+        description: "Por favor intenta nuevamente.",
         variant: "destructive"
       });
       return;
@@ -127,8 +185,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
       clientName: customerName,
       clientPhone: customerPhone,
       clientEmail: customerEmail,
-      status: 'pending',
-      notes: `Reserva online - ${selectedServiceData?.name}`
+      notes: selectedServiceData?.name ? `Reserva para ${selectedServiceData.name}` : ''
     };
 
     createAppointment.mutate(appointmentData);
@@ -224,28 +281,51 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
                 {loadingSlots ? (
                   <div className="text-center py-4">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600 mx-auto"></div>
-                    <p className="text-sm text-gray-600 mt-2">Buscando horarios...</p>
+                    <p className="text-sm text-gray-600 mt-2">Buscando horarios disponibles...</p>
                   </div>
                 ) : availableSlots && availableSlots.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2 mt-2">
-                    {availableSlots.map((slot: AvailableSlot) => (
-                      <Button
-                        key={slot.time}
-                        variant={selectedTime === slot.time ? "default" : "outline"}
-                        size="sm"
-                        disabled={!slot.available}
-                        onClick={() => setSelectedTime(slot.time)}
-                        className={`text-xs ${selectedTime === slot.time ? 'bg-red-600 hover:bg-red-700' : ''} ${!slot.available ? 'opacity-50' : ''}`}
-                      >
-                        <Clock className="w-3 h-3 mr-1" />
-                        {slot.time}
-                      </Button>
-                    ))}
+                  <div>
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {availableSlots.map((slot: AvailableSlot) => (
+                        <Button
+                          key={slot.time}
+                          variant={selectedTime === slot.time ? "default" : "outline"}
+                          size="sm"
+                          disabled={!slot.available}
+                          onClick={() => setSelectedTime(slot.time)}
+                          className={`text-xs relative ${selectedTime === slot.time ? 'bg-red-600 hover:bg-red-700' : ''} ${!slot.available ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-50'}`}
+                          title={!slot.available ? 'Horario no disponible' : `Disponible para ${selectedServiceData?.name} (${selectedServiceData?.duration} min)`}
+                        >
+                          <Clock className="w-3 h-3 mr-1" />
+                          {slot.time}
+                          {!slot.available && (
+                            <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                          )}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="mt-3 text-xs text-gray-500 flex items-center justify-between">
+                      <span>
+                        <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span>
+                        Disponible
+                      </span>
+                      <span>
+                        <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1"></span>
+                        Ocupado
+                      </span>
+                      <span>Duración: {selectedServiceData?.duration} min</span>
+                    </div>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-600 py-4 text-center">
-                    No hay horarios disponibles para esta fecha. Por favor selecciona otra fecha.
-                  </p>
+                  <div className="text-center py-6">
+                    <Clock className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">
+                      No hay horarios disponibles para esta fecha.
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Por favor selecciona otra fecha o verifica los horarios de atención.
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -331,10 +411,22 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
               </Button>
               <Button 
                 onClick={handleBooking}
-                disabled={!customerName || !customerPhone || !customerEmail || createAppointment.isPending}
+                disabled={!customerName || !customerPhone || !customerEmail || createAppointment.isPending || checkAvailability.isPending}
                 className="flex-1 bg-red-600 hover:bg-red-700"
               >
-                {createAppointment.isPending ? "Reservando..." : "Confirmar Reserva"}
+                {createAppointment.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Confirmando...
+                  </>
+                ) : checkAvailability.isPending ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Verificando...
+                  </>
+                ) : (
+                  "Confirmar Reserva"
+                )}
               </Button>
             </div>
           </>
