@@ -11,7 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
-import BusinessMap from "@/components/business-map";
+import SimpleMap from "@/components/simple-map";
 import { BUSINESS_CATEGORIES, PERUVIAN_CITIES, CITY_DISTRICTS } from "@/lib/constants";
 
 export default function SearchPage() {
@@ -685,16 +685,13 @@ export default function SearchPage() {
             
             {/* Map Container */}
             <div className="order-2 lg:order-2">
-              {viewMode === "map" && (
-                <BusinessMap
-                  key={`business-map-${filteredResults.length}-${selectedCity}-${selectedCategory}`}
-                  businesses={filteredResults}
-                  onMapBoundsChange={(bounds) => setMapBounds(bounds)}
-                  onBusinessClick={(business) => setSelectedBusiness(business)}
-                  selectedBusiness={selectedBusiness}
-                  className="h-full"
-                />
-              )}
+              <SimpleMap
+                businesses={filteredResults}
+                onMapBoundsChange={(bounds) => setMapBounds(bounds)}
+                onBusinessClick={(business) => setSelectedBusiness(business)}
+                selectedBusiness={selectedBusiness}
+                className="h-full"
+              />
             </div>
           </div>
         ) : (
