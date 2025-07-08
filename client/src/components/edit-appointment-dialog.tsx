@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Calendar, Clock, User, Phone, Mail, CreditCard } from "lucide-react";
@@ -151,9 +152,7 @@ export default function EditAppointmentDialog({
   };
 
   const handleDelete = () => {
-    if (confirm("¿Estás seguro que deseas eliminar esta cita? Esta acción no se puede deshacer.")) {
-      deleteAppointment.mutate();
-    }
+    deleteAppointment.mutate();
   };
 
   const getStatusDisplay = (status: string) => {
@@ -320,14 +319,35 @@ export default function EditAppointmentDialog({
 
           {/* Actions */}
           <div className="flex justify-between pt-4">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteAppointment.isPending}
-            >
-              {deleteAppointment.isPending ? "Eliminando..." : "Eliminar Cita"}
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deleteAppointment.isPending}
+                >
+                  {deleteAppointment.isPending ? "Eliminando..." : "Eliminar Cita"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>¿Eliminar cita?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    ¿Estás seguro que deseas eliminar esta cita de <strong>{clientName}</strong>? 
+                    Esta acción no se puede deshacer y se perderá toda la información relacionada.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Eliminar
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
             <div className="flex space-x-2">
               <Button type="button" variant="outline" onClick={onClose}>
