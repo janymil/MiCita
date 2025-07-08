@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader } from "@googlemaps/js-api-loader";
 import { MapPin } from "lucide-react";
+
+// Extend window object for Google Maps
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 interface BusinessMapProps {
   businesses: any[];
@@ -24,35 +30,56 @@ export default function BusinessMap({
   const [mapError, setMapError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize Google Maps
+  // Load Google Maps script
   useEffect(() => {
+    const loadGoogleMaps = () => {
+      return new Promise<void>((resolve, reject) => {
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        
+        if (!apiKey) {
+          reject(new Error("Google Maps API key not configured"));
+          return;
+        }
+
+        // Check if Google Maps is already loaded
+        if (window.google?.maps) {
+          resolve();
+          return;
+        }
+
+        // Create script element
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&v=weekly`;
+        script.async = true;
+        script.defer = true;
+        
+        script.onload = () => {
+          console.log("Google Maps script loaded successfully");
+          resolve();
+        };
+        
+        script.onerror = () => {
+          console.error("Failed to load Google Maps script");
+          reject(new Error("Failed to load Google Maps script"));
+        };
+
+        document.head.appendChild(script);
+      });
+    };
+
     const initMap = async () => {
       try {
         setIsLoading(true);
         setMapError(null);
         
-        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-        console.log("Google Maps API Key available:", !!apiKey);
-        
-        if (!apiKey) {
-          console.error("Google Maps API key not found");
-          setMapError("Google Maps API key not configured");
-          setIsLoading(false);
-          return;
-        }
-
-        const loader = new Loader({
-          apiKey,
-          version: "weekly",
-          libraries: ["places", "geometry"]
-        });
-
         console.log("Loading Google Maps...");
-        await loader.load();
+        await loadGoogleMaps();
         console.log("Google Maps loaded successfully");
 
         if (!mapRef.current) {
           console.error("Map container ref not found");
+          setMapError("Map container not found");
+          setIsLoading(false);
           return;
         }
 
