@@ -11,7 +11,7 @@ import Home from "@/pages/home";
 import PublicSearchPage from "@/pages/public-search";
 import BusinessLandingPage from "@/pages/business-landing";
 import BusinessMicrosite from "@/pages/business-microsite";
-
+import APIAnalyticsPage from "@/pages/admin/api-analytics";
 
 // Auth pages
 import Login from "@/pages/auth/login";
@@ -49,9 +49,11 @@ function Router() {
       <Route path="/dashboard/finanzas" component={Finanzas} />
       <Route path="/dashboard/configuracion" component={Settings} />
 
+      {/* Admin routes */}
+      <Route path="/admin/api-analytics" component={APIAnalyticsPage} />
+
       {/* Business micrositio route - catch-all for business slugs */}
       <Route path="/:slug" component={BusinessMicrosite} />
-
 
       {/* Fallback to 404 */}
       <Route component={NotFound} />
