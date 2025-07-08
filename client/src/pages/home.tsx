@@ -30,10 +30,16 @@ export default function Home() {
     
     setIsSearching(true);
     
-    // Force navigation to search results page
-    const searchUrl = `/buscar?q=${encodeURIComponent(searchQuery.trim())}`;
+    // Navigate to search results page
+    const params = new URLSearchParams();
+    params.append('q', searchQuery.trim());
+    if (searchLocation && searchLocation !== 'Lima, Perú') {
+      params.append('city', searchLocation);
+    }
+    
+    const searchUrl = `/buscar?${params.toString()}`;
     console.log('Navigating to:', searchUrl);
-    window.location.href = searchUrl; // Force full page navigation
+    setLocation(searchUrl);
   };
 
   const handleCategoryClick = (categoryId: string) => {
@@ -71,7 +77,7 @@ export default function Home() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="border-0 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
               <div className="flex-1 flex items-center px-4 py-3">
@@ -82,7 +88,7 @@ export default function Home() {
                   value={searchLocation}
                   onChange={(e) => setSearchLocation(e.target.value)}
                   className="border-0 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
               <Button
@@ -323,7 +329,7 @@ export default function Home() {
                 <li><Link href="/buscar?category=belleza" className="hover:text-white transition-colors">Belleza</Link></li>
                 <li><Link href="/buscar?category=salud" className="hover:text-white transition-colors">Salud</Link></li>
                 <li><Link href="/buscar?category=fitness" className="hover:text-white transition-colors">Fitness</Link></li>
-                <li><Link href="/buscar?category=restaurante" className="hover:text-white transition-colors">Restaurantes</Link></li>
+                <li><Link href="/buscar?category=gastronomia" className="hover:text-white transition-colors">Restaurantes</Link></li>
               </ul>
             </div>
 

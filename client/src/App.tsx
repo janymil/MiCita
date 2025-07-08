@@ -34,11 +34,11 @@ function Router() {
       <Route path="/" component={PublicSearchPage} />
       <Route path="/business" component={BusinessLandingPage} />
       <Route path="/buscar" component={Search} />
-      
+
       {/* Auth routes */}
       <Route path="/login" component={Login} />
       <Route path="/registro" component={Register} />
-      
+
       {/* Dashboard routes */}
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/dashboard/citas" component={Appointments} />
@@ -48,10 +48,10 @@ function Router() {
       <Route path="/dashboard/analytics" component={Analytics} />
       <Route path="/dashboard/finanzas" component={Finanzas} />
       <Route path="/dashboard/configuracion" component={Settings} />
-      
+
       {/* Business micrositio route - catch-all for business slugs */}
       <Route path="/:slug" component={BusinessMicrosite} />
-      
+
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
