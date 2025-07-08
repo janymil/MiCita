@@ -821,14 +821,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const monthlyRevenue = monthlyAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
       const newClientsThisMonth = clients.filter(c => c.createdAt && c.createdAt >= thisMonth);
       
+      // Calculate real weekly revenue for the last 7 weeks
+      const now = new Date();
+      const weeklyRevenue = [];
+      for (let i = 6; i >= 0; i--) {
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - (i * 7) - now.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+        
+        const weekAppointments = appointments.filter(a => {
+          if (!a.createdAt) return false;
+          const appointmentDate = new Date(a.createdAt);
+          return appointmentDate >= weekStart && appointmentDate <= weekEnd && 
+                 (a.status === 'confirmed' || a.status === 'completed');
+        });
+        
+        const weekRevenue = weekAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
+        weeklyRevenue.push(weekRevenue);
+      }
+      
+      // Get upcoming appointments with proper names
+      const upcomingAppointments = await Promise.all(
+        appointments
+          .filter(a => {
+            const appointmentDate = new Date(`${a.date}T${a.time}`);
+            return appointmentDate > new Date() && (a.status === 'pending' || a.status === 'confirmed');
+          })
+          .sort((a, b) => {
+            const dateA = new Date(`${a.date}T${a.time}`);
+            const dateB = new Date(`${b.date}T${b.time}`);
+            return dateA.getTime() - dateB.getTime();
+          })
+          .slice(0, 5)
+          .map(async (appointment) => {
+            const [client, service] = await Promise.all([
+              storage.getClient(appointment.clientId || 0),
+              storage.getService(appointment.serviceId || 0)
+            ]);
+            
+            return {
+              ...appointment,
+              clientName: client?.name || 'Cliente Desconocido',
+              serviceName: service?.name || 'Servicio Desconocido'
+            };
+          })
+      );
+      
+      // Count appointments by status
+      const pendingAppointments = appointments.filter(a => a.status === 'pending').length;
+      const confirmedToday = appointments.filter(a => {
+        const today = new Date().toISOString().split('T')[0];
+        return a.date === today && a.status === 'confirmed';
+      }).length;
+      
       const analytics = {
         revenue: monthlyRevenue,
         appointments: monthlyAppointments.length,
         newClients: newClientsThisMonth.length,
         totalClients: clients.length,
         totalServices: services.length,
-        weeklyRevenue: [1200, 1580, 980, 1890, 1420, 1670, 890], // Mock weekly data
-        upcomingAppointments: appointments.slice(0, 5) // Next 5 appointments
+        pendingAppointments,
+        confirmedToday,
+        weeklyRevenue,
+        upcomingAppointments
       };
       
       res.json(analytics);

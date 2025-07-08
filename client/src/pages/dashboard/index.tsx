@@ -156,78 +156,78 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card>
+            <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 border-orange-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Ingresos del Mes</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      S/ {analytics?.revenue?.toLocaleString() || "0"}
+                    <p className="text-sm font-medium text-gray-600">Citas Pendientes</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {analytics?.pendingAppointments || 0}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
+                <div className="mt-2 text-sm text-orange-600">
+                  Ver más →
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Citas Confirmadas Hoy</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {analytics?.confirmedToday || 0}
                     </p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <DollarSign className="w-6 h-6 text-green-600" />
+                    <Calendar className="w-6 h-6 text-green-600" />
                   </div>
                 </div>
-                <div className="mt-2 flex items-center text-sm text-green-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  +12% vs mes anterior
+                <div className="mt-2 text-sm text-green-600">
+                  Ver más →
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Citas Este Mes</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {analytics?.appointments || 0}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center text-sm text-blue-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  +8% vs mes anterior
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Clientes Nuevos</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {analytics?.newClients || 0}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Users className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center text-sm text-purple-600">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  +15% vs mes anterior
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
+            <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Total Clientes</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold text-blue-600">
                       {analytics?.totalClients || 0}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Users className="w-6 h-6 text-orange-600" />
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Users className="w-6 h-6 text-blue-600" />
                   </div>
+                </div>
+                <div className="mt-2 text-sm text-blue-600">
+                  Ver más →
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Servicios</p>
+                    <p className="text-2xl font-bold text-purple-600">
+                      {analytics?.totalServices || 0}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <BarChart3 className="w-6 h-6 text-purple-600" />
+                  </div>
+                </div>
+                <div className="mt-2 text-sm text-purple-600">
+                  Ver más →
                 </div>
               </CardContent>
             </Card>
@@ -285,23 +285,23 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-              ) : recentAppointments && recentAppointments.length > 0 ? (
+              ) : analytics?.upcomingAppointments && analytics.upcomingAppointments.length > 0 ? (
                 <div className="space-y-4">
-                  {recentAppointments.slice(0, 5).map((appointment: any) => (
+                  {analytics.upcomingAppointments.map((appointment: any) => (
                     <div key={appointment.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
                       <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                         <Calendar className="w-6 h-6 text-blue-600" />
                       </div>
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">
-                          Cliente #{appointment.clientId}
+                          {appointment.clientName || `Cliente #${appointment.clientId}`}
                         </div>
                         <div className="text-sm text-gray-600">
-                          Servicio #{appointment.serviceId}
+                          {appointment.serviceName || `Servicio #${appointment.serviceId}`}
                         </div>
                         <div className="text-sm text-gray-500 flex items-center">
                           <Clock className="w-4 h-4 mr-1" />
-                          {new Date(appointment.date).toLocaleDateString()}
+                          {new Date(appointment.date).toLocaleDateString()} - {appointment.time}
                         </div>
                       </div>
                       <div className="text-lg font-semibold text-red-600">
