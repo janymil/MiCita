@@ -21,12 +21,27 @@ export class GooglePlacesCacheService {
 
   // Convert Google Places business to cache format
   private convertBusinessToCache(business: BusinessFromPlaces): InsertCachedGoogleBusiness {
-    // Create search terms
-    const searchTerms = [
+    // Create enhanced search terms including phone and website domains
+    const searchTermsArray = [
       business.name.toLowerCase(),
       business.address.toLowerCase(),
       business.category
-    ].join(' ');
+    ];
+    
+    // Add phone number to search terms (without formatting)
+    if (business.phone) {
+      searchTermsArray.push(business.phone.replace(/\D/g, ''));
+    }
+    
+    // Add website domain to search terms
+    if (business.website) {
+      try {
+        const domain = new URL(business.website).hostname.replace('www.', '');
+        searchTermsArray.push(domain);
+      } catch {}
+    }
+    
+    const searchTerms = searchTermsArray.join(' ');
 
     return {
       placeId: business.id,

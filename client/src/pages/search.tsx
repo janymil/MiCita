@@ -5,17 +5,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Search, MapPin, Filter, SlidersHorizontal } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Slider } from "@/components/ui/slider";
+import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
 import { BUSINESS_CATEGORIES, PERUVIAN_CITIES } from "@/lib/constants";
 
+// Lima districts for local filtering
+const LIMA_DISTRICTS = [
+  "Miraflores", "San Isidro", "Barranco", "Surco", "La Molina", "San Borja",
+  "Jesús María", "Lince", "Magdalena", "Pueblo Libre", "Cercado de Lima",
+  "Breña", "San Miguel", "Callao", "Chorrillos", "Villa El Salvador",
+  "San Juan de Miraflores", "Villa María del Triunfo", "Los Olivos",
+  "Comas", "Independencia", "San Martín de Porres", "Rímac", "Ate",
+  "Santa Anita", "El Agustino", "La Victoria", "San Luis"
+];
+
 export default function SearchPage() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedCity, setSelectedCity] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("all");
+  const [minRating, setMinRating] = useState(0);
+  const [maxPrice, setMaxPrice] = useState(4);
+  const [openNow, setOpenNow] = useState(false);
+  const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [filteredResults, setFilteredResults] = useState([]);
+  const resultsPerPage = 20;
 
   // Parse URL parameters and force re-render
   useEffect(() => {
@@ -23,12 +46,19 @@ export default function SearchPage() {
     const newQuery = urlParams.get("q") || "";
     const newCategory = urlParams.get("category") || "";
     const newCity = urlParams.get("location") || urlParams.get("city") || "";
+    const newDistrict = urlParams.get("district") || "all";
+    const newMinRating = parseInt(urlParams.get("minRating") || "0");
+    const newSortBy = urlParams.get("sort") || "relevance";
     
-    console.log('URL params changed:', { query: newQuery, category: newCategory, city: newCity });
+    console.log('URL params changed:', { query: newQuery, category: newCategory, city: newCity, district: newDistrict });
     
     setSearchQuery(newQuery);
-    setSelectedCategory(newCategory);
+    setSelectedCategory(newCategory || "all");
     setSelectedCity(newCity);
+    setSelectedDistrict(newDistrict);
+    setMinRating(newMinRating);
+    setSortBy(newSortBy);
+    setCurrentPage(1); // Reset pagination when filters change
   }, [location]);
 
   const { data: searchResults, isLoading, refetch } = useQuery({
@@ -36,13 +66,21 @@ export default function SearchPage() {
       "/api/search", 
       searchQuery,
       selectedCategory,
-      selectedCity
+      selectedCity,
+      selectedDistrict,
+      minRating,
+      openNow,
+      sortBy
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.append("q", searchQuery);
       if (selectedCategory) params.append("category", selectedCategory);
       if (selectedCity) params.append("city", selectedCity);
+      if (selectedDistrict) params.append("district", selectedDistrict);
+      if (minRating > 0) params.append("minRating", minRating.toString());
+      if (openNow) params.append("openNow", "true");
+      if (sortBy !== "relevance") params.append("sort", sortBy);
       
       const response = await fetch(`/api/search?${params}`);
       if (!response.ok) {
@@ -59,18 +97,30 @@ export default function SearchPage() {
   });
 
   const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      return;
-    }
-    
     const params = new URLSearchParams();
-    params.append("q", searchQuery.trim());
+    if (searchQuery) params.append("q", searchQuery);
     if (selectedCategory && selectedCategory !== "all") params.append("category", selectedCategory);
     if (selectedCity) params.append("city", selectedCity);
+    if (selectedDistrict && selectedDistrict !== "all") params.append("district", selectedDistrict);
+    if (minRating > 0) params.append("minRating", minRating.toString());
+    if (openNow) params.append("openNow", "true");
+    if (sortBy !== "relevance") params.append("sort", sortBy);
     
-    console.log('Performing search with params:', params.toString());
+    setLocation(`/buscar?${params.toString()}`);
+  };
+  
+  const clearFilters = () => {
+    setSelectedCategory("all");
+    setSelectedDistrict("all");
+    setMinRating(0);
+    setMaxPrice(4);
+    setOpenNow(false);
+    setSortBy("relevance");
     
-    // Use wouter navigation
+    const params = new URLSearchParams();
+    if (searchQuery) params.append("q", searchQuery);
+    if (selectedCity) params.append("city", selectedCity);
+    
     setLocation(`/buscar?${params.toString()}`);
   };
 
@@ -85,26 +135,97 @@ export default function SearchPage() {
     }
   }, [searchResults, refetch]);
 
-  const clearFilters = () => {
-    setSearchQuery("");
-    setSelectedCategory("");
-    setSelectedCity("");
-    setLocation("/buscar");
-  };
+  // Client-side filtering and sorting
+  useEffect(() => {
+    if (!searchResults) {
+      setFilteredResults([]);
+      return;
+    }
+    
+    let filtered = [...searchResults];
+    
+    // Apply client-side filters
+    if (minRating > 0) {
+      filtered = filtered.filter(business => (business.rating || 0) >= minRating);
+    }
+    
+    if (maxPrice < 4) {
+      filtered = filtered.filter(business => 
+        !business.priceLevel || business.priceLevel <= maxPrice
+      );
+    }
+    
+    if (selectedDistrict && selectedDistrict !== "all") {
+      filtered = filtered.filter(business => {
+        if (business.address) {
+          return business.address.toLowerCase().includes(selectedDistrict.toLowerCase());
+        }
+        return false;
+      });
+    }
+    
+    if (openNow) {
+      filtered = filtered.filter(business => {
+        // For Google Places results
+        if (business.openNow !== undefined) {
+          return business.openNow;
+        }
+        // For local businesses, we'd need to check working hours against current time
+        return true; // Simplified for now
+      });
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "rating":
+          return (b.rating || 0) - (a.rating || 0);
+        case "reviews":
+          return (b.reviewCount || b.user_ratings_total || 0) - (a.reviewCount || a.user_ratings_total || 0);
+        case "price_low":
+          return (a.priceLevel || 0) - (b.priceLevel || 0);
+        case "price_high":
+          return (b.priceLevel || 0) - (a.priceLevel || 0);
+        case "name":
+          return a.name.localeCompare(b.name);
+        default: // relevance
+          // Keep original order (Google API returns by relevance)
+          return 0;
+      }
+    });
+    
+    setFilteredResults(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [searchResults, minRating, maxPrice, selectedDistrict, openNow, sortBy]);
 
   const handleBusinessView = (customUrl: string) => {
     setLocation(`/${customUrl}`);
   };
 
-  const registeredBusinesses = searchResults?.filter((b: any) => b.type === "registered") || [];
-  const publicBusinesses = searchResults?.filter((b: any) => b.type === "public") || [];
-  const googlePlacesResults = searchResults?.filter((b: any) => b.type === "google") || [];
+  // Separate filtered results by type for better organization
+  const registeredBusinesses = filteredResults.filter((b: any) => b.type === "registered") || [];
+  const publicBusinesses = filteredResults.filter((b: any) => b.type === "public") || [];
+  const googlePlacesResults = filteredResults.filter((b: any) => b.type === "google") || [];
+  
+  // Pagination logic
+  const totalResults = filteredResults.length;
+  const totalPages = Math.ceil(totalResults / resultsPerPage);
+  const startIndex = (currentPage - 1) * resultsPerPage;
+  const endIndex = startIndex + resultsPerPage;
+  
+  // Create a combined array for pagination
+  const allResults = [...registeredBusinesses, ...publicBusinesses, ...googlePlacesResults];
+  const paginatedResults = allResults.slice(startIndex, endIndex);
   
   console.log('Frontend filtered results:', {
-    total: searchResults?.length || 0,
+    total: totalResults,
+    filtered: filteredResults.length,
     registered: registeredBusinesses.length,
     public: publicBusinesses.length,
-    google: googlePlacesResults.length
+    google: googlePlacesResults.length,
+    currentPage,
+    totalPages,
+    showing: paginatedResults.length
   });
   
   // Debug: Log the actual data to see what we're getting
@@ -200,35 +321,177 @@ export default function SearchPage() {
                 </Badge>
               )}
 
-              {(searchQuery || selectedCategory || selectedCity) && (
+              {(searchQuery || (selectedCategory && selectedCategory !== "all") || selectedCity || (selectedDistrict && selectedDistrict !== "all") || minRating > 0 || openNow || sortBy !== "relevance") && (
                 <Button variant="ghost" onClick={clearFilters} size="sm">
                   Limpiar filtros
                 </Button>
+              )}
+              
+              {/* Results count and sorting */}
+              {totalResults > 0 && (
+                <div className="flex items-center text-sm text-gray-600">
+                  <span>{totalResults} resultados encontrados</span>
+                  {currentPage > 1 && (
+                    <span className="ml-2">• Página {currentPage} de {totalPages}</span>
+                  )}
+                </div>
               )}
             </div>
 
             {/* Expandable Filters */}
             {showFilters && (
-              <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Categoría
-                  </label>
-                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todas las categorías" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas las categorías</SelectItem>
-                      {BUSINESS_CATEGORIES.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+              <Card className="bg-gray-50">
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Category Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Categoría
+                      </label>
+                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todas las categorías" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas las categorías</SelectItem>
+                          {BUSINESS_CATEGORIES.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* District Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Distrito
+                      </label>
+                      <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Todos los distritos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos los distritos</SelectItem>
+                          {LIMA_DISTRICTS.map((district) => (
+                            <SelectItem key={district} value={district}>
+                              {district}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Rating Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Star className="w-4 h-4 inline mr-1" />
+                        Calificación mínima
+                      </label>
+                      <Select value={minRating.toString()} onValueChange={(value) => setMinRating(parseInt(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Cualquier calificación" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Cualquier calificación</SelectItem>
+                          <SelectItem value="4">4+ estrellas</SelectItem>
+                          <SelectItem value="3">3+ estrellas</SelectItem>
+                          <SelectItem value="2">2+ estrellas</SelectItem>
+                          <SelectItem value="1">1+ estrellas</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Sort By */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <ArrowUpDown className="w-4 h-4 inline mr-1" />
+                        Ordenar por
+                      </label>
+                      <Select value={sortBy} onValueChange={setSortBy}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="relevance">Relevancia</SelectItem>
+                          <SelectItem value="rating">Mejor calificados</SelectItem>
+                          <SelectItem value="reviews">Más reseñas</SelectItem>
+                          <SelectItem value="name">Nombre A-Z</SelectItem>
+                          <SelectItem value="price_low">Precio: menor a mayor</SelectItem>
+                          <SelectItem value="price_high">Precio: mayor a menor</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Price Level Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <DollarSign className="w-4 h-4 inline mr-1" />
+                        Nivel de precios (máximo)
+                      </label>
+                      <div className="space-y-2">
+                        <Slider
+                          value={[maxPrice]}
+                          onValueChange={(value) => setMaxPrice(value[0])}
+                          max={4}
+                          min={1}
+                          step={1}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500">
+                          <span>$</span>
+                          <span>$$</span>
+                          <span>$$$</span>
+                          <span>$$$$</span>
+                        </div>
+                        <div className="text-center text-sm font-medium">
+                          {maxPrice < 4 ? '$'.repeat(maxPrice) + ' o menos' : 'Cualquier precio'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Open Now Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Clock className="w-4 h-4 inline mr-1" />
+                        Disponibilidad
+                      </label>
+                      <div className="flex items-center space-x-2 mt-3">
+                        <Checkbox
+                          id="openNow"
+                          checked={openNow}
+                          onCheckedChange={setOpenNow}
+                        />
+                        <label htmlFor="openNow" className="text-sm font-medium">
+                          Abierto ahora
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Clear Filters Button */}
+                    <div className="flex items-end">
+                      <Button 
+                        variant="outline" 
+                        onClick={clearFilters}
+                        className="w-full"
+                      >
+                        Limpiar filtros
+                      </Button>
+                    </div>
+
+                    {/* Apply Filters Button */}
+                    <div className="flex items-end">
+                      <Button 
+                        onClick={handleSearch}
+                        className="w-full bg-red-600 hover:bg-red-700"
+                      >
+                        Aplicar filtros
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>

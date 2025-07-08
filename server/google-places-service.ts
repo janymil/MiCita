@@ -211,11 +211,15 @@ export class GooglePlacesService {
           rating: place.rating || 0,
           reviewCount: place.user_ratings_total || 0,
           priceLevel: place.price_level || 0,
+          phone: place.formatted_phone_number || undefined,
+          website: place.website || undefined,
           photoUrl,
           location: {
             lat: place.geometry.location.lat,
             lng: place.geometry.location.lng
           },
+          openNow: place.opening_hours?.open_now || undefined,
+          hours: place.opening_hours?.weekday_text || undefined,
           isRegistered: false // These are external businesses
         };
 
