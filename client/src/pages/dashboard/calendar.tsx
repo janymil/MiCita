@@ -222,7 +222,6 @@ function CalendarContent() {
                   } ${isToday ? 'ring-2 ring-purple-600' : ''}`}
                   onClick={() => {
                     setSelectedDate(date);
-                    form.setValue('date', format(date, 'yyyy-MM-dd'));
                     setIsDialogOpen(true);
                   }}
                 >
