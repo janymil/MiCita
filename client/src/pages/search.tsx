@@ -684,13 +684,13 @@ export default function SearchPage() {
             </div>
             
             {/* Map Container */}
-            <div className="order-2 lg:order-2">
+            <div className="order-2 lg:order-2" style={{ height: '600px' }}>
               <SimpleMap
                 businesses={filteredResults}
                 onMapBoundsChange={(bounds) => setMapBounds(bounds)}
                 onBusinessClick={(business) => setSelectedBusiness(business)}
                 selectedBusiness={selectedBusiness}
-                className="h-full"
+                className="h-full w-full"
               />
             </div>
           </div>

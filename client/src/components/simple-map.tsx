@@ -66,7 +66,7 @@ export default function SimpleMap({
         center: { lat: -12.0464, lng: -77.0428 },
         zoom: 12,
         mapTypeControl: true,
-        streetViewControl: true,
+        streetViewControl: false,
         fullscreenControl: true,
         zoomControl: true,
         gestureHandling: 'greedy',
@@ -75,6 +75,14 @@ export default function SimpleMap({
         draggable: true,
         keyboardShortcuts: true,
         scrollwheel: true,
+        restriction: {
+          latLngBounds: {
+            north: 85,
+            south: -85,
+            west: -180,
+            east: 180
+          }
+        }
       });
 
       mapInstanceRef.current = map;
@@ -180,11 +188,39 @@ export default function SimpleMap({
   }
 
   return (
-    <div className={`w-full ${className} rounded-lg border border-gray-300 overflow-hidden`}>
-      <div ref={mapRef} className="w-full h-full">
+    <div 
+      className={`w-full ${className} rounded-lg border border-gray-300`}
+      style={{ 
+        overflow: 'hidden',
+        height: '100%'
+      }}
+    >
+      <div 
+        ref={mapRef} 
+        style={{
+          width: '100%',
+          height: '100%',
+          minHeight: '400px',
+          position: 'relative',
+          touchAction: 'none' // Ensure touch events work properly
+        }}
+      >
         {!isLoaded && (
-          <div className="w-full h-full flex items-center justify-center bg-gray-100">
-            <div className="text-center">
+          <div 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#f3f4f6',
+              zIndex: 10
+            }}
+          >
+            <div style={{ textAlign: 'center' }}>
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
               <p className="text-sm text-gray-600">Cargando mapa...</p>
             </div>
