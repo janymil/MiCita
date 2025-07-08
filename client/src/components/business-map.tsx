@@ -25,15 +25,28 @@ export default function BusinessMap({
   useEffect(() => {
     const initMap = async () => {
       try {
+        const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+        console.log("Google Maps API Key available:", !!apiKey);
+        
+        if (!apiKey) {
+          console.error("Google Maps API key not found");
+          return;
+        }
+
         const loader = new Loader({
-          apiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "",
+          apiKey,
           version: "weekly",
           libraries: ["places", "geometry"]
         });
 
+        console.log("Loading Google Maps...");
         await loader.load();
+        console.log("Google Maps loaded successfully");
 
-        if (!mapRef.current) return;
+        if (!mapRef.current) {
+          console.error("Map container ref not found");
+          return;
+        }
 
         // Default to Lima, Peru
         const defaultCenter = { lat: -12.0464, lng: -77.0428 };
@@ -53,6 +66,7 @@ export default function BusinessMap({
           ]
         });
 
+        console.log("Map instance created successfully");
         setMap(mapInstance);
 
         // Create info window
@@ -69,6 +83,10 @@ export default function BusinessMap({
 
       } catch (error) {
         console.error("Error loading Google Maps:", error);
+        console.error("Error details:", {
+          message: error.message,
+          stack: error.stack
+        });
       }
     };
 
@@ -219,7 +237,16 @@ export default function BusinessMap({
 
   return (
     <div className={`w-full ${className} rounded-lg overflow-hidden border border-gray-300`}>
-      <div ref={mapRef} className="w-full h-full" />
+      <div ref={mapRef} className="w-full h-full">
+        {!map && (
+          <div className="w-full h-full flex items-center justify-center bg-gray-100">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
+              <p className="text-sm text-gray-600">Cargando mapa...</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
