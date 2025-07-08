@@ -126,8 +126,8 @@ export class GooglePlacesCacheService {
       return [];
     }
 
-    // Step 4: Cache the results (non-blocking)
-    this.cacheResultsAsync(freshResults, queryHash, query, category, location);
+    // Step 4: Enhanced caching with contact details for top businesses
+    this.cacheResultsWithEnhancementAsync(freshResults, queryHash, query, category, location);
 
     return freshResults;
   }
@@ -169,6 +169,79 @@ export class GooglePlacesCacheService {
       }
     } catch (error) {
       console.error('❌ Error in caching process:', error);
+    }
+  }
+
+  // Enhanced caching with Place Details API for top businesses
+  private async cacheResultsWithEnhancementAsync(results: BusinessFromPlaces[], queryHash: string, query: string, category?: string, location?: string) {
+    try {
+      console.log(`💾 Caching ${results.length} fresh businesses`);
+      
+      // Cache all businesses first (basic data)
+      for (const business of results) {
+        try {
+          await this.storage.cacheBusiness(this.convertBusinessToCache(business));
+        } catch (error) {
+          console.error(`❌ Error caching business ${business.name}:`, error);
+        }
+      }
+
+      // Enhance top 5 businesses with detailed contact information
+      const topBusinesses = results
+        .sort((a, b) => (b.rating * b.reviewCount) - (a.rating * a.reviewCount))
+        .slice(0, 5);
+
+      console.log(`🔍 Enhancing ${topBusinesses.length} top businesses with contact details`);
+      
+      for (const business of topBusinesses) {
+        try {
+          console.log(`📞 Getting details for ${business.name}...`);
+          const details = await this.googlePlacesService.getBusinessDetails(business.id);
+          
+          if (details) {
+            console.log(`📋 Details received for ${business.name}: phone=${!!details.formatted_phone_number}, website=${!!details.website}, hours=${!!details.opening_hours}`);
+            
+            // Update cache with enhanced details
+            const enhancedBusiness = this.convertBusinessToCache({
+              ...business,
+              phone: details.formatted_phone_number || business.phone,
+              website: details.website || business.website,
+              openNow: details.opening_hours?.open_now ?? business.openNow,
+              hours: details.opening_hours?.weekday_text || business.hours
+            });
+            
+            await this.storage.cacheBusiness(enhancedBusiness);
+            console.log(`✅ Enhanced ${business.name} with contact details`);
+          } else {
+            console.log(`❌ No details received for ${business.name}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error enhancing business ${business.name}:`, error);
+        }
+      }
+
+      // Cache search pattern
+      try {
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + this.cacheExpirationHours);
+        
+        await this.storage.saveSearchCache({
+          queryHash,
+          originalQuery: query,
+          category: category || null,
+          location: location || 'Lima, Peru',
+          businessIds: results.map(b => b.id),
+          totalResults: results.length,
+          googleApiCalls: Math.ceil(results.length / 20) + topBusinesses.length, // Include Place Details calls
+          expiresAt: expiresAt,
+        });
+        
+        console.log('✅ Cached search results for future use');
+      } catch (error) {
+        console.error('❌ Error saving search cache:', error);
+      }
+    } catch (error) {
+      console.error('❌ Error in enhanced caching process:', error);
     }
   }
 
