@@ -329,19 +329,89 @@ export default function BusinessMicrosite() {
       </section>
 
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-16">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
-            {/* About */}
-            <Card>
+            {/* Google Maps Integration */}
+            {googleData?.location && (
+              <Card className="overflow-hidden shadow-lg">
+                <CardContent className="p-0">
+                  <div className="h-80 relative">
+                    <iframe
+                      src={`https://www.google.com/maps/embed/v1/place?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(googleData.name + ' ' + googleData.address)}`}
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0 }}
+                      allowFullScreen
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="rounded-t-lg"
+                    />
+                    <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+                      <div className="flex items-center text-sm">
+                        <MapPin className="w-4 h-4 text-red-600 mr-2" />
+                        <span className="font-medium">{googleData.address || business.address}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* About with Google enrichment */}
+            <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle>Acerca de nosotros</CardTitle>
+                <CardTitle className="flex items-center">
+                  <Globe className="w-5 h-5 mr-2 text-blue-600" />
+                  Acerca de nosotros
+                  {googleData && (
+                    <Badge className="ml-auto bg-blue-100 text-blue-800">
+                      <Verified className="w-3 h-3 mr-1" />
+                      Verificado con Google
+                    </Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-700 leading-relaxed">
-                  {settings?.publicDescription || business.description || "Información no disponible."}
+                <p className="text-gray-700 leading-relaxed mb-4">
+                  {googleData?.description || settings?.publicDescription || business.description || "Información no disponible."}
                 </p>
+                
+                {/* Google Business Stats */}
+                {googleData && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 p-4 bg-gray-50 rounded-lg">
+                    {googleData.rating && (
+                      <div className="text-center">
+                        <div className="flex items-center justify-center mb-1">
+                          <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                          <span className="font-bold text-lg ml-1">{googleData.rating}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">Calificación</p>
+                      </div>
+                    )}
+                    {googleData.reviewCount && (
+                      <div className="text-center">
+                        <div className="font-bold text-lg text-blue-600">{googleData.reviewCount}</div>
+                        <p className="text-sm text-gray-600">Reseñas</p>
+                      </div>
+                    )}
+                    {googleData.priceLevel && (
+                      <div className="text-center">
+                        <div className="font-bold text-lg text-green-600">
+                          {'$'.repeat(googleData.priceLevel)}
+                        </div>
+                        <p className="text-sm text-gray-600">Precio</p>
+                      </div>
+                    )}
+                    <div className="text-center">
+                      <div className="flex items-center justify-center">
+                        <Users className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <p className="text-sm text-gray-600">En Google Maps</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -373,63 +443,156 @@ export default function BusinessMicrosite() {
               </Card>
             )}
 
-            {/* Gallery */}
-            {settings?.enableGallery && gallery && gallery.length > 0 && (
-              <Card>
+            {/* Enhanced Gallery with Google Photos */}
+            {allPhotos.length > 0 && (
+              <Card className="shadow-lg">
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <Camera className="w-5 h-5 mr-2" />
-                    Galería de Trabajos
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Camera className="w-5 h-5 mr-2" />
+                      Galería de Fotos
+                    </div>
+                    <Badge variant="outline">{allPhotos.length} fotos</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {gallery.map((item) => (
-                      <div key={item.id} className="relative group">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {allPhotos.slice(0, 12).map((photo, index) => (
+                      <div key={index} className="relative group cursor-pointer" onClick={() => setCurrentImageIndex(index)}>
                         <img 
-                          src={item.imageUrl} 
-                          alt={item.title || "Trabajo"}
-                          className="w-full h-32 object-cover rounded-lg"
+                          src={photo.url} 
+                          alt={photo.title || "Foto del negocio"}
+                          className="w-full h-32 object-cover rounded-lg transition-transform group-hover:scale-105"
+                          onError={(e) => {
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=400&q=80';
+                          }}
                         />
-                        {item.title && (
-                          <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                            <p className="text-white text-sm font-medium">{item.title}</p>
+                        <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                          <div className="text-center text-white">
+                            <Camera className="w-6 h-6 mx-auto mb-1" />
+                            <p className="text-xs font-medium">{photo.title}</p>
+                            {photo.source === 'google' && (
+                              <Badge className="mt-1 bg-blue-600 text-white text-xs">
+                                Google
+                              </Badge>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
                     ))}
                   </div>
+                  
+                  {allPhotos.length > 12 && (
+                    <div className="mt-4 text-center">
+                      <Button variant="outline" size="sm">
+                        Ver todas las fotos ({allPhotos.length})
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
 
-            {/* Reviews */}
-            {reviews && reviews.length > 0 && (
-              <Card>
+            {/* Enhanced Reviews with Google Reviews */}
+            {((reviews && reviews.length > 0) || (googleData?.reviews && googleData.reviews.length > 0)) && (
+              <Card className="shadow-lg">
                 <CardHeader>
-                  <CardTitle>Reseñas de Clientes</CardTitle>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Star className="w-5 h-5 mr-2 text-yellow-400 fill-yellow-400" />
+                      Reseñas de Clientes
+                    </div>
+                    {googleData?.rating && (
+                      <div className="flex items-center space-x-2">
+                        <div className="flex items-center">
+                          <Star className="w-4 h-4 text-yellow-400 fill-yellow-400 mr-1" />
+                          <span className="font-bold">{googleData.rating}</span>
+                        </div>
+                        <Badge className="bg-blue-100 text-blue-800">
+                          Google
+                        </Badge>
+                      </div>
+                    )}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {reviews.map((review) => (
-                      <div key={review.id} className="border-b border-gray-100 pb-4 last:border-b-0">
-                        <div className="flex items-center mb-2">
-                          <div className="flex">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                  <div className="space-y-6">
+                    {/* Google Reviews */}
+                    {googleData?.reviews && googleData.reviews.slice(0, 3).map((review, index) => (
+                      <div key={`google-${index}`} className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center">
+                            {review.profilePhoto && (
+                              <img 
+                                src={review.profilePhoto} 
+                                alt={review.author}
+                                className="w-10 h-10 rounded-full mr-3"
                               />
-                            ))}
+                            )}
+                            <div>
+                              <div className="flex items-center">
+                                <span className="font-medium text-gray-900">{review.author}</span>
+                                <Badge className="ml-2 bg-blue-600 text-white text-xs">
+                                  Google
+                                </Badge>
+                              </div>
+                              <div className="flex items-center mt-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star 
+                                    key={i} 
+                                    className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                                  />
+                                ))}
+                                <span className="ml-2 text-sm text-gray-500">
+                                  {new Date(review.time * 1000).toLocaleDateString('es-PE')}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                          <span className="ml-2 font-medium">{review.clientName}</span>
                         </div>
-                        {review.comment && (
-                          <p className="text-gray-600">{review.comment}</p>
-                        )}
+                        <p className="text-gray-700 leading-relaxed">{review.text}</p>
+                      </div>
+                    ))}
+                    
+                    {/* Local Reviews */}
+                    {reviews && reviews.map((review) => (
+                      <div key={review.id} className="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-sm mr-3">
+                              {review.clientName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center">
+                                <span className="font-medium text-gray-900">{review.clientName}</span>
+                                <Badge className="ml-2 bg-red-100 text-red-800 text-xs">
+                                  Mi Cita
+                                </Badge>
+                              </div>
+                              <div className="flex items-center mt-1">
+                                {[...Array(5)].map((_, i) => (
+                                  <Star 
+                                    key={i} 
+                                    className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-gray-700 leading-relaxed">{review.comment}</p>
                       </div>
                     ))}
                   </div>
+                  
+                  {googleData?.reviewCount && googleData.reviewCount > 3 && (
+                    <div className="mt-6 text-center">
+                      <Button variant="outline" size="sm">
+                        Ver todas las reseñas en Google ({googleData.reviewCount})
+                        <ExternalLink className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
