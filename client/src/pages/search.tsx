@@ -45,7 +45,7 @@ export default function SearchPage() {
     const params = new URLSearchParams();
     if (searchQuery) params.append("q", searchQuery);
     if (selectedCategory) params.append("category", selectedCategory);
-    if (selectedCity) params.append("location", selectedCity);
+    if (selectedCity) params.append("city", selectedCity);
     
     setLocation(`/buscar?${params.toString()}`);
   };
@@ -64,6 +64,8 @@ export default function SearchPage() {
   const registeredBusinesses = searchResults?.filter((b: any) => b.type === "registered") || [];
   const publicBusinesses = searchResults?.filter((b: any) => b.type === "public") || [];
   const googlePlacesResults = searchResults?.filter((b: any) => b.type === "google") || [];
+  
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -105,10 +107,20 @@ export default function SearchPage() {
               
               <Button
                 onClick={handleSearch}
-                className="bg-red-600 hover:bg-red-700 px-8"
+                disabled={isLoading}
+                className="bg-red-600 hover:bg-red-700 px-8 disabled:opacity-50"
               >
-                <Search className="mr-2 w-4 h-4" />
-                Buscar
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Buscando...
+                  </>
+                ) : (
+                  <>
+                    <Search className="mr-2 w-4 h-4" />
+                    Buscar
+                  </>
+                )}
               </Button>
             </div>
 

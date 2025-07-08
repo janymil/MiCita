@@ -13,6 +13,7 @@ export default function Home() {
   const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLocation, setSearchLocation] = useState("Lima, Perú");
+  const [isSearching, setIsSearching] = useState(false);
 
   const { data: categories } = useQuery({
     queryKey: ["/api/categories"],
@@ -23,11 +24,16 @@ export default function Home() {
   });
 
   const handleSearch = () => {
-    if (searchQuery.trim()) {
-      setLocation(`/buscar?q=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(searchLocation)}`);
-    } else {
-      setLocation("/buscar");
-    }
+    setIsSearching(true);
+    
+    setTimeout(() => {
+      if (searchQuery.trim()) {
+        setLocation(`/buscar?q=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(searchLocation)}`);
+      } else {
+        setLocation("/buscar");
+      }
+      setIsSearching(false);
+    }, 300); // Brief loading state for better UX
   };
 
   const handleCategoryClick = (categoryId: string) => {
@@ -81,10 +87,20 @@ export default function Home() {
               </div>
               <Button
                 onClick={handleSearch}
-                className="bg-red-600 text-white px-8 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center"
+                disabled={isSearching}
+                className="bg-red-600 text-white px-8 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center disabled:opacity-50"
               >
-                <Search className="mr-2 w-5 h-5" />
-                Buscar
+                {isSearching ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Buscando...
+                  </>
+                ) : (
+                  <>
+                    <Search className="mr-2 w-5 h-5" />
+                    Buscar
+                  </>
+                )}
               </Button>
             </div>
           </div>
