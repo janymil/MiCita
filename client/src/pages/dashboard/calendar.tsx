@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AppointmentFormDialog from "@/components/appointment-form-dialog";
+import EditAppointmentDialog from "@/components/edit-appointment-dialog";
 import { ChevronLeft, ChevronRight, MapPin, RefreshCw, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { insertAppointmentSchema, type Appointment, type Service, type Client } from "@shared/schema";
 import { z } from "zod";
@@ -22,6 +23,8 @@ function CalendarContent() {
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Fetch current business
   const { data: businesses } = useQuery({
@@ -246,7 +249,15 @@ function CalendarContent() {
                       const client = clients.find((c: Client) => c.id === appointment.clientId);
                       
                       return (
-                        <div key={appointment.id} className="text-xs">
+                        <div 
+                          key={appointment.id} 
+                          className="text-xs p-2 bg-blue-50 rounded cursor-pointer hover:bg-blue-100 transition-colors border border-blue-200"
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent day click
+                            setEditingAppointment(appointment);
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
                           <div className="flex items-center gap-1 mb-1">
                             <Clock className="w-3 h-3 text-gray-400" />
                             <span className="font-medium">{appointment.time}</span>
@@ -293,6 +304,19 @@ function CalendarContent() {
         initialDate={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined}
         title="Nueva Cita"
       />
+
+      {/* Edit Appointment Dialog */}
+      {editingAppointment && (
+        <EditAppointmentDialog
+          appointment={editingAppointment}
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setEditingAppointment(null);
+          }}
+          businessId={currentBusiness?.id || 1}
+        />
+      )}
     </div>
   );
 }
