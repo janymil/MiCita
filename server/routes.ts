@@ -86,8 +86,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.searchPublicBusinesses(query, category as string)
       ]);
       
+      // For registered businesses, get their customUrl from settings
+      const businessesWithCustomUrl = await Promise.all(
+        businesses.map(async (business) => {
+          const settings = await storage.getBusinessSettings(business.id);
+          return {
+            ...business,
+            customUrl: settings?.customUrl || business.slug,
+            type: "registered"
+          };
+        })
+      );
+      
       const combinedResults = [
-        ...businesses.map(b => ({ ...b, type: "registered" })),
+        ...businessesWithCustomUrl,
         ...publicBusinesses.map(p => ({ ...p, type: "public" }))
       ];
       
@@ -114,7 +126,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/featured", async (req, res) => {
     try {
       const featured = await storage.getFeaturedBusinesses();
-      res.json(featured);
+      
+      // Add customUrl from settings for each featured business
+      const featuredWithCustomUrl = await Promise.all(
+        featured.map(async (business) => {
+          const settings = await storage.getBusinessSettings(business.id);
+          return {
+            ...business,
+            customUrl: settings?.customUrl || business.slug
+          };
+        })
+      );
+      
+      res.json(featuredWithCustomUrl);
     } catch (error) {
       res.status(500).json({ message: "Error obteniendo negocios destacados" });
     }

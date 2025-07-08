@@ -57,8 +57,8 @@ export default function SearchPage() {
     setLocation("/buscar");
   };
 
-  const handleBusinessView = (slug: string) => {
-    setLocation(`/negocio/${slug}`);
+  const handleBusinessView = (customUrl: string) => {
+    setLocation(`/${customUrl}`);
   };
 
   const registeredBusinesses = searchResults?.filter((b: any) => b.type === "registered") || [];
@@ -193,7 +193,7 @@ export default function SearchPage() {
                     <BusinessCard
                       key={`registered-${business.id}`}
                       business={business}
-                      onViewClick={handleBusinessView}
+                      onViewClick={() => handleBusinessView(business.customUrl || business.slug)}
                     />
                   ))}
                 </div>

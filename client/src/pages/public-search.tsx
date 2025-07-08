@@ -175,7 +175,7 @@ export default function PublicSearchPage() {
                   <BusinessCard
                     key={business.id}
                     business={business}
-                    onViewClick={(slug) => window.open(`/negocio/${slug}`, '_blank')}
+                    onViewClick={() => window.open(`/${business.customUrl || business.slug}`, '_blank')}
                   />
                 ))}
               </div>

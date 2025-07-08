@@ -34,8 +34,8 @@ export default function Home() {
     setLocation(`/buscar?category=${categoryId}`);
   };
 
-  const handleBusinessView = (slug: string) => {
-    setLocation(`/negocio/${slug}`);
+  const handleBusinessView = (customUrl: string) => {
+    setLocation(`/${customUrl}`);
   };
 
   return (
