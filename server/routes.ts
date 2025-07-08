@@ -7,6 +7,93 @@ import path from "path";
 import fs from "fs";
 import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
 
+// Helper function to generate available time slots
+function generateAvailableTimeSlots(
+  date: string,
+  workingHours: any,
+  blockedDates: any[],
+  blockedHours: any[],
+  existingAppointments: any[],
+  serviceDuration: number
+) {
+  const slots = [];
+  const selectedDate = new Date(date);
+  const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'lowercase' });
+  
+  // Check if the day is a working day
+  const daySchedule = workingHours[dayName];
+  if (!daySchedule || !daySchedule.enabled) {
+    return slots;
+  }
+  
+  // Check if the date is blocked
+  const isDateBlocked = blockedDates?.some(blocked => {
+    const startDate = new Date(blocked.startDate);
+    const endDate = new Date(blocked.endDate);
+    return selectedDate >= startDate && selectedDate <= endDate;
+  });
+  
+  if (isDateBlocked) {
+    return slots;
+  }
+  
+  // Generate time slots based on working hours
+  const startTime = daySchedule.start;
+  const endTime = daySchedule.end;
+  
+  const [startHour, startMin] = startTime.split(':').map(Number);
+  const [endHour, endMin] = endTime.split(':').map(Number);
+  
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+  
+  // Generate 30-minute slots
+  for (let minutes = startMinutes; minutes < endMinutes; minutes += 30) {
+    const hour = Math.floor(minutes / 60);
+    const min = minutes % 60;
+    const timeSlot = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
+    
+    // Check if this slot has enough time for the service
+    const slotEndMinutes = minutes + serviceDuration;
+    if (slotEndMinutes > endMinutes) {
+      continue;
+    }
+    
+    // Check if the time slot is blocked
+    const isTimeBlocked = blockedHours?.some(blocked => {
+      if (blocked.date !== date) return false;
+      
+      const [blockedStartHour, blockedStartMin] = blocked.startTime.split(':').map(Number);
+      const [blockedEndHour, blockedEndMin] = blocked.endTime.split(':').map(Number);
+      
+      const blockedStartMinutes = blockedStartHour * 60 + blockedStartMin;
+      const blockedEndMinutes = blockedEndHour * 60 + blockedEndMin;
+      
+      return minutes >= blockedStartMinutes && minutes < blockedEndMinutes;
+    });
+    
+    // Check if there's an existing appointment that conflicts
+    const hasConflict = existingAppointments.some(appointment => {
+      const [appointmentHour, appointmentMin] = appointment.time.split(':').map(Number);
+      const appointmentMinutes = appointmentHour * 60 + appointmentMin;
+      
+      // Assume appointments take at least 30 minutes if no duration is specified
+      const appointmentDuration = 30; // Could be enhanced to get actual service duration
+      const appointmentEndMinutes = appointmentMinutes + appointmentDuration;
+      
+      // Check for overlap
+      return (minutes < appointmentEndMinutes && slotEndMinutes > appointmentMinutes);
+    });
+    
+    slots.push({
+      time: timeSlot,
+      available: !isTimeBlocked && !hasConflict
+    });
+  }
+  
+  return slots;
+}
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -111,6 +198,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
 
+
+  // Public appointment availability endpoint
+  app.get("/api/appointments/availability/:businessId", async (req, res) => {
+    try {
+      const businessId = parseInt(req.params.businessId);
+      const { date, serviceId } = req.query;
+      
+      if (!date || !serviceId) {
+        return res.status(400).json({ message: "Fecha y servicio son requeridos" });
+      }
+      
+      // Get business settings for working hours and blocked times
+      const settings = await storage.getBusinessSettings(businessId);
+      const service = await storage.getService(parseInt(serviceId as string));
+      
+      if (!service) {
+        return res.status(404).json({ message: "Servicio no encontrado" });
+      }
+      
+      // Get existing appointments for the date
+      const existingAppointments = await storage.getAppointmentsByDate(businessId, date as string);
+      
+      // Generate available time slots
+      const availableSlots = generateAvailableTimeSlots(
+        date as string,
+        settings?.workingHours || {},
+        settings?.blockedDates || [],
+        settings?.blockedHours || [],
+        existingAppointments,
+        service.duration
+      );
+      
+      res.json(availableSlots);
+    } catch (error) {
+      console.error("Error getting availability:", error);
+      res.status(500).json({ message: "Error obteniendo disponibilidad" });
+    }
+  });
+
+  // Public appointment creation endpoint
+  app.post("/api/appointments/public", async (req, res) => {
+    try {
+      const appointmentData = req.body;
+      
+      // Validate required fields
+      if (!appointmentData.businessId || !appointmentData.serviceId || !appointmentData.date || 
+          !appointmentData.time || !appointmentData.clientName || !appointmentData.clientPhone || 
+          !appointmentData.clientEmail) {
+        return res.status(400).json({ message: "Todos los campos son requeridos" });
+      }
+      
+      // Check if the time slot is still available
+      const settings = await storage.getBusinessSettings(appointmentData.businessId);
+      const service = await storage.getService(appointmentData.serviceId);
+      const existingAppointments = await storage.getAppointmentsByDate(appointmentData.businessId, appointmentData.date);
+      
+      const availableSlots = generateAvailableTimeSlots(
+        appointmentData.date,
+        settings?.workingHours || {},
+        settings?.blockedDates || [],
+        settings?.blockedHours || [],
+        existingAppointments,
+        service?.duration || 30
+      );
+      
+      const requestedSlot = availableSlots.find(slot => slot.time === appointmentData.time);
+      
+      if (!requestedSlot || !requestedSlot.available) {
+        return res.status(400).json({ message: "El horario seleccionado ya no está disponible" });
+      }
+      
+      // Create or find client
+      let client = await storage.getClientsByBusinessId(appointmentData.businessId)
+        .then(clients => clients.find(c => c.email === appointmentData.clientEmail));
+      
+      if (!client) {
+        client = await storage.createClient({
+          businessId: appointmentData.businessId,
+          name: appointmentData.clientName,
+          phone: appointmentData.clientPhone,
+          email: appointmentData.clientEmail
+        });
+      }
+      
+      // Create appointment
+      const appointment = await storage.createAppointment({
+        businessId: appointmentData.businessId,
+        clientId: client.id,
+        serviceId: appointmentData.serviceId,
+        date: appointmentData.date,
+        time: appointmentData.time,
+        status: appointmentData.status || 'pending',
+        notes: appointmentData.notes || ''
+      });
+      
+      res.json({ 
+        success: true, 
+        appointment,
+        message: "Cita creada exitosamente"
+      });
+    } catch (error) {
+      console.error("Error creating appointment:", error);
+      res.status(500).json({ message: "Error creando la cita" });
+    }
+  });
 
   app.get("/api/categories", async (req, res) => {
     const categories = [

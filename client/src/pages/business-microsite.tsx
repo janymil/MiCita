@@ -392,14 +392,13 @@ export default function BusinessMicrosite() {
 
             {/* Booking Widget */}
             {settings?.enablePublicBooking && services && services.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Reservar Cita</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <BookingWidget services={services} businessId={business.id} />
-                </CardContent>
-              </Card>
+              <BookingWidget 
+                services={services} 
+                businessId={business.id}
+                workingHours={settings?.workingHours}
+                blockedDates={settings?.blockedDates}
+                blockedHours={settings?.blockedHours}
+              />
             )}
 
             {/* Contact Form */}
