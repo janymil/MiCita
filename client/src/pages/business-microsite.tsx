@@ -704,88 +704,9 @@ export default function BusinessMicrosite() {
               </CardContent>
             </Card>
 
-            {/* Social Media */}
-            {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Síguenos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex space-x-4">
-                    {settings?.facebookUrl && (
-                      <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Facebook className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.instagramUrl && (
-                      <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Instagram className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.tiktokUrl && (
-                      <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Twitter className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.youtubeUrl && (
-                      <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Youtube className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Booking Widget */}
-            {settings?.enablePublicBooking && services && services.length > 0 && (
-              <BookingWidget 
-                services={services} 
-                businessId={business.id}
-                workingHours={settings?.workingHours}
-                blockedDates={settings?.blockedDates}
-                blockedHours={settings?.blockedHours}
-              />
-            )}
-
-            {/* Contact Form */}
-            {settings?.enableContactForm && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MessageSquare className="w-5 h-5 mr-2" />
-                    Enviar Mensaje
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="contact-name">Nombre</Label>
-                    <Input id="contact-name" placeholder="Tu nombre" />
-                  </div>
-                  <div>
-                    <Label htmlFor="contact-email">Email</Label>
-                    <Input id="contact-email" type="email" placeholder="tu@email.com" />
-                  </div>
-                  <div>
-                    <Label htmlFor="contact-message">Mensaje</Label>
-                    <Textarea id="contact-message" placeholder="Escribe tu mensaje..." rows={4} />
-                  </div>
-                  <Button className="w-full bg-red-600 hover:bg-red-700">
-                    Enviar Mensaje
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
