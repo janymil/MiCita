@@ -687,7 +687,7 @@ export default function SearchPage() {
             <div className="order-2 lg:order-2">
               {viewMode === "map" && (
                 <BusinessMap
-                  key="business-map" // Add key to prevent remounting issues
+                  key={`business-map-${filteredResults.length}-${selectedCity}-${selectedCategory}`}
                   businesses={filteredResults}
                   onMapBoundsChange={(bounds) => setMapBounds(bounds)}
                   onBusinessClick={(business) => setSelectedBusiness(business)}

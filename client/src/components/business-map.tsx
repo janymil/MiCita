@@ -131,35 +131,74 @@ export default function BusinessMap({
     initMap();
   }, []); // Remove onMapBoundsChange dependency to prevent re-initialization
 
-  // Clean up markers on unmount
+  // Clean up markers when component unmounts or markers change
   useEffect(() => {
     return () => {
-      markers.forEach(marker => {
-        try {
-          marker.setMap(null);
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      });
+      if (markers && markers.length > 0) {
+        markers.forEach(marker => {
+          try {
+            if (marker && typeof marker.setMap === 'function') {
+              marker.setMap(null);
+            }
+          } catch (e) {
+            // Ignore errors during cleanup
+            console.warn('Error cleaning up marker:', e);
+          }
+        });
+      }
     };
   }, [markers]);
+
+  // Additional cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      // Clean up info window
+      if (infoWindow) {
+        try {
+          infoWindow.close();
+        } catch (e) {
+          console.warn('Error closing info window:', e);
+        }
+      }
+      
+      // Clean up any remaining markers
+      if (markers && markers.length > 0) {
+        markers.forEach(marker => {
+          try {
+            if (marker && typeof marker.setMap === 'function') {
+              marker.setMap(null);
+            }
+          } catch (e) {
+            console.warn('Error in final cleanup:', e);
+          }
+        });
+      }
+    };
+  }, []);
 
   // Update markers when businesses change
   useEffect(() => {
     if (!map || !businesses) return;
 
-    // Clear existing markers safely
-    markers.forEach(marker => {
-      try {
-        marker.setMap(null);
-      } catch (e) {
-        // Ignore errors during cleanup
-      }
-    });
-    setMarkers([]);
-
-    const newMarkers: google.maps.Marker[] = [];
-    const bounds = new google.maps.LatLngBounds();
+    // Clear existing markers safely with better error handling
+    if (markers && markers.length > 0) {
+      markers.forEach(marker => {
+        try {
+          if (marker && typeof marker.setMap === 'function') {
+            marker.setMap(null);
+          }
+        } catch (e) {
+          console.warn('Error removing marker:', e);
+        }
+      });
+    }
+    
+    // Use timeout to ensure DOM is ready for new markers
+    const timeoutId = setTimeout(() => {
+      setMarkers([]);
+      
+      const newMarkers: google.maps.Marker[] = [];
+      const bounds = new google.maps.LatLngBounds();
 
     businesses.forEach((business) => {
       if (!business.location?.lat || !business.location?.lng) return;
@@ -225,18 +264,34 @@ export default function BusinessMap({
 
     setMarkers(newMarkers);
 
-    // Fit map to show all markers
-    if (newMarkers.length > 0) {
-      map.fitBounds(bounds);
-      
-      // Ensure minimum zoom level
-      const listener = google.maps.event.addListener(map, "idle", () => {
-        if (map.getZoom() && map.getZoom()! > 16) {
-          map.setZoom(16);
+      // Fit map to show all markers
+      if (newMarkers.length > 0) {
+        try {
+          map.fitBounds(bounds);
+          
+          // Ensure minimum zoom level
+          const listener = google.maps.event.addListener(map, "idle", () => {
+            try {
+              if (map.getZoom() && map.getZoom()! > 16) {
+                map.setZoom(16);
+              }
+              google.maps.event.removeListener(listener);
+            } catch (e) {
+              console.warn('Error setting zoom:', e);
+            }
+          });
+        } catch (e) {
+          console.warn('Error fitting bounds:', e);
         }
-        google.maps.event.removeListener(listener);
-      });
-    }
+      }
+    }, 100); // Small delay to ensure DOM is ready
+
+    // Cleanup timeout on component unmount or dependencies change
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
 
   }, [map, businesses, infoWindow, onBusinessClick]);
 
@@ -305,7 +360,10 @@ export default function BusinessMap({
   }
 
   return (
-    <div className={`w-full ${className} rounded-lg overflow-hidden border border-gray-300`}>
+    <div 
+      className={`w-full ${className} rounded-lg overflow-hidden border border-gray-300`}
+      key={`map-container-${businesses.length}`} // Add key to help React track changes
+    >
       <div ref={mapRef} className="w-full h-full">
         {isLoading && (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
