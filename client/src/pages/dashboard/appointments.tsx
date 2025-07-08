@@ -28,7 +28,6 @@ import { APPOINTMENT_STATUSES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import EditAppointmentDialog from "@/components/edit-appointment-dialog";
-import ModernCalendar from "@/components/modern-calendar";
 
 const appointmentSchema = z.object({
   clientId: z.string().min(1, "Selecciona un cliente"),
@@ -49,7 +48,6 @@ export default function Appointments() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -160,58 +158,16 @@ export default function Appointments() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Gestión de Citas</h1>
-            <p className="text-gray-600">Sistema moderno de gestión de citas</p>
+            <p className="text-gray-600">Organiza y administra las citas de tu negocio</p>
           </div>
           
-          <div className="flex space-x-3">
-            <div className="flex space-x-1">
-              <Button
-                variant={viewMode === 'calendar' ? 'default' : 'outline'}
-                onClick={() => setViewMode('calendar')}
-                size="sm"
-              >
-                <Calendar className="w-4 h-4 mr-2" />
-                Calendario
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'outline'}
-                onClick={() => setViewMode('list')}
-                size="sm"
-              >
-                <Search className="w-4 h-4 mr-2" />
-                Lista
-              </Button>
-            </div>
-          </div>
-          
-        </div>
-
-        {/* Modern Calendar View */}
-        {viewMode === 'calendar' ? (
-          <ModernCalendar 
-            businessId={1}
-            onCreateAppointment={(date, time) => {
-              form.setValue('date', date);
-              form.setValue('time', time);
-              setIsDialogOpen(true);
-            }}
-            onEditAppointment={(appointment) => {
-              setEditingAppointment(appointment);
-              setIsEditDialogOpen(true);
-            }}
-          />
-        ) : (
-          <>
-            {/* Original List View - Create Button */}
-            <div className="mb-6">
-              <Button 
-                onClick={() => setIsDialogOpen(true)}
-                className="bg-red-600 hover:bg-red-700"
-              >
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-red-600 hover:bg-red-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Nueva Cita
               </Button>
-            </div>
+            </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Nueva Cita</DialogTitle>
@@ -478,7 +434,11 @@ export default function Appointments() {
                           </div>
                           <div className="text-sm text-gray-500 flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
-                            {appointment.date} a las {appointment.time}
+                            {new Date(appointment.date).toLocaleDateString()} a las{" "}
+                            {new Date(appointment.date).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </div>
                         </div>
                       </div>
@@ -556,157 +516,7 @@ export default function Appointments() {
             )}
           </CardContent>
         </Card>
-          </>
-        )}
       </div>
-
-      {/* Create Appointment Dialog - Always available */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Nueva Cita</DialogTitle>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="clientId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cliente</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un cliente" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {clients?.map((client: any) => (
-                          <SelectItem key={client.id} value={client.id.toString()}>
-                            {client.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="serviceId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Servicio</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona un servicio" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {services?.map((service: any) => (
-                          <SelectItem key={service.id} value={service.id.toString()}>
-                            {service.name} - S/ {service.price}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fecha</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="time"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hora</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Hora" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {timeSlots.map((time) => (
-                            <SelectItem key={time} value={time}>
-                              {time}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Precio (S/)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notas (opcional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Notas adicionales"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? "Creando..." : "Crear Cita"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Appointment Dialog */}
       {editingAppointment && (

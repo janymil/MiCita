@@ -658,39 +658,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Enhanced appointments routes with calendar support
+  // Appointments routes
   app.get("/api/dashboard/businesses/:businessId/appointments", async (req, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
-      const { date, startDate, endDate } = req.query;
+      const { date } = req.query;
       
       let appointments;
       if (date) {
         appointments = await storage.getAppointmentsByDate(businessId, date as string);
-      } else if (startDate && endDate) {
-        // For calendar view - get appointments in date range
-        appointments = await storage.getAppointmentsByBusinessId(businessId);
-        // Filter by date range
-        appointments = appointments.filter(apt => 
-          apt.date >= startDate && apt.date <= endDate
-        );
       } else {
         appointments = await storage.getAppointmentsByBusinessId(businessId);
       }
-
-      // Enhance appointments with client and service data for calendar view
-      const clients = await storage.getClientsByBusinessId(businessId);
-      const services = await storage.getServicesByBusinessId(businessId);
       
-      const enhancedAppointments = appointments.map(apt => ({
-        ...apt,
-        clientName: clients.find(c => c.id === apt.clientId)?.name || `Cliente #${apt.clientId}`,
-        serviceName: services.find(s => s.id === apt.serviceId)?.name || `Servicio #${apt.serviceId}`,
-      }));
-      
-      res.json(enhancedAppointments);
+      res.json(appointments);
     } catch (error) {
-      console.error("Error fetching appointments:", error);
       res.status(500).json({ message: "Error obteniendo citas" });
     }
   });
