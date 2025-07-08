@@ -252,19 +252,6 @@ export default function Appointments() {
                         </div>
 
                         <div className="flex items-center space-x-2">
-                          {appointment.status === "pending" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => updateStatusMutation.mutate({
-                                id: appointment.id,
-                                status: "confirmed"
-                              })}
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                            </Button>
-                          )}
-                          
                           <Button
                             variant="outline"
                             size="sm"
@@ -273,6 +260,7 @@ export default function Appointments() {
                                 deleteMutation.mutate(appointment.id);
                               }
                             }}
+                            disabled={deleteMutation.isPending}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
