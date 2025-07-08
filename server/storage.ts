@@ -212,29 +212,7 @@ export class MemStorage implements IStorage {
       this.currentServiceId++;
     });
 
-    // Sample public businesses
-    const publicBiz = [
-      { name: "Restaurante Central", category: "restaurante", city: "Lima", rating: "4.9" },
-      { name: "Café de la Paz", category: "cafeteria", city: "Lima", rating: "4.6" },
-      { name: "Mecánica Rápida", category: "automotriz", city: "Lima", rating: "4.3" }
-    ];
-
-    publicBiz.forEach(p => {
-      this.publicBusinesses.set(this.currentPublicBusinessId, {
-        id: this.currentPublicBusinessId,
-        name: p.name,
-        category: p.category,
-        description: "",
-        phone: null,
-        address: "",
-        city: p.city,
-        rating: p.rating,
-        reviewCount: Math.floor(Math.random() * 200),
-        isVerified: false,
-        createdAt: new Date()
-      });
-      this.currentPublicBusinessId++;
-    });
+    // No demo public businesses - these should only come from real data sources
   }
 
   async getUser(id: number): Promise<User | undefined> {
