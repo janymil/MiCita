@@ -80,7 +80,8 @@ export default function SearchPage() {
       selectedDistrict,
       minRating,
       openNow,
-      sortBy
+      sortBy,
+      mapFilterEnabled ? mapBounds?.toString() : null
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -91,6 +92,17 @@ export default function SearchPage() {
       if (minRating > 0) params.append("minRating", minRating.toString());
       if (openNow) params.append("openNow", "true");
       if (sortBy !== "relevance") params.append("sort", sortBy);
+      
+      // Add map bounds if map filter is enabled and we have bounds
+      if (mapFilterEnabled && mapBounds) {
+        const boundsData = {
+          north: mapBounds.getNorthEast().lat(),
+          south: mapBounds.getSouthWest().lat(),
+          east: mapBounds.getNorthEast().lng(),
+          west: mapBounds.getSouthWest().lng()
+        };
+        params.append("bounds", JSON.stringify(boundsData));
+      }
       
       const response = await fetch(`/api/search?${params}`);
       if (!response.ok) {

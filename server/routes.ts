@@ -302,16 +302,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public search routes
   app.get("/api/search", async (req, res) => {
     try {
-      const { q, category, city } = req.query;
+      const { q, category, city, bounds } = req.query;
       const query = (q as string) || "";
 
-      console.log('Search request:', { query, category, city });
-      console.log('🔧 Using cache service for Google Places search');
+      console.log('Search request:', { query, category, city, bounds: !!bounds });
       
-      const [businesses, publicBusinesses, googlePlaces] = await Promise.all([
+      let googlePlaces = [];
+      
+      // If bounds are provided, do a fresh map-based search
+      if (bounds && typeof bounds === 'string') {
+        console.log('🗺️ Map-based search with bounds');
+        try {
+          const boundsData = JSON.parse(bounds);
+          const { north, south, east, west } = boundsData;
+          
+          // Calculate center point for location-based search
+          const centerLat = (north + south) / 2;
+          const centerLng = (east + west) / 2;
+          const locationString = `${centerLat},${centerLng}`;
+          
+          console.log(`📍 Searching area: Center ${centerLat.toFixed(4)}, ${centerLng.toFixed(4)}`);
+          
+          // Use direct Google Places service for fresh results in this area
+          googlePlaces = await googlePlacesService.searchBusinesses(
+            query, 
+            category as string, 
+            locationString
+          );
+          
+          // Filter results to be within bounds
+          googlePlaces = googlePlaces.filter(business => {
+            const { lat, lng } = business.location;
+            return lat >= south && lat <= north && lng >= west && lng <= east;
+          });
+          
+          console.log(`🎯 Found ${googlePlaces.length} businesses in map bounds`);
+        } catch (error) {
+          console.error('Error parsing bounds or searching map area:', error);
+          // Fallback to cached search
+          googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
+        }
+      } else {
+        console.log('🔧 Using cache service for Google Places search');
+        googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
+      }
+      
+      const [businesses, publicBusinesses] = await Promise.all([
         storage.searchBusinesses(query, category as string, city as string),
-        storage.searchPublicBusinesses(query, category as string),
-        cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru')
+        storage.searchPublicBusinesses(query, category as string)
       ]);
       
       console.log('Search results:', { 
@@ -341,6 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(combinedResults);
     } catch (error) {
+      console.error('Search error:', error);
       res.status(500).json({ message: "Error en la búsqueda" });
     }
   });
