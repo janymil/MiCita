@@ -226,36 +226,57 @@ export default function SearchPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {googlePlacesResults.map((business: any) => (
-                    <div key={`google-${business.id}`} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-                      <div className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                              {business.name}
-                            </h3>
-                            <p className="text-sm text-gray-600 mb-3">
-                              {business.address}
-                            </p>
-                            <Badge variant="outline" className="mb-3">
-                              {business.category}
-                            </Badge>
+                    <div key={`google-${business.id}`} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
+                      {/* Business Image */}
+                      <div className="relative h-48 bg-gray-200">
+                        {business.photoUrl ? (
+                          <img 
+                            src={business.photoUrl} 
+                            alt={business.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : null}
+                        <div className={`absolute inset-0 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center ${business.photoUrl ? 'hidden' : ''}`}>
+                          <div className="text-white text-center">
+                            <div className="text-2xl font-bold mb-1">{business.name.charAt(0)}</div>
+                            <div className="text-xs opacity-75">No Photo</div>
                           </div>
-                          {business.photoUrl && (
-                            <img 
-                              src={business.photoUrl} 
-                              alt={business.name}
-                              className="w-16 h-16 object-cover rounded-lg ml-4"
-                            />
-                          )}
+                        </div>
+                        
+                        {/* Rating Badge */}
+                        {business.rating > 0 && (
+                          <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs flex items-center">
+                            <span className="text-yellow-400 mr-1">★</span>
+                            {business.rating.toFixed(1)}
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Business Details */}
+                      <div className="p-4">
+                        <div className="mb-3">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
+                            {business.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                            {business.address}
+                          </p>
+                          <Badge variant="outline" className="text-xs">
+                            {business.category}
+                          </Badge>
                         </div>
                         
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-3">
                             {business.rating > 0 && (
                               <div className="flex items-center text-yellow-500">
-                                <span className="text-sm font-medium mr-1">★</span>
-                                <span className="text-sm text-gray-600">
-                                  {business.rating} ({business.reviewCount})
+                                <span className="text-sm">★</span>
+                                <span className="text-sm text-gray-600 ml-1">
+                                  {business.rating.toFixed(1)} ({business.reviewCount})
                                 </span>
                               </div>
                             )}
@@ -269,10 +290,20 @@ export default function SearchPage() {
                             variant="outline" 
                             size="sm"
                             onClick={() => window.open(`https://www.google.com/maps/place/?q=place_id:${business.id}`, '_blank')}
+                            className="text-xs"
                           >
                             Ver en Maps
                           </Button>
                         </div>
+                        
+                        {/* Business Hours if available */}
+                        {business.openNow !== undefined && (
+                          <div className="mt-3 text-xs">
+                            <span className={`px-2 py-1 rounded ${business.openNow ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {business.openNow ? 'Abierto ahora' : 'Cerrado'}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
