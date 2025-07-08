@@ -707,7 +707,6 @@ export default function BusinessMicrosite() {
           </div>
         </div>
       </div>
-      </div>
     </div>
   );
 }
