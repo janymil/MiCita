@@ -6,6 +6,8 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
+import { sendGridEmailService } from "./sendgrid-email-service";
+import { AppointmentData } from "./email-templates";
 
 // Smart scheduling algorithm to prevent double bookings
 class SmartScheduler {
@@ -406,6 +408,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientNotes: appointmentData.clientNotes || null,
         price: service.price
       });
+
+      // Get business information for email
+      const [business, businessSettings] = await Promise.all([
+        storage.getBusiness(appointmentData.businessId),
+        storage.getBusinessSettings(appointmentData.businessId)
+      ]);
+
+      // Send confirmation emails
+      if (business) {
+        const emailData: AppointmentData = {
+          clientName: client.name,
+          clientEmail: client.email,
+          clientPhone: client.phone,
+          businessName: business.name,
+          businessEmail: businessSettings?.publicEmail || business.email || 'no-reply@example.com',
+          serviceName: service.name,
+          date: appointmentData.date,
+          time: appointmentData.time,
+          duration: service.duration,
+          price: service.price,
+          notes: appointmentData.clientNotes || undefined
+        };
+
+        // Send emails asynchronously (don't wait for completion)
+        sendGridEmailService.sendAppointmentEmails(emailData)
+          .then(result => {
+            console.log('Email send results:', result);
+          })
+          .catch(error => {
+            console.error('Failed to send appointment emails:', error);
+          });
+      }
       
       res.json({ 
         success: true, 
@@ -906,6 +940,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error uploading image:", error);
       res.status(500).json({ error: "Error al subir la imagen" });
     }
+  });
+
+  // Debug endpoint to check email configuration (remove in production)
+  app.get("/api/debug/email-config", (req, res) => {
+    const hasSendGridKey = !!process.env.SENDGRID_API_KEY;
+    const hasVerifiedSender = !!process.env.SENDGRID_VERIFIED_SENDER;
+    
+    res.json({
+      emailService: 'SendGrid',
+      configured: hasSendGridKey && hasVerifiedSender,
+      hasSendGridKey,
+      hasVerifiedSender,
+      apiKey: hasSendGridKey ? 'SG.' + process.env.SENDGRID_API_KEY?.substring(3, 6) + '***' : 'NOT SET',
+      verifiedSender: process.env.SENDGRID_VERIFIED_SENDER || 'NOT SET'
+    });
   });
 
   // Serve uploaded files
