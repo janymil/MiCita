@@ -60,9 +60,11 @@ export class GooglePlacesService {
   private baseUrl = 'https://maps.googleapis.com/maps/api/place';
 
   constructor() {
-    this.apiKey = process.env.GOOGLE_API_KEY || '';
+    this.apiKey = process.env.GOOGLE_PLACES_API_KEY || '';
     if (!this.apiKey) {
-      console.error('Google Places API key not found in environment variables');
+      console.error('Google Places API key not found in environment variables. Please set GOOGLE_PLACES_API_KEY.');
+    } else {
+      console.log('Google Places API initialized successfully');
     }
   }
 
