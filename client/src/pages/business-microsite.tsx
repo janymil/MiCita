@@ -1,6 +1,7 @@
 import { useParams } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useRef } from "react";
+import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare, Shield, MapPin as MapIcon, ArrowLeft, ArrowRight, Play, CheckCircle, Globe, Users, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,12 +9,21 @@ import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import BookingWidget from "@/components/booking-widget";
 import { categories } from "@/lib/constants";
-import { formatDatePeruvian } from "@/lib/utils";
+import { formatDatePeruvian, cn } from "@/lib/utils";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [showBookingWidget, setShowBookingWidget] = useState(false);
+  const [enrichedData, setEnrichedData] = useState<any>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   console.log("BusinessMicrosite: slug =", slug);
 
@@ -22,9 +32,48 @@ export default function BusinessMicrosite() {
     enabled: !!slug,
   });
 
+  // Fetch Google Places enrichment data
+  const enrichBusinessMutation = useMutation({
+    mutationFn: async (businessId: number) => {
+      const response = await fetch(`/api/dashboard/businesses/${businessId}/enrich-google`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.enrichedData) {
+        setEnrichedData(data.enrichedData);
+      }
+    },
+    onError: (error) => {
+      console.log('Google enrichment failed:', error);
+    }
+  });
+
+  // Auto-enrich business data when component loads
+  useEffect(() => {
+    if (micrositeData?.business?.id && !enrichedData) {
+      enrichBusinessMutation.mutate(micrositeData.business.id);
+    }
+  }, [micrositeData?.business?.id]);
+
+  // Handle scroll effects
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 100);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   console.log("BusinessMicrosite: micrositeData =", micrositeData);
   console.log("BusinessMicrosite: isLoading =", isLoading);
   console.log("BusinessMicrosite: error =", error);
+  console.log("BusinessMicrosite: enrichedData =", enrichedData);
 
   if (isLoading) {
     return (
@@ -59,55 +108,360 @@ export default function BusinessMicrosite() {
 
   const { business, settings, services, gallery, reviews } = micrositeData;
   const categoryInfo = categories.find(c => c.id === business.category);
+  
+  // Combine local and Google data
+  const combinedPhotos = [
+    ...(gallery || []).map(item => ({ 
+      url: item.imageUrl, 
+      title: item.title || 'Galería', 
+      type: 'local' 
+    })),
+    ...(enrichedData?.photos || []).map((photo: any) => ({ 
+      url: photo.url, 
+      title: 'Google Photos', 
+      type: 'google' 
+    }))
+  ];
+  
+  const combinedReviews = [
+    ...(reviews || []).map(review => ({
+      ...review,
+      author: review.clientName,
+      text: review.comment,
+      type: 'local',
+      time: review.createdAt
+    })),
+    ...(enrichedData?.reviews || []).map((review: any) => ({
+      ...review,
+      clientName: review.author,
+      comment: review.text,
+      type: 'google'
+    }))
+  ];
+  
+  const businessRating = enrichedData?.rating || parseFloat(business.rating || "0");
+  const businessReviewCount = enrichedData?.reviewCount || combinedReviews.length;
+  
+  // Auto-advance photo carousel
+  useEffect(() => {
+    if (combinedPhotos.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentPhotoIndex((prev) => (prev + 1) % combinedPhotos.length);
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [combinedPhotos.length]);
+  
+  const nextPhoto = () => {
+    setCurrentPhotoIndex((prev) => (prev + 1) % combinedPhotos.length);
+  };
+  
+  const prevPhoto = () => {
+    setCurrentPhotoIndex((prev) => (prev - 1 + combinedPhotos.length) % combinedPhotos.length);
+  };
+  
+  const getCurrentHours = () => {
+    if (!settings?.workingHours && !enrichedData?.openingHours) return null;
+    
+    const now = new Date();
+    const currentDay = now.toLocaleLowerCase().slice(0, 3); // mon, tue, etc
+    const currentTime = now.getHours() * 100 + now.getMinutes();
+    
+    if (enrichedData?.openingHours) {
+      return {
+        isOpen: enrichedData.openingHours.openNow,
+        text: enrichedData.openingHours.openNow ? 'Abierto ahora' : 'Cerrado'
+      };
+    }
+    
+    // Fallback to local hours
+    const dayNames = {
+      'mon': 'monday',
+      'tue': 'tuesday', 
+      'wed': 'wednesday',
+      'thu': 'thursday',
+      'fri': 'friday',
+      'sat': 'saturday',
+      'sun': 'sunday'
+    };
+    
+    const todayHours = settings?.workingHours?.[dayNames[currentDay]];
+    if (!todayHours || !todayHours.enabled) {
+      return { isOpen: false, text: 'Cerrado' };
+    }
+    
+    const openTime = parseInt(todayHours.start.replace(':', ''));
+    const closeTime = parseInt(todayHours.end.replace(':', ''));
+    
+    const isOpen = currentTime >= openTime && currentTime <= closeTime;
+    return {
+      isOpen,
+      text: isOpen ? 'Abierto ahora' : 'Cerrado'
+    };
+  };
+  
+  const currentHours = getCurrentHours();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-white">
+      {/* Sticky Navigation */}
+      <nav className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300",
+        isScrolled 
+          ? "bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200" 
+          : "bg-transparent"
+      )}>
+        <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               {settings?.profileImage ? (
                 <img 
                   src={settings.profileImage} 
                   alt={business.name}
-                  className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                  className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-lg"
                 />
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-xl">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
                   {business.name.charAt(0).toUpperCase()}
                 </div>
               )}
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{business.name}</h1>
-                {settings?.professionalTitle && (
-                  <p className="text-gray-600">{settings.professionalTitle}</p>
-                )}
-                {categoryInfo && (
-                  <Badge variant="secondary" className="mt-1">
-                    {categoryInfo.name}
-                  </Badge>
+                <h1 className={cn(
+                  "font-bold transition-colors",
+                  isScrolled ? "text-gray-900 text-lg" : "text-white text-xl drop-shadow-lg"
+                )}>{business.name}</h1>
+                {enrichedData?.googlePlaceId && (
+                  <div className="flex items-center space-x-1">
+                    <Shield className="w-3 h-3 text-blue-600" />
+                    <span className={cn(
+                      "text-xs font-medium",
+                      isScrolled ? "text-blue-600" : "text-blue-200"
+                    )}>Verificado en Google</span>
+                  </div>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               {settings?.publicPhone && (
-                <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                <Button 
+                  size="sm" 
+                  className="bg-green-600 hover:bg-green-700 shadow-lg"
+                  onClick={() => window.open(`tel:${settings.publicPhone}`, '_self')}
+                >
                   <Phone className="w-4 h-4 mr-2" />
                   Llamar
                 </Button>
               )}
               {settings?.enablePublicBooking && (
-                <Button size="sm" className="bg-red-600 hover:bg-red-700">
+                <Button 
+                  size="sm" 
+                  className="bg-red-600 hover:bg-red-700 shadow-lg"
+                  onClick={() => setShowBookingWidget(!showBookingWidget)}
+                >
                   <Calendar className="w-4 h-4 mr-2" />
-                  Reservar Cita
+                  Reservar
                 </Button>
               )}
             </div>
           </div>
         </div>
-      </header>
+      </nav>
+
+      {/* Modern Hero Section */}
+      <section ref={heroRef} className="relative h-[70vh] overflow-hidden">
+        {/* Background Image Carousel */}
+        <div className="absolute inset-0">
+          {combinedPhotos.length > 0 ? (
+            <div className="relative w-full h-full">
+              <img
+                src={combinedPhotos[currentPhotoIndex]?.url || settings?.coverImage || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&h=1080"}
+                alt="Hero"
+                className="w-full h-full object-cover transition-all duration-1000"
+              />
+              {combinedPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={prevPhoto}
+                    className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full transition-all"
+                  >
+                    <ArrowLeft className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={nextPhoto}
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/20 hover:bg-black/40 text-white p-2 rounded-full transition-all"
+                  >
+                    <ArrowRight className="w-6 h-6" />
+                  </button>
+                  
+                  {/* Photo indicators */}
+                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    {combinedPhotos.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentPhotoIndex(index)}
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-all",
+                          index === currentPhotoIndex ? "bg-white" : "bg-white/50"
+                        )}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-red-500 via-red-600 to-red-700" />
+          )}
+          
+          {/* Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/30 to-black/20" />
+        </div>
+
+        {/* Hero Content */}
+        <div className="absolute inset-0 flex items-center justify-center text-center">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto space-y-6">
+              {/* Business Name & Category */}
+              <div className="space-y-4">
+                <h1 className="text-4xl md:text-6xl font-bold text-white drop-shadow-lg">
+                  {business.name}
+                </h1>
+                {settings?.professionalTitle && (
+                  <p className="text-xl md:text-2xl text-white/90 drop-shadow">
+                    {settings.professionalTitle}
+                  </p>
+                )}
+                
+                <div className="flex items-center justify-center space-x-4">
+                  {categoryInfo && (
+                    <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm px-4 py-2 text-lg">
+                      {categoryInfo.name}
+                    </Badge>
+                  )}
+                  
+                  {currentHours && (
+                    <Badge className={cn(
+                      "px-4 py-2 text-lg backdrop-blur-sm",
+                      currentHours.isOpen 
+                        ? "bg-green-500/20 text-green-100 border-green-300/30" 
+                        : "bg-red-500/20 text-red-100 border-red-300/30"
+                    )}>
+                      <Clock className="w-4 h-4 mr-2" />
+                      {currentHours.text}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              {/* Rating & Reviews */}
+              {businessRating > 0 && (
+                <div className="flex items-center justify-center space-x-4 text-white">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={cn(
+                            "w-6 h-6",
+                            i < businessRating ? "fill-yellow-400 text-yellow-400" : "text-white/30"
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-2xl font-bold drop-shadow">
+                      {businessRating.toFixed(1)}
+                    </span>
+                    <span className="text-white/90 drop-shadow">
+                      ({businessReviewCount} reseñas)
+                    </span>
+                  </div>
+                  
+                  {enrichedData?.googlePlaceId && (
+                    <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
+                      <Shield className="w-5 h-5 text-blue-300" />
+                      <span className="text-blue-100 font-medium">Verificado en Google</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Description */}
+              {(settings?.publicDescription || business.description) && (
+                <p className="text-lg md:text-xl text-white/90 drop-shadow max-w-2xl mx-auto leading-relaxed">
+                  {settings?.publicDescription || business.description}
+                </p>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-center space-x-4 pt-4">
+                {settings?.enablePublicBooking && (
+                  <Button 
+                    size="lg" 
+                    className="bg-red-600 hover:bg-red-700 text-white px-8 py-4 text-lg shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all"
+                    onClick={() => setShowBookingWidget(true)}
+                  >
+                    <Calendar className="w-5 h-5 mr-3" />
+                    Reservar Cita Ahora
+                  </Button>
+                )}
+                
+                {settings?.publicPhone && (
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="border-white text-white hover:bg-white hover:text-gray-900 px-8 py-4 text-lg backdrop-blur-sm shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all"
+                    onClick={() => window.open(`tel:${settings.publicPhone}`, '_self')}
+                  >
+                    <Phone className="w-5 h-5 mr-3" />
+                    Contactar
+                  </Button>
+                )}
+              </div>
+              
+              {/* Quick Contact Info */}
+              <div className="flex items-center justify-center space-x-8 text-white/80 pt-4">
+                {(settings?.streetAddress || business.address) && (
+                  <div className="flex items-center space-x-2">
+                    <MapPin className="w-5 h-5" />
+                    <span className="text-sm">
+                      {settings?.district || business.address?.split(',')[0] || 'Lima'}
+                    </span>
+                  </div>
+                )}
+                
+                {settings?.publicPhone && (
+                  <div className="flex items-center space-x-2">
+                    <Phone className="w-5 h-5" />
+                    <span className="text-sm">{settings.publicPhone}</span>
+                  </div>
+                )}
+                
+                {enrichedData?.website && (
+                  <div className="flex items-center space-x-2">
+                    <Globe className="w-5 h-5" />
+                    <a 
+                      href={enrichedData.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm hover:text-white transition-colors"
+                    >
+                      Sitio Web
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <div className="w-6 h-10 border-2 border-white/50 rounded-full flex justify-center">
+            <div className="w-1 h-3 bg-white/50 rounded-full mt-2 animate-pulse" />
+          </div>
+        </div>
+      </section>
 
       {/* Cover Image */}
       {settings?.coverImage && (

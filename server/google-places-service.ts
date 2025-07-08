@@ -240,13 +240,21 @@ export class GooglePlacesService {
     }
 
     try {
-      const url = `${this.baseUrl}/details/json?place_id=${placeId}&fields=formatted_phone_number,website,opening_hours&key=${this.apiKey}&language=es`;
+      // Extended fields for comprehensive business data
+      const fields = [
+        'name', 'formatted_address', 'formatted_phone_number', 'website',
+        'opening_hours', 'rating', 'user_ratings_total', 'reviews',
+        'photos', 'geometry', 'types', 'price_level', 'business_status',
+        'plus_code', 'utc_offset', 'vicinity', 'editorial_summary'
+      ].join(',');
+
+      const url = `${this.baseUrl}/details/json?place_id=${placeId}&fields=${fields}&key=${this.apiKey}&language=es`;
       
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.status !== 'OK') {
-        console.error('Google Places Details API error:', data.status);
+        console.error('Google Places Details API error:', data.status, data.error_message);
         return null;
       }
 
@@ -265,6 +273,113 @@ export class GooglePlacesService {
     }
     
     return `${this.baseUrl}/photo?maxwidth=${maxWidth}&photoreference=${photoReference}&key=${this.apiKey}`;
+  }
+
+  // Find and enrich existing business data with Google Places information
+  async findAndEnrichBusiness(businessName: string, address?: string, phone?: string): Promise<any> {
+    if (!this.apiKey) {
+      console.warn('Google Places API not configured for business enrichment');
+      return null;
+    }
+
+    try {
+      // Build search query
+      let searchQuery = businessName;
+      if (address) {
+        searchQuery += ` ${address}`;
+      }
+
+      console.log(`Searching Google Places for business enrichment: "${searchQuery}"`);
+
+      const url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es`;
+      const response = await fetch(url);
+      const data: GooglePlacesSearchResponse = await response.json();
+
+      if (data.status !== 'OK' || !data.results.length) {
+        console.log(`No Google Places match found for: ${businessName}`);
+        return null;
+      }
+
+      // Find best match based on name similarity
+      let bestMatch = data.results[0];
+      
+      if (data.results.length > 1) {
+        // Score matches based on name similarity
+        const scoredResults = data.results.map(place => {
+          let score = 0;
+          
+          // Name similarity (simple contains check)
+          if (place.name.toLowerCase().includes(businessName.toLowerCase()) || 
+              businessName.toLowerCase().includes(place.name.toLowerCase())) {
+            score += 50;
+          }
+          
+          // Exact name match
+          if (place.name.toLowerCase() === businessName.toLowerCase()) {
+            score += 100;
+          }
+
+          return { place, score };
+        });
+
+        // Sort by score and take the best match
+        scoredResults.sort((a, b) => b.score - a.score);
+        bestMatch = scoredResults[0].place;
+        
+        console.log(`Found ${data.results.length} potential matches, selected: ${bestMatch.name} (score: ${scoredResults[0].score})`);
+      }
+
+      // Get detailed information for the best match
+      const details = await this.getBusinessDetails(bestMatch.place_id);
+      
+      if (!details) {
+        return null;
+      }
+
+      // Format and return enriched data
+      const enrichedData = {
+        googlePlaceId: bestMatch.place_id,
+        name: details.name,
+        description: details.editorial_summary?.overview || null,
+        address: details.formatted_address,
+        phone: details.formatted_phone_number,
+        website: details.website,
+        rating: details.rating || 0,
+        reviewCount: details.user_ratings_total || 0,
+        priceLevel: details.price_level || 0,
+        businessStatus: details.business_status,
+        location: {
+          lat: details.geometry?.location?.lat,
+          lng: details.geometry?.location?.lng
+        },
+        openingHours: details.opening_hours ? {
+          openNow: details.opening_hours.open_now,
+          periods: details.opening_hours.periods,
+          weekdayText: details.opening_hours.weekday_text
+        } : null,
+        photos: details.photos ? details.photos.slice(0, 10).map(photo => ({
+          reference: photo.photo_reference,
+          width: photo.width,
+          height: photo.height,
+          url: this.getPhotoUrl(photo.photo_reference, 400)
+        })) : [],
+        reviews: details.reviews ? details.reviews.slice(0, 5).map(review => ({
+          author: review.author_name,
+          rating: review.rating,
+          text: review.text,
+          time: review.time,
+          profilePhoto: review.profile_photo_url
+        })) : [],
+        types: details.types
+      };
+
+      console.log(`Successfully enriched business data from Google Places for: ${businessName}`);
+      return enrichedData;
+
+    } catch (error) {
+      console.error('Error enriching business with Google Places data:', error);
+      return null;
+    }
   }
 }
 

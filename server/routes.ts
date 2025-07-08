@@ -1144,6 +1144,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Places enrichment endpoint
+  app.post("/api/dashboard/businesses/:businessId/enrich-google", async (req, res) => {
+    try {
+      const businessId = parseInt(req.params.businessId);
+      const business = await storage.getBusiness(businessId);
+      
+      if (!business) {
+        return res.status(404).json({ message: "Negocio no encontrado" });
+      }
+
+      console.log(`Enriching business ${business.name} with Google Places data`);
+      
+      const googleData = await googlePlacesService.findAndEnrichBusiness(
+        business.name,
+        business.address,
+        business.phone
+      );
+
+      if (!googleData) {
+        return res.status(404).json({ 
+          message: "No se encontró información en Google Places para este negocio" 
+        });
+      }
+
+      res.json({
+        success: true,
+        googleData,
+        suggestions: {
+          description: googleData.description,
+          phone: googleData.phone,
+          website: googleData.website,
+          rating: googleData.rating,
+          reviewCount: googleData.reviewCount,
+          photos: googleData.photos,
+          reviews: googleData.reviews,
+          openingHours: googleData.openingHours
+        }
+      });
+    } catch (error) {
+      console.error("Error enriching business with Google data:", error);
+      res.status(500).json({ message: "Error obteniendo datos de Google" });
+    }
+  });
+
   const httpServer = createServer(app);
   // Micrositio routes
   app.get("/api/micrositio/:slug", async (req, res) => {
