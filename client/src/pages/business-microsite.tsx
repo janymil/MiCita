@@ -600,77 +600,152 @@ export default function BusinessMicrosite() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Contact Info */}
-            <Card>
+            {/* Enhanced Contact Info */}
+            <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle>Información de Contacto</CardTitle>
+                <CardTitle className="flex items-center">
+                  <Phone className="w-5 h-5 mr-2 text-blue-600" />
+                  Información de Contacto
+                  {googleData && (
+                    <Badge className="ml-auto bg-blue-100 text-blue-800">
+                      <Verified className="w-3 h-3 mr-1" />
+                      Google
+                    </Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {(settings?.publicPhone || business.phone) && (
-                  <div className="flex items-center">
-                    <Phone className="w-4 h-4 mr-3 text-gray-500" />
-                    <span>{settings?.publicPhone || business.phone}</span>
+                {(googleData?.phone || settings?.publicPhone || business.phone) && (
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-center">
+                      <Phone className="w-5 h-5 mr-3 text-green-600" />
+                      <div>
+                        <span className="font-medium text-gray-900">
+                          {googleData?.phone || settings?.publicPhone || business.phone}
+                        </span>
+                        {googleData?.phone && (
+                          <Badge className="ml-2 bg-blue-600 text-white text-xs">
+                            Google
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <a href={`tel:${googleData?.phone || settings?.publicPhone || business.phone}`}>
+                      <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                        Llamar
+                      </Button>
+                    </a>
                   </div>
                 )}
 
                 {(settings?.publicEmail || business.email) && (
-                  <div className="flex items-center">
-                    <Mail className="w-4 h-4 mr-3 text-gray-500" />
-                    <span>{settings?.publicEmail || business.email}</span>
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center">
+                      <Mail className="w-5 h-5 mr-3 text-blue-600" />
+                      <span className="font-medium text-gray-900">
+                        {settings?.publicEmail || business.email}
+                      </span>
+                    </div>
+                    <a href={`mailto:${settings?.publicEmail || business.email}`}>
+                      <Button size="sm" variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-100">
+                        Email
+                      </Button>
+                    </a>
                   </div>
                 )}
 
-                {(settings?.streetAddress || business.address) && (
-                  <div className="flex items-start">
-                    <MapPin className="w-4 h-4 mr-3 text-gray-500 mt-1" />
-                    <div>
-                      {settings?.streetAddress ? (
-                        <>
-                          <p>{settings.streetAddress}</p>
-                          {settings.district && <p className="text-sm text-gray-600">{settings.district}</p>}
-                          {settings.region && <p className="text-sm text-gray-600">{settings.region}</p>}
-                          {settings.postalCode && <p className="text-sm text-gray-600">{settings.postalCode}</p>}
-                          {settings.country && <p className="text-sm text-gray-600">{settings.country}</p>}
-                        </>
-                      ) : (
-                        <p>{business.address}</p>
+                {(googleData?.address || settings?.streetAddress || business.address) && (
+                  <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start">
+                        <MapPin className="w-5 h-5 mr-3 text-red-600 mt-1" />
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {googleData?.address || settings?.streetAddress || business.address}
+                            {googleData?.address && (
+                              <Badge className="ml-2 bg-blue-600 text-white text-xs">
+                                Google
+                              </Badge>
+                            )}
+                          </div>
+                          {settings?.streetAddress && (
+                            <div className="text-sm text-gray-600 mt-1">
+                              {settings.district && <p>{settings.district}</p>}
+                              {settings.region && <p>{settings.region}</p>}
+                              {settings.postalCode && <p>{settings.postalCode}</p>}
+                              {settings.country && <p>{settings.country}</p>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex space-x-2">
+                      <a 
+                        href={`https://maps.google.com/?q=${encodeURIComponent(
+                          googleData?.address || settings?.streetAddress || business.address
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button size="sm" className="bg-red-600 hover:bg-red-700">
+                          <Navigation className="w-4 h-4 mr-2" />
+                          Cómo llegar
+                        </Button>
+                      </a>
+                      {googleData?.location && (
+                        <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+                          <MapPin className="w-4 h-4 mr-2" />
+                          Ver en mapa
+                        </Button>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Social Media Links */}
-                {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
+                {/* Enhanced Social Media Links */}
+                {(googleData?.website || settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
                   <div>
                     <div className="border-t pt-4 mt-4">
-                      <Label className="text-sm text-gray-600 mb-3 block">Redes Sociales</Label>
-                      <div className="flex space-x-3">
+                      <Label className="text-sm text-gray-600 mb-3 block">Sitio Web y Redes Sociales</Label>
+                      
+                      {/* Website from Google */}
+                      {googleData?.website && (
+                        <div className="mb-3">
+                          <a href={googleData.website} target="_blank" rel="noopener noreferrer">
+                            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                              <Globe className="w-4 h-4 mr-2" />
+                              Visitar Sitio Web
+                              <Badge className="ml-2 bg-blue-800 text-white text-xs">
+                                Google
+                              </Badge>
+                            </Button>
+                          </a>
+                        </div>
+                      )}
+                      
+                      <div className="flex flex-wrap gap-3">
                         {settings?.facebookUrl && (
-                          <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                            </svg>
+                          <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full border-blue-300 text-blue-700 hover:bg-blue-100">
+                              <Facebook className="w-4 h-4 mr-2" />
+                              Facebook
+                            </Button>
                           </a>
                         )}
                         {settings?.instagramUrl && (
-                          <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987 6.62 0 11.987-5.367 11.987-11.987C24.014 5.367 18.637.001 12.017.001z"/>
-                            </svg>
-                          </a>
-                        )}
-                        {settings?.tiktokUrl && (
-                          <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-.88-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
-                            </svg>
+                          <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full border-pink-300 text-pink-700 hover:bg-pink-100">
+                              <Instagram className="w-4 h-4 mr-2" />
+                              Instagram
+                            </Button>
                           </a>
                         )}
                         {settings?.youtubeUrl && (
-                          <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                            </svg>
+                          <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer" className="flex-1">
+                            <Button variant="outline" size="sm" className="w-full border-red-300 text-red-700 hover:bg-red-100">
+                              <Youtube className="w-4 h-4 mr-2" />
+                              YouTube
+                            </Button>
                           </a>
                         )}
                       </div>
@@ -680,128 +755,268 @@ export default function BusinessMicrosite() {
               </CardContent>
             </Card>
 
-            {/* Business Hours */}
-            <Card>
+            {/* Enhanced Business Hours */}
+            <Card className="shadow-lg">
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Clock className="w-5 h-5 mr-2" />
-                  Horarios
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <Clock className="w-5 h-5 mr-2" />
+                    Horarios de Atención
+                  </div>
+                  {businessStatus && (
+                    <Badge className={`${
+                      businessStatus.open ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full mr-2 ${
+                        businessStatus.open ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                      }`}></div>
+                      {businessStatus.open ? 'Abierto' : 'Cerrado'}
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {settings?.workingHours ? (
-                  <div className="space-y-2">
-                    {Object.entries(settings.workingHours).map(([day, hours]) => (
-                      <div key={day} className="flex justify-between">
-                        <span className="capitalize font-medium">
-                          {day === 'monday' ? 'Lunes' :
-                           day === 'tuesday' ? 'Martes' :
-                           day === 'wednesday' ? 'Miércoles' :
-                           day === 'thursday' ? 'Jueves' :
-                           day === 'friday' ? 'Viernes' :
-                           day === 'saturday' ? 'Sábado' : 'Domingo'}:
-                        </span>
-                        <span className={hours.enabled ? 'text-gray-900' : 'text-gray-500 italic'}>
-                          {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
-                        </span>
-                      </div>
-                    ))}
+                {(settings?.workingHours || googleData?.openingHours) ? (
+                  <div className="space-y-3">
+                    {/* Use Google hours if available, otherwise local hours */}
+                    {(googleData?.openingHours?.weekdayText || Object.entries(settings?.workingHours || {})).map((item, index) => {
+                      if (typeof item === 'string') {
+                        // Google hours format
+                        return (
+                          <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                            <span className="font-medium text-gray-900">{item}</span>
+                            {googleData?.openingHours?.openNow !== undefined && index === 0 && (
+                              <Badge className={`ml-2 ${
+                                googleData.openingHours.openNow ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                Google
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      } else {
+                        // Local hours format
+                        const [day, hours] = item;
+                        const isToday = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()] === day;
+                        
+                        return (
+                          <div key={day} className={`flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0 ${
+                            isToday ? 'bg-blue-50 px-3 rounded-lg border-blue-200' : ''
+                          }`}>
+                            <span className={`font-medium ${
+                              isToday ? 'text-blue-900' : 'text-gray-900'
+                            }`}>
+                              {day === 'monday' ? 'Lunes' :
+                               day === 'tuesday' ? 'Martes' :
+                               day === 'wednesday' ? 'Miércoles' :
+                               day === 'thursday' ? 'Jueves' :
+                               day === 'friday' ? 'Viernes' :
+                               day === 'saturday' ? 'Sábado' : 'Domingo'}
+                              {isToday && <span className="ml-2 text-xs text-blue-600 font-normal">(Hoy)</span>}
+                            </span>
+                            <span className={`font-medium ${
+                              hours.enabled 
+                                ? (isToday ? 'text-blue-900' : 'text-gray-900')
+                                : 'text-gray-500 italic'
+                            }`}>
+                              {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
+                            </span>
+                          </div>
+                        );
+                      }
+                    })}
                   </div>
                 ) : (
                   <p className="text-gray-600">Horarios no disponibles</p>
                 )}
 
+                {/* Current Status */}
+                {businessStatus && (
+                  <div className={`mt-4 p-4 rounded-lg border-l-4 ${
+                    businessStatus.open 
+                      ? 'bg-green-50 border-green-400 text-green-800' 
+                      : 'bg-red-50 border-red-400 text-red-800'
+                  }`}>
+                    <div className="flex items-center">
+                      <div className={`w-3 h-3 rounded-full mr-3 ${
+                        businessStatus.open ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                      }`}></div>
+                      <span className="font-medium">
+                        {businessStatus.open ? 'Estamos abiertos ahora' : 'Estamos cerrados'}
+                      </span>
+                    </div>
+                    <p className="text-sm mt-1 ml-6">{businessStatus.message}</p>
+                  </div>
+                )}
+
                 {settings?.scheduleNotes && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">{settings.scheduleNotes}</p>
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm text-amber-800">
+                      <strong>Nota:</strong> {settings.scheduleNotes}
+                    </p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Social Media */}
-            {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Síguenos</CardTitle>
+
+            {/* Enhanced Booking Widget */}
+            {settings?.enablePublicBooking && services && services.length > 0 && (
+              <Card className="shadow-lg border-2 border-red-200">
+                <CardHeader className="bg-gradient-to-r from-red-50 to-red-100">
+                  <CardTitle className="flex items-center text-red-800">
+                    <Calendar className="w-5 h-5 mr-2" />
+                    Reservar Cita Online
+                    <Badge className="ml-auto bg-red-600 text-white">
+                      ¡Disponible 24/7!
+                    </Badge>
+                  </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex space-x-4">
-                    {settings?.facebookUrl && (
-                      <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Facebook className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.instagramUrl && (
-                      <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Instagram className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.tiktokUrl && (
-                      <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Twitter className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.youtubeUrl && (
-                      <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Youtube className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
+                <CardContent className="p-6">
+                  <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center text-blue-800">
+                      <Award className="w-5 h-5 mr-2" />
+                      <span className="font-medium">Reserva confirmada al instante</span>
+                    </div>
+                    <p className="text-sm text-blue-600 mt-1">Elige tu servicio, fecha y hora preferida</p>
                   </div>
+                  
+                  <BookingWidget 
+                    services={services} 
+                    businessId={business.id}
+                    workingHours={settings?.workingHours}
+                    blockedDates={settings?.blockedDates}
+                    blockedHours={settings?.blockedHours}
+                  />
                 </CardContent>
               </Card>
             )}
 
-            {/* Booking Widget */}
-            {settings?.enablePublicBooking && services && services.length > 0 && (
-              <BookingWidget 
-                services={services} 
-                businessId={business.id}
-                workingHours={settings?.workingHours}
-                blockedDates={settings?.blockedDates}
-                blockedHours={settings?.blockedHours}
-              />
-            )}
-
-            {/* Contact Form */}
+            {/* Enhanced Contact Form */}
             {settings?.enableContactForm && (
-              <Card>
+              <Card className="shadow-lg">
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <MessageSquare className="w-5 h-5 mr-2" />
-                    Enviar Mensaje
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
+                      Enviar Mensaje
+                    </div>
+                    <Badge className="bg-green-100 text-green-800">
+                      Respuesta en 24h
+                    </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="contact-name">Nombre</Label>
-                    <Input id="contact-name" placeholder="Tu nombre" />
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-800">
+                      <strong>¿Tienes alguna pregunta?</strong> Envíanos un mensaje y te responderemos lo antes posible.
+                    </p>
                   </div>
+                  
                   <div>
-                    <Label htmlFor="contact-email">Email</Label>
-                    <Input id="contact-email" type="email" placeholder="tu@email.com" />
+                    <Label htmlFor="contact-name" className="text-sm font-medium text-gray-700">Nombre completo</Label>
+                    <Input 
+                      id="contact-name" 
+                      placeholder="Tu nombre completo" 
+                      className="mt-1"
+                    />
                   </div>
+                  
                   <div>
-                    <Label htmlFor="contact-message">Mensaje</Label>
-                    <Textarea id="contact-message" placeholder="Escribe tu mensaje..." rows={4} />
+                    <Label htmlFor="contact-email" className="text-sm font-medium text-gray-700">Email</Label>
+                    <Input 
+                      id="contact-email" 
+                      type="email" 
+                      placeholder="tu@email.com" 
+                      className="mt-1"
+                    />
                   </div>
-                  <Button className="w-full bg-red-600 hover:bg-red-700">
+                  
+                  <div>
+                    <Label htmlFor="contact-phone" className="text-sm font-medium text-gray-700">Teléfono (opcional)</Label>
+                    <Input 
+                      id="contact-phone" 
+                      type="tel" 
+                      placeholder="Tu número de teléfono" 
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="contact-message" className="text-sm font-medium text-gray-700">Mensaje</Label>
+                    <Textarea 
+                      id="contact-message" 
+                      placeholder="Cuéntanos en qué podemos ayudarte..." 
+                      rows={4} 
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <Button className="w-full bg-red-600 hover:bg-red-700 text-white py-3">
+                    <MessageSquare className="w-4 h-4 mr-2" />
                     Enviar Mensaje
                   </Button>
+                  
+                  <p className="text-xs text-gray-500 text-center">
+                    También puedes contactarnos directamente por teléfono o WhatsApp
+                  </p>
                 </CardContent>
               </Card>
             )}
           </div>
         </div>
       </div>
+      
+      {/* Footer with trust signals */}
+      <footer className="bg-white border-t mt-16">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-6 mb-4">
+              {googleData?.rating && (
+                <div className="flex items-center">
+                  <Star className="w-5 h-5 text-yellow-400 fill-yellow-400 mr-2" />
+                  <span className="font-bold text-lg">{googleData.rating}</span>
+                  <span className="text-gray-600 ml-1">({googleData.reviewCount} reseñas)</span>
+                </div>
+              )}
+              
+              {googleData && (
+                <div className="flex items-center text-blue-600">
+                  <Verified className="w-5 h-5 mr-2" />
+                  <span className="font-medium">Verificado por Google</span>
+                </div>
+              )}
+              
+              {businessStatus?.open && (
+                <div className="flex items-center text-green-600">
+                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                  <span className="font-medium">Abierto ahora</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              <p className="mb-2">
+                <strong>{business.name}</strong> • {categoryInfo?.name}
+              </p>
+              <p>
+                {googleData?.address || settings?.streetAddress || business.address}
+              </p>
+              {settings?.publicPhone && (
+                <p className="mt-2">
+                  📞 {settings.publicPhone}
+                </p>
+              )}
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                Powered by <strong>Mi Cita</strong> • Sistema de gestión de citas online
+              </p>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

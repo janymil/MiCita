@@ -1233,6 +1233,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Places enrichment endpoint
+  app.post("/api/dashboard/businesses/:id/enrich-google", async (req, res) => {
+    try {
+      const businessId = parseInt(req.params.id);
+      const business = await storage.getBusiness(businessId);
+      
+      if (!business) {
+        return res.status(404).json({ message: "Negocio no encontrado" });
+      }
+
+      console.log(`Enriching business ${business.name} with Google Places data...`);
+      
+      // Search for the business in Google Places
+      const enrichedData = await googlePlacesService.findAndEnrichBusiness(
+        business.name,
+        business.address,
+        business.phone
+      );
+
+      if (!enrichedData) {
+        return res.status(404).json({ 
+          message: "No se encontró información en Google Places para este negocio",
+          business: {
+            name: business.name,
+            address: business.address,
+            phone: business.phone
+          }
+        });
+      }
+
+      console.log(`Successfully enriched ${business.name} with Google data:`, {
+        rating: enrichedData.rating,
+        reviewCount: enrichedData.reviewCount,
+        photosCount: enrichedData.photos?.length || 0,
+        reviewsCount: enrichedData.reviews?.length || 0
+      });
+
+      // Return the enriched data
+      res.json({
+        ...enrichedData,
+        message: "Negocio enriquecido exitosamente con datos de Google Places"
+      });
+
+    } catch (error) {
+      console.error("Error enriching business with Google Places:", error);
+      res.status(500).json({ 
+        message: "Error enriqueciendo negocio con Google Places",
+        error: error instanceof Error ? error.message : "Error desconocido"
+      });
+    }
+  });
+
   // Image upload endpoint
   app.post("/api/upload", upload.single('image'), async (req, res) => {
     try {
