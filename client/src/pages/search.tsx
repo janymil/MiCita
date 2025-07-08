@@ -126,15 +126,16 @@ export default function SearchPage() {
       // Store pagination info for the component
       if (data.pagination) {
         setPaginationInfo(data.pagination);
+        // Don't sync back - this would create a loop
       }
       
       return data.results || data; // Handle both old and new response formats
     },
     enabled: !mapFilterEnabled || !!debouncedMapBounds,
-    staleTime: 0,
-    cacheTime: 0,
+    staleTime: 5000,
+    cacheTime: 60000,
     refetchOnWindowFocus: false,
-    refetchOnMount: true
+    refetchOnMount: false
   });
 
   const handleCityChange = (newCity: string) => {
@@ -313,8 +314,13 @@ export default function SearchPage() {
     });
     
     setFilteredResults(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
+    // Only reset to page 1 when filters change, not on every render
   }, [searchResults, minRating, maxPrice, selectedDistrict, openNow, sortBy, mapBounds, mapFilterEnabled]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, selectedCity, selectedDistrict, minRating, openNow, sortBy, mapFilterEnabled]);
 
   const handleBusinessView = (customUrl: string) => {
     setLocation(`/${customUrl}`);
@@ -896,7 +902,10 @@ export default function SearchPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(Math.max(1, paginationInfo.currentPage - 1))}
+                    onClick={() => {
+                      console.log('Clicking previous page');
+                      setCurrentPage(Math.max(1, paginationInfo.currentPage - 1));
+                    }}
                     disabled={paginationInfo.currentPage === 1}
                   >
                     Anterior
@@ -920,7 +929,10 @@ export default function SearchPage() {
                           key={pageNum}
                           variant={paginationInfo.currentPage === pageNum ? "default" : "outline"}
                           size="sm"
-                          onClick={() => setCurrentPage(pageNum)}
+                          onClick={() => {
+                            console.log('Clicking page:', pageNum);
+                            setCurrentPage(pageNum);
+                          }}
                           className="w-8 h-8 p-0"
                         >
                           {pageNum}
@@ -932,7 +944,10 @@ export default function SearchPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setCurrentPage(Math.min(paginationInfo.totalPages, paginationInfo.currentPage + 1))}
+                    onClick={() => {
+                      console.log('Clicking next page');
+                      setCurrentPage(Math.min(paginationInfo.totalPages, paginationInfo.currentPage + 1));
+                    }}
                     disabled={paginationInfo.currentPage === paginationInfo.totalPages}
                   >
                     Siguiente
