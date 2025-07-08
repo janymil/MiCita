@@ -194,3 +194,197 @@ export function getBusinessNotificationTemplate(data: AppointmentData): { subjec
       </html>`
   };
 }
+
+export function getAppointmentCancelledTemplate(data: AppointmentData): { subject: string; html: string } {
+  return {
+    subject: `❌ Cita Cancelada - ${data.serviceName}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f8f9fa; }
+          .container { max-width: 600px; margin: 0 auto; background-color: white; }
+          .header { background: linear-gradient(135deg, #dc2626, #ef4444); color: white; padding: 40px 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+          .content { padding: 40px 30px; }
+          .alert { background: linear-gradient(135deg, #fef2f2, #fee2e2); border-radius: 12px; padding: 25px; margin: 25px 0; border-left: 4px solid #dc2626; }
+          .appointment-details { background: #f3f4f6; border-radius: 12px; padding: 25px; margin: 25px 0; }
+          .detail-row { display: flex; justify-content: space-between; margin: 12px 0; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+          .detail-row:last-child { border-bottom: none; }
+          .label { font-weight: 600; color: #374151; }
+          .value { color: #111827; font-weight: 500; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Cita Cancelada</h1>
+          </div>
+          
+          <div class="content">
+            <div class="alert">
+              <p style="color: #dc2626; font-size: 16px; margin: 0;">
+                <strong>Lamentamos informarte que tu cita ha sido cancelada por el negocio.</strong>
+              </p>
+            </div>
+            
+            <div class="appointment-details">
+              <h3 style="color: #374151; margin-bottom: 15px;">Detalles de la Cita Cancelada</h3>
+              <div class="detail-row">
+                <span class="label">Negocio:</span>
+                <span class="value">${data.businessName}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Servicio:</span>
+                <span class="value">${data.serviceName}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Fecha:</span>
+                <span class="value">${data.date}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Hora:</span>
+                <span class="value">${data.time}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Duración:</span>
+                <span class="value">${data.duration} minutos</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Precio:</span>
+                <span class="value">S/ ${data.price}</span>
+              </div>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px;">
+              <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                Si tienes alguna pregunta sobre esta cancelación, puedes contactar directamente con el negocio.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">
+                <strong>Contacto:</strong> ${data.businessEmail}
+              </p>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p style="margin: 0;">Este es un email automático de notificación.</p>
+            <p style="margin: 5px 0 0 0; opacity: 0.8;">MiCita - Sistema de Reservas Online</p>
+          </div>
+        </div>
+      </body>
+      </html>`
+  };
+}
+
+export function getAppointmentRescheduledTemplate(data: AppointmentData & { previousDate: string; previousTime: string }): { subject: string; html: string } {
+  return {
+    subject: `🔄 Cita Reprogramada - ${data.serviceName}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f8f9fa; }
+          .container { max-width: 600px; margin: 0 auto; background-color: white; }
+          .header { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: white; padding: 40px 30px; text-align: center; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+          .content { padding: 40px 30px; }
+          .alert { background: linear-gradient(135deg, #fef7cd, #fef3c7); border-radius: 12px; padding: 25px; margin: 25px 0; border-left: 4px solid #f59e0b; }
+          .old-appointment { background: #f3f4f6; border-radius: 12px; padding: 25px; margin: 25px 0; opacity: 0.7; }
+          .new-appointment { background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 25px; margin: 25px 0; border-left: 4px solid #0ea5e9; }
+          .appointment-details { background: #f3f4f6; border-radius: 12px; padding: 25px; margin: 25px 0; }
+          .detail-row { display: flex; justify-content: space-between; margin: 12px 0; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+          .detail-row:last-child { border-bottom: none; }
+          .label { font-weight: 600; color: #374151; }
+          .value { color: #111827; font-weight: 500; }
+          .new-value { color: #0ea5e9; font-weight: bold; font-size: 18px; }
+          .old-value { color: #6b7280; text-decoration: line-through; }
+          .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Cita Reprogramada</h1>
+          </div>
+          
+          <div class="content">
+            <div class="alert">
+              <p style="color: #92400e; font-size: 16px; margin: 0;">
+                <strong>Tu cita ha sido reprogramada. Por favor, revisa la nueva fecha y hora.</strong>
+              </p>
+            </div>
+            
+            <div class="old-appointment">
+              <h3 style="color: #374151; margin-bottom: 15px;">Fecha y Hora Anterior</h3>
+              <div class="detail-row">
+                <span class="label">Fecha:</span>
+                <span class="value old-value">${data.previousDate}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Hora:</span>
+                <span class="value old-value">${data.previousTime}</span>
+              </div>
+            </div>
+            
+            <div class="new-appointment">
+              <h3 style="color: #0ea5e9; margin-bottom: 15px;">Nueva Fecha y Hora</h3>
+              <div class="detail-row">
+                <span class="label">Fecha:</span>
+                <span class="value new-value">${data.date}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Hora:</span>
+                <span class="value new-value">${data.time}</span>
+              </div>
+            </div>
+            
+            <div class="appointment-details">
+              <h3 style="color: #374151; margin-bottom: 15px;">Detalles de la Cita</h3>
+              <div class="detail-row">
+                <span class="label">Negocio:</span>
+                <span class="value">${data.businessName}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Servicio:</span>
+                <span class="value">${data.serviceName}</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Duración:</span>
+                <span class="value">${data.duration} minutos</span>
+              </div>
+              <div class="detail-row">
+                <span class="label">Precio:</span>
+                <span class="value">S/ ${data.price}</span>
+              </div>
+              ${data.notes ? `<div class="detail-row">
+                <span class="label">Notas:</span>
+                <span class="value">${data.notes}</span>
+              </div>` : ''}
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px;">
+              <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                Si tienes alguna pregunta sobre esta reprogramación, puedes contactar directamente con el negocio.
+              </p>
+              <p style="margin: 10px 0 0 0; color: #6b7280; font-size: 14px;">
+                <strong>Contacto:</strong> ${data.businessEmail}
+              </p>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p style="margin: 0;">Este es un email automático de notificación.</p>
+            <p style="margin: 5px 0 0 0; opacity: 0.8;">MiCita - Sistema de Reservas Online</p>
+          </div>
+        </div>
+      </body>
+      </html>`
+  };
+}

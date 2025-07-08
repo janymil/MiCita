@@ -1,5 +1,5 @@
 import { configureSendGrid, sgMail } from './sendgrid-config';
-import { getClientConfirmationTemplate, getBusinessNotificationTemplate, AppointmentData } from './email-templates';
+import { getClientConfirmationTemplate, getBusinessNotificationTemplate, getAppointmentCancelledTemplate, getAppointmentRescheduledTemplate, AppointmentData } from './email-templates';
 
 export class SendGridEmailService {
   private isConfigured: boolean;
@@ -81,7 +81,56 @@ export class SendGridEmailService {
 
     return { clientSent, businessSent };
   }
+
+  async sendAppointmentCancelled(appointmentData: AppointmentData): Promise<boolean> {
+    if (!this.isConfigured) {
+      console.log('SendGrid not configured, skipping appointment cancellation email');
+      return false;
+    }
+
+    try {
+      const template = getAppointmentCancelledTemplate(appointmentData);
+      
+      const msg = {
+        to: appointmentData.clientEmail,
+        from: appointmentData.businessEmail,
+        subject: template.subject,
+        html: template.html,
+      };
+
+      await sgMail.send(msg);
+      console.log('Appointment cancellation email sent to:', appointmentData.clientEmail);
+      return true;
+    } catch (error) {
+      console.error('Error sending appointment cancellation email:', error);
+      return false;
+    }
+  }
+
+  async sendAppointmentRescheduled(appointmentData: AppointmentData & { previousDate: string; previousTime: string }): Promise<boolean> {
+    if (!this.isConfigured) {
+      console.log('SendGrid not configured, skipping appointment rescheduling email');
+      return false;
+    }
+
+    try {
+      const template = getAppointmentRescheduledTemplate(appointmentData);
+      
+      const msg = {
+        to: appointmentData.clientEmail,
+        from: appointmentData.businessEmail,
+        subject: template.subject,
+        html: template.html,
+      };
+
+      await sgMail.send(msg);
+      console.log('Appointment rescheduling email sent to:', appointmentData.clientEmail);
+      return true;
+    } catch (error) {
+      console.error('Error sending appointment rescheduling email:', error);
+      return false;
+    }
+  }
 }
 
-// Export a singleton instance
 export const sendGridEmailService = new SendGridEmailService();
