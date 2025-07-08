@@ -44,7 +44,7 @@ export default function SearchPage() {
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [debouncedMapBounds, setDebouncedMapBounds] = useState<google.maps.LatLngBounds | null>(null);
-  const [mapFilterEnabled, setMapFilterEnabled] = useState(true);
+  const [mapFilterEnabled, setMapFilterEnabled] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -82,13 +82,7 @@ export default function SearchPage() {
       minRating,
       openNow,
       sortBy,
-      mapFilterEnabled,
-      mapFilterEnabled && debouncedMapBounds ? {
-        north: debouncedMapBounds.getNorthEast().lat(),
-        south: debouncedMapBounds.getSouthWest().lat(),
-        east: debouncedMapBounds.getNorthEast().lng(),
-        west: debouncedMapBounds.getSouthWest().lng()
-      } : null
+      mapFilterEnabled ? debouncedMapBounds?.toString() : null
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -114,8 +108,6 @@ export default function SearchPage() {
         params.delete("city");
       }
       
-      console.log('🔍 API Call:', `/api/search?${params}`);
-      
       const response = await fetch(`/api/search?${params}`);
       if (!response.ok) {
         throw new Error('Search failed');
@@ -125,7 +117,7 @@ export default function SearchPage() {
     },
     enabled: !mapFilterEnabled || !!debouncedMapBounds,
     staleTime: 0,
-    gcTime: 0,
+    cacheTime: 0,
     refetchOnWindowFocus: false,
     refetchOnMount: true
   });
@@ -729,7 +721,7 @@ export default function SearchPage() {
             <div className="order-2 lg:order-2" style={{ height: '600px' }}>
               <SimpleMap
                 businesses={filteredResults}
-                onMapBoundsChange={(bounds) => setMapBounds(bounds)}
+                onMapBoundsChange={mapFilterEnabled ? (bounds) => setMapBounds(bounds) : undefined}
                 onBusinessClick={(business) => setSelectedBusiness(business)}
                 selectedBusiness={selectedBusiness}
                 className="h-full w-full"
