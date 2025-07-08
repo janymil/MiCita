@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -278,13 +277,13 @@ export default function APIAnalyticsPage() {
                       </p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
                       <p className="text-sm font-medium">{formatTime(call.timestamp)}</p>
                       <p className="text-xs text-gray-500">{call.responseTime}ms</p>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       {call.status === 'success' ? (
                         <CheckCircle className="w-4 h-4 text-green-600" />
@@ -295,7 +294,7 @@ export default function APIAnalyticsPage() {
                         {call.status}
                       </span>
                     </div>
-                    
+
                     <div className="text-right">
                       <p className="text-sm font-medium">{formatCost(call.cost || 0)}</p>
                       {call.resultCount !== undefined && (
@@ -306,7 +305,7 @@ export default function APIAnalyticsPage() {
                 </div>
               ))}
             </div>
-            
+
             {!recentCalls?.length && (
               <div className="text-center py-8 text-gray-500">
                 No hay llamadas API registradas aún
