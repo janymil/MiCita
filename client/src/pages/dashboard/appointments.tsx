@@ -28,6 +28,7 @@ import { APPOINTMENT_STATUSES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import EditAppointmentDialog from "@/components/edit-appointment-dialog";
+import AppointmentFormDialog from "@/components/appointment-form-dialog";
 
 const appointmentSchema = z.object({
   clientId: z.string().min(1, "Selecciona un cliente"),
@@ -161,13 +162,13 @@ export default function Appointments() {
             <p className="text-gray-600">Organiza y administra las citas de tu negocio</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-red-600 hover:bg-red-700">
-                <Plus className="w-4 h-4 mr-2" />
-                Nueva Cita
-              </Button>
-            </DialogTrigger>
+          <Button 
+            onClick={() => setIsDialogOpen(true)}
+            className="bg-red-600 hover:bg-red-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Nueva Cita
+          </Button>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Nueva Cita</DialogTitle>
@@ -323,9 +324,6 @@ export default function Appointments() {
                     </Button>
                   </div>
                 </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
         </div>
 
         {/* Filters */}
