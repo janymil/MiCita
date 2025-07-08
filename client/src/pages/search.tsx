@@ -43,6 +43,7 @@ export default function SearchPage() {
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [debouncedMapBounds, setDebouncedMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [mapFilterEnabled, setMapFilterEnabled] = useState(false);
   
   // Pagination state
@@ -81,7 +82,7 @@ export default function SearchPage() {
       minRating,
       openNow,
       sortBy,
-      mapFilterEnabled ? mapBounds?.toString() : null
+      mapFilterEnabled ? debouncedMapBounds?.toString() : null
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -93,13 +94,13 @@ export default function SearchPage() {
       if (openNow) params.append("openNow", "true");
       if (sortBy !== "relevance") params.append("sort", sortBy);
       
-      // Add map bounds if map filter is enabled and we have bounds
-      if (mapFilterEnabled && mapBounds) {
+      // Add map bounds if map filter is enabled and we have debounced bounds
+      if (mapFilterEnabled && debouncedMapBounds) {
         const boundsData = {
-          north: mapBounds.getNorthEast().lat(),
-          south: mapBounds.getSouthWest().lat(),
-          east: mapBounds.getNorthEast().lng(),
-          west: mapBounds.getSouthWest().lng()
+          north: debouncedMapBounds.getNorthEast().lat(),
+          south: debouncedMapBounds.getSouthWest().lat(),
+          east: debouncedMapBounds.getNorthEast().lng(),
+          west: debouncedMapBounds.getSouthWest().lng()
         };
         params.append("bounds", JSON.stringify(boundsData));
       }
@@ -111,7 +112,7 @@ export default function SearchPage() {
       const data = await response.json();
       return data;
     },
-    enabled: true,
+    enabled: !mapFilterEnabled || !mapBounds || !!debouncedMapBounds,
     staleTime: 0,
     cacheTime: 0,
     refetchOnWindowFocus: false,
@@ -123,6 +124,17 @@ export default function SearchPage() {
     // Reset district when city changes
     setSelectedDistrict("all");
   };
+
+  // Debounce map bounds changes to avoid constant API calls
+  useEffect(() => {
+    if (!mapFilterEnabled) return;
+    
+    const timeout = setTimeout(() => {
+      setDebouncedMapBounds(mapBounds);
+    }, 2000); // 2 second delay after map stops moving
+
+    return () => clearTimeout(timeout);
+  }, [mapBounds, mapFilterEnabled]);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -453,8 +465,11 @@ export default function SearchPage() {
               {totalResults > 0 && (
                 <div className="flex items-center text-sm text-gray-600">
                   <span>{totalResults} resultados encontrados</span>
-                  {mapFilterEnabled && mapBounds && (
+                  {mapFilterEnabled && debouncedMapBounds && (
                     <span className="ml-2 text-blue-600">• Filtrado por área del mapa</span>
+                  )}
+                  {mapFilterEnabled && mapBounds && !debouncedMapBounds && (
+                    <span className="ml-2 text-orange-600">• Mueve el mapa para buscar en el área</span>
                   )}
                   {currentPage > 1 && (
                     <span className="ml-2">• Página {currentPage} de {totalPages}</span>
