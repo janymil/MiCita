@@ -63,6 +63,7 @@ export default function SearchPage() {
 
   const registeredBusinesses = searchResults?.filter((b: any) => b.type === "registered") || [];
   const publicBusinesses = searchResults?.filter((b: any) => b.type === "public") || [];
+  const googlePlacesResults = searchResults?.filter((b: any) => b.type === "google") || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -195,6 +196,73 @@ export default function SearchPage() {
                       business={business}
                       onViewClick={() => handleBusinessView(business.customUrl || business.slug)}
                     />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Google Places Results */}
+            {googlePlacesResults.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Negocios Encontrados ({googlePlacesResults.length})
+                  </h2>
+                  <Badge className="bg-blue-600">
+                    Google Places
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {googlePlacesResults.map((business: any) => (
+                    <div key={`google-${business.id}`} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                              {business.name}
+                            </h3>
+                            <p className="text-sm text-gray-600 mb-3">
+                              {business.address}
+                            </p>
+                            <Badge variant="outline" className="mb-3">
+                              {business.category}
+                            </Badge>
+                          </div>
+                          {business.photoUrl && (
+                            <img 
+                              src={business.photoUrl} 
+                              alt={business.name}
+                              className="w-16 h-16 object-cover rounded-lg ml-4"
+                            />
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4">
+                            {business.rating > 0 && (
+                              <div className="flex items-center text-yellow-500">
+                                <span className="text-sm font-medium mr-1">★</span>
+                                <span className="text-sm text-gray-600">
+                                  {business.rating} ({business.reviewCount})
+                                </span>
+                              </div>
+                            )}
+                            {business.priceLevel > 0 && (
+                              <div className="text-sm text-gray-600">
+                                {'$'.repeat(business.priceLevel)}
+                              </div>
+                            )}
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => window.open(`https://www.google.com/maps/place/?q=place_id:${business.id}`, '_blank')}
+                          >
+                            Ver en Maps
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

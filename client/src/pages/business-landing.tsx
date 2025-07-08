@@ -64,7 +64,7 @@ export default function BusinessLandingPage() {
       name: "María González",
       business: "Spa Luna Bella",
       rating: 5,
-      text: "Desde que uso BuscarPerú, mis reservas aumentaron 300%. La plataforma es súper fácil de usar.",
+      text: "Desde que uso Mi Cita, mis reservas aumentaron 300%. La plataforma es súper fácil de usar.",
       avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face"
     },
     {
@@ -149,7 +149,7 @@ export default function BusinessLandingPage() {
               <div className="w-10 h-10 peru-gradient rounded-xl flex items-center justify-center">
                 <Search className="text-white w-5 h-5" />
               </div>
-              <span className="text-2xl font-bold text-gray-900">BuscarPerú</span>
+              <span className="text-2xl font-bold text-gray-900">Mi Cita</span>
               <Badge variant="secondary" className="ml-2">Business</Badge>
             </Link>
 
@@ -186,7 +186,7 @@ export default function BusinessLandingPage() {
               <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
                 Haz crecer tu 
                 <span className="text-red-600"> negocio</span> con 
-                <span className="text-orange-500"> BuscarPerú</span>
+                <span className="text-orange-500"> Mi Cita</span>
               </h1>
               
               <p className="text-xl text-gray-600 mb-8 leading-relaxed">
@@ -308,7 +308,7 @@ export default function BusinessLandingPage() {
               Lo que dicen nuestros clientes
             </h2>
             <p className="text-xl text-gray-600">
-              Miles de negocios ya confían en BuscarPerú
+              Miles de negocios ya confían en Mi Cita
             </p>
           </div>
 

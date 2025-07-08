@@ -8,6 +8,7 @@ import fs from "fs";
 import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
 import { emailService } from "./email-service.js";
 import { AppointmentData } from "./email-templates";
+import { googlePlacesService } from "./google-places-service.js";
 
 // Helper function to send email notifications for status changes
 async function sendStatusChangeEmail(appointment: any, previousAppointment: any, businessId: number) {
@@ -299,10 +300,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { q, category, city } = req.query;
       const query = (q as string) || "";
 
-      const [businesses, publicBusinesses] = await Promise.all([
+      console.log('Search request:', { query, category, city });
+      
+      const [businesses, publicBusinesses, googlePlaces] = await Promise.all([
         storage.searchBusinesses(query, category as string, city as string),
-        storage.searchPublicBusinesses(query, category as string)
+        storage.searchPublicBusinesses(query, category as string),
+        googlePlacesService.searchBusinesses(query, category as string, city as string || 'Lima, Peru')
       ]);
+      
+      console.log('Search results:', { 
+        businesses: businesses.length, 
+        publicBusinesses: publicBusinesses.length, 
+        googlePlaces: googlePlaces.length 
+      });
 
       // For registered businesses, get their customUrl and coverImage from settings
       const businessesWithCustomUrl = await Promise.all(
@@ -319,12 +329,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const combinedResults = [
         ...businessesWithCustomUrl,
-        ...publicBusinesses.map(p => ({ ...p, type: "public" }))
+        ...publicBusinesses.map(p => ({ ...p, type: "public" })),
+        ...googlePlaces.map(p => ({ ...p, type: "google" }))
       ];
 
       res.json(combinedResults);
     } catch (error) {
       res.status(500).json({ message: "Error en la búsqueda" });
+    }
+  });
+
+  // Google Places business details endpoint
+  app.get("/api/places/:placeId", async (req, res) => {
+    try {
+      const { placeId } = req.params;
+      const details = await googlePlacesService.getBusinessDetails(placeId);
+      
+      if (!details) {
+        return res.status(404).json({ message: "Negocio no encontrado" });
+      }
+
+      res.json(details);
+    } catch (error) {
+      console.error("Error fetching place details:", error);
+      res.status(500).json({ message: "Error obteniendo detalles del negocio" });
     }
   });
 
