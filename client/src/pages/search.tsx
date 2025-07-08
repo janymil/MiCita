@@ -48,6 +48,7 @@ export default function SearchPage() {
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
+  const [filteredResults, setFilteredResults] = useState([]);
   const [paginationInfo, setPaginationInfo] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -324,32 +325,12 @@ export default function SearchPage() {
   const publicBusinesses = filteredResults.filter((b: any) => b.type === "public") || [];
   const googlePlacesResults = filteredResults.filter((b: any) => b.type === "google") || [];
   
-  // Pagination logic
-  const totalResults = filteredResults.length;
-  const totalPages = Math.ceil(totalResults / resultsPerPage);
-  const startIndex = (currentPage - 1) * resultsPerPage;
-  const endIndex = startIndex + resultsPerPage;
-  
-  // Create a combined array for pagination
-  const allResults = [...registeredBusinesses, ...publicBusinesses, ...googlePlacesResults];
-  const paginatedResults = allResults.slice(startIndex, endIndex);
-  
-  console.log('Frontend filtered results:', {
-    total: totalResults,
-    filtered: filteredResults.length,
+  console.log('Search results data:', {
     registered: registeredBusinesses.length,
     public: publicBusinesses.length,
     google: googlePlacesResults.length,
-    currentPage,
-    totalPages,
-    showing: paginatedResults.length
+    pagination: paginationInfo
   });
-  
-  // Debug: Log the actual data to see what we're getting
-  console.log('Raw search results data:', searchResults);
-  console.log('Registered businesses:', registeredBusinesses);
-  console.log('Public businesses:', publicBusinesses);
-  console.log('Google places:', googlePlacesResults);
   
 
 
