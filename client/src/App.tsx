@@ -33,7 +33,7 @@ function Router() {
       {/* Public routes */}
       <Route path="/" component={Home} />
       <Route path="/business" component={BusinessLandingPage} />
-      <Route path="/buscar" component={Search} />
+      <Route path="/buscar" component={PublicSearchPage} />
 
       {/* Auth routes */}
       <Route path="/login" component={Login} />

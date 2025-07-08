@@ -46,7 +46,7 @@ interface APIStats {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-export default function APIAnalyticsPage() {
+function APIAnalyticsPage() {
   const [isRealTime, setIsRealTime] = useState(true);
 
   const { data: stats, refetch: refetchStats } = useQuery<APIStats>({
@@ -317,3 +317,5 @@ export default function APIAnalyticsPage() {
     </div>
   );
 }
+
+export default APIAnalyticsPage;
