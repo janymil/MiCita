@@ -17,15 +17,21 @@ export default function SearchPage() {
   const [selectedCity, setSelectedCity] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Parse URL parameters
+  // Parse URL parameters and force re-render
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    setSearchQuery(urlParams.get("q") || "");
-    setSelectedCategory(urlParams.get("category") || "");
-    setSelectedCity(urlParams.get("location") || "");
+    const newQuery = urlParams.get("q") || "";
+    const newCategory = urlParams.get("category") || "";
+    const newCity = urlParams.get("location") || urlParams.get("city") || "";
+    
+    console.log('URL params changed:', { query: newQuery, category: newCategory, city: newCity });
+    
+    setSearchQuery(newQuery);
+    setSelectedCategory(newCategory);
+    setSelectedCity(newCity);
   }, [location]);
 
-  const { data: searchResults, isLoading } = useQuery({
+  const { data: searchResults, isLoading, refetch } = useQuery({
     queryKey: [
       "/api/search", 
       searchQuery,
@@ -39,22 +45,31 @@ export default function SearchPage() {
       if (selectedCity) params.append("city", selectedCity);
       
       const response = await fetch(`/api/search?${params}`);
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
       const data = await response.json();
-      console.log('Frontend received search data:', data);
       return data;
     },
-    enabled: true, // Always enabled for broader search
-    staleTime: 0, // Always fetch fresh data
-    cacheTime: 0 // Don't cache results
+    enabled: true,
+    staleTime: 0,
+    cacheTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnMount: true
   });
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    if (searchQuery) params.append("q", searchQuery);
-    if (selectedCategory) params.append("category", selectedCategory);
+    if (searchQuery.trim()) params.append("q", searchQuery.trim());
+    if (selectedCategory && selectedCategory !== "all") params.append("category", selectedCategory);
     if (selectedCity) params.append("city", selectedCity);
     
-    setLocation(`/buscar?${params.toString()}`);
+    console.log('Performing search with params:', params.toString());
+    
+    // Force navigation and refetch
+    const newUrl = `/buscar?${params.toString()}`;
+    setLocation(newUrl);
+    refetch();
   };
 
   const clearFilters = () => {
@@ -180,7 +195,7 @@ export default function SearchPage() {
                       <SelectValue placeholder="Todas las categorías" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas las categorías</SelectItem>
+                      <SelectItem value="all">Todas las categorías</SelectItem>
                       {BUSINESS_CATEGORIES.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           {category.name}

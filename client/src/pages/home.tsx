@@ -26,14 +26,19 @@ export default function Home() {
   const handleSearch = () => {
     setIsSearching(true);
     
-    setTimeout(() => {
-      if (searchQuery.trim()) {
-        setLocation(`/buscar?q=${encodeURIComponent(searchQuery)}&location=${encodeURIComponent(searchLocation)}`);
-      } else {
-        setLocation("/buscar");
-      }
-      setIsSearching(false);
-    }, 300); // Brief loading state for better UX
+    // Clear any cached data and force navigation
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) {
+      params.append("q", searchQuery.trim());
+    }
+    if (searchLocation.trim()) {
+      params.append("location", searchLocation.trim());
+    }
+    
+    // Force navigation to search results page
+    const searchUrl = `/buscar?${params.toString()}`;
+    setLocation(searchUrl);
+    setIsSearching(false);
   };
 
   const handleCategoryClick = (categoryId: string) => {
