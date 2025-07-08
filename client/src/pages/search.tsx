@@ -28,7 +28,9 @@ export default function SearchPage() {
   const { data: searchResults, isLoading } = useQuery({
     queryKey: [
       "/api/search", 
-      { q: searchQuery, category: selectedCategory, city: selectedCity }
+      searchQuery,
+      selectedCategory,
+      selectedCity
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -37,8 +39,13 @@ export default function SearchPage() {
       if (selectedCity) params.append("city", selectedCity);
       
       const response = await fetch(`/api/search?${params}`);
-      return response.json();
-    }
+      const data = await response.json();
+      console.log('Frontend received search data:', data);
+      return data;
+    },
+    enabled: true, // Always enabled for broader search
+    staleTime: 0, // Always fetch fresh data
+    cacheTime: 0 // Don't cache results
   });
 
   const handleSearch = () => {
@@ -64,6 +71,13 @@ export default function SearchPage() {
   const registeredBusinesses = searchResults?.filter((b: any) => b.type === "registered") || [];
   const publicBusinesses = searchResults?.filter((b: any) => b.type === "public") || [];
   const googlePlacesResults = searchResults?.filter((b: any) => b.type === "google") || [];
+  
+  console.log('Frontend filtered results:', {
+    total: searchResults?.length || 0,
+    registered: registeredBusinesses.length,
+    public: publicBusinesses.length,
+    google: googlePlacesResults.length
+  });
   
 
 
