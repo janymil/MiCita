@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
+import BusinessMap from "@/components/business-map";
 import { BUSINESS_CATEGORIES, PERUVIAN_CITIES, CITY_DISTRICTS } from "@/lib/constants";
 
 export default function SearchPage() {
@@ -39,6 +40,10 @@ export default function SearchPage() {
   const [openNow, setOpenNow] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
+  const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [mapFilterEnabled, setMapFilterEnabled] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -146,6 +151,16 @@ export default function SearchPage() {
     }
   }, [searchResults, refetch]);
 
+  // Map bounds filtering
+  const isBusinessInMapBounds = (business: any) => {
+    if (!mapBounds || !business.location?.lat || !business.location?.lng) {
+      return true; // Show all if no bounds or location
+    }
+    
+    const position = new google.maps.LatLng(business.location.lat, business.location.lng);
+    return mapBounds.contains(position);
+  };
+
   // Client-side filtering and sorting
   useEffect(() => {
     if (!searchResults) {
@@ -154,6 +169,11 @@ export default function SearchPage() {
     }
     
     let filtered = [...searchResults];
+    
+    // Apply map bounds filter if enabled
+    if (mapFilterEnabled && mapBounds) {
+      filtered = filtered.filter(isBusinessInMapBounds);
+    }
     
     // Apply client-side filters
     if (minRating > 0) {
@@ -249,7 +269,7 @@ export default function SearchPage() {
     
     setFilteredResults(filtered);
     setCurrentPage(1); // Reset to first page when filters change
-  }, [searchResults, minRating, maxPrice, selectedDistrict, openNow, sortBy]);
+  }, [searchResults, minRating, maxPrice, selectedDistrict, openNow, sortBy, mapBounds, mapFilterEnabled]);
 
   const handleBusinessView = (customUrl: string) => {
     setLocation(`/${customUrl}`);
@@ -380,10 +400,49 @@ export default function SearchPage() {
                 </Button>
               )}
               
+              {/* View Toggle */}
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant={viewMode === "list" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className="flex items-center space-x-1"
+                >
+                  <List className="w-4 h-4" />
+                  <span>Lista</span>
+                </Button>
+                <Button
+                  variant={viewMode === "map" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("map")}
+                  className="flex items-center space-x-1"
+                >
+                  <Map className="w-4 h-4" />
+                  <span>Mapa</span>
+                </Button>
+              </div>
+
+              {/* Map Filter Toggle */}
+              {viewMode === "map" && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="mapFilter"
+                    checked={mapFilterEnabled}
+                    onCheckedChange={setMapFilterEnabled}
+                  />
+                  <label htmlFor="mapFilter" className="text-sm text-gray-600">
+                    Buscar en esta área del mapa
+                  </label>
+                </div>
+              )}
+
               {/* Results count and sorting */}
               {totalResults > 0 && (
                 <div className="flex items-center text-sm text-gray-600">
                   <span>{totalResults} resultados encontrados</span>
+                  {mapFilterEnabled && mapBounds && (
+                    <span className="ml-2 text-blue-600">• Filtrado por área del mapa</span>
+                  )}
                   {currentPage > 1 && (
                     <span className="ml-2">• Página {currentPage} de {totalPages}</span>
                   )}
@@ -571,6 +630,69 @@ export default function SearchPage() {
           <div className="text-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
             <p className="text-gray-600 mt-4">Buscando negocios...</p>
+          </div>
+        ) : viewMode === "map" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[600px]">
+            {/* Business List Sidebar */}
+            <div className="order-1 lg:order-1 overflow-y-auto">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">
+                  {filteredResults.length} negocios encontrados
+                </h3>
+                
+                {filteredResults.length > 0 ? (
+                  <div className="space-y-4 max-h-[550px] overflow-y-auto pr-2">
+                    {filteredResults.map((business: any) => (
+                      <div
+                        key={business.id}
+                        className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                          selectedBusiness?.id === business.id
+                            ? 'border-red-500 bg-red-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => setSelectedBusiness(business)}
+                      >
+                        <h4 className="font-medium text-sm">{business.name}</h4>
+                        <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                          {business.address}
+                        </p>
+                        {business.rating && (
+                          <div className="flex items-center mt-2">
+                            <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                            <span className="text-xs ml-1">{business.rating}</span>
+                            {business.reviewCount && (
+                              <span className="text-xs text-gray-500 ml-1">
+                                ({business.reviewCount})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {business.phone && (
+                          <p className="text-xs text-blue-600 mt-1">{business.phone}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <MapPin className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium">No hay resultados en esta área</h3>
+                    <p className="mt-2">Intenta mover o hacer zoom en el mapa</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Map Container */}
+            <div className="order-2 lg:order-2">
+              <BusinessMap
+                businesses={filteredResults}
+                onMapBoundsChange={(bounds) => setMapBounds(bounds)}
+                onBusinessClick={(business) => setSelectedBusiness(business)}
+                selectedBusiness={selectedBusiness}
+                className="h-full"
+              />
+            </div>
           </div>
         ) : (
           <div className="space-y-8">
