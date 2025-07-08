@@ -248,14 +248,9 @@ function CalendarContent() {
                       const service = services.find((s: Service) => s.id === appointment.serviceId);
                       const client = clients.find((c: Client) => c.id === appointment.clientId);
                       
-                      // Debug logging
-                      console.log('Appointment:', appointment);
-                      console.log('Client lookup:', appointment.clientId, client);
-                      console.log('Service lookup:', appointment.serviceId, service);
-                      
-                      // Use appointment data or client name if available
-                      const clientName = client?.name || 'Cliente no encontrado';
-                      const serviceName = service?.name || 'Servicio no encontrado';
+                      // Use appointment data or client name if available  
+                      const clientName = client?.name || `Cliente ID: ${appointment.clientId}`;
+                      const serviceName = service?.name || `Servicio ID: ${appointment.serviceId}`;
                       
                       return (
                         <div 
