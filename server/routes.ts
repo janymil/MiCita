@@ -160,7 +160,7 @@ class SmartScheduler {
 }
 
 // Enhanced helper function using smart scheduler
-function generateAvailableTimeSlots(
+async function generateAvailableTimeSlots(
   date: string,
   workingHours: any,
   blockedDates: any[],
@@ -168,7 +168,7 @@ function generateAvailableTimeSlots(
   existingAppointments: any[],
   serviceDuration: number
 ) {
-  return SmartScheduler.generateOptimalSlots(
+  return await SmartScheduler.generateOptimalSlots(
     date,
     workingHours,
     blockedDates,
@@ -306,7 +306,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingAppointments = await storage.getAppointmentsByDate(businessId, date as string);
       
       // Generate available time slots
-      const availableSlots = generateAvailableTimeSlots(
+      const availableSlots = await generateAvailableTimeSlots(
         date as string,
         settings?.workingHours || {},
         settings?.blockedDates || [],
@@ -363,7 +363,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Double-check availability using the slot generation
-      const availableSlots = generateAvailableTimeSlots(
+      const availableSlots = await generateAvailableTimeSlots(
         appointmentData.date,
         settings?.workingHours || {},
         settings?.blockedDates || [],
