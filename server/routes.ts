@@ -938,6 +938,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Financial data endpoint
+  app.get("/api/dashboard/businesses/:businessId/financials", async (req, res) => {
+    try {
+      const businessId = parseInt(req.params.businessId);
+      const { period = 'thisMonth' } = req.query;
+      
+      const [appointments, services] = await Promise.all([
+        storage.getAppointmentsByBusinessId(businessId),
+        storage.getServicesByBusinessId(businessId)
+      ]);
+
+      // Calculate date ranges based on period
+      const now = new Date();
+      let startDate: Date;
+      let endDate = new Date();
+
+      switch (period) {
+        case 'lastMonth':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+          break;
+        case 'last3Months':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+          break;
+        case 'thisYear':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
+        case 'thisMonth':
+        default:
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+      }
+
+      // Filter appointments by period
+      const periodAppointments = appointments.filter(a => {
+        if (!a.createdAt) return false;
+        const appointmentDate = new Date(a.createdAt);
+        return appointmentDate >= startDate && appointmentDate <= endDate;
+      });
+
+      const completedAppointments = periodAppointments.filter(a => a.status === 'completed');
+      const pendingAppointments = periodAppointments.filter(a => a.status === 'pending' || a.status === 'confirmed');
+
+      // Calculate financial metrics
+      const totalRevenue = completedAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
+      const pendingPayments = pendingAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
+      const averageAppointmentValue = completedAppointments.length > 0 
+        ? totalRevenue / completedAppointments.length 
+        : 0;
+
+      // Generate monthly revenue chart data
+      const monthlyData = [];
+      for (let i = 11; i >= 0; i--) {
+        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+        
+        const monthAppointments = appointments.filter(a => {
+          if (!a.createdAt || a.status !== 'completed') return false;
+          const appointmentDate = new Date(a.createdAt);
+          return appointmentDate >= monthStart && appointmentDate <= monthEnd;
+        });
+
+        const monthRevenue = monthAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
+        
+        monthlyData.push({
+          month: monthStart.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
+          revenue: monthRevenue,
+          appointments: monthAppointments.length
+        });
+      }
+
+      // Recent transactions (completed appointments)
+      const recentTransactions = await Promise.all(
+        completedAppointments
+          .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
+          .slice(0, 10)
+          .map(async (appointment) => {
+            const [client, service] = await Promise.all([
+              storage.getClient(appointment.clientId || 0),
+              storage.getService(appointment.serviceId || 0)
+            ]);
+            
+            return {
+              id: appointment.id,
+              date: appointment.date,
+              time: appointment.time,
+              clientName: client?.name || 'Cliente Desconocido',
+              serviceName: service?.name || 'Servicio Desconocido',
+              amount: parseFloat(appointment.price || "0"),
+              status: appointment.status
+            };
+          })
+      );
+
+      // Payment status distribution
+      const paymentStatusData = [
+        { name: 'Completados', value: totalRevenue, count: completedAppointments.length },
+        { name: 'Pendientes', value: pendingPayments, count: pendingAppointments.length }
+      ];
+
+      const financialData = {
+        totalRevenue,
+        pendingPayments,
+        averageAppointmentValue,
+        completedAppointments: completedAppointments.length,
+        monthlyData,
+        recentTransactions,
+        paymentStatusData,
+        period
+      };
+
+      res.json(financialData);
+    } catch (error) {
+      console.error("Error getting financial data:", error);
+      res.status(500).json({ message: "Error obteniendo datos financieros" });
+    }
+  });
+
   const httpServer = createServer(app);
   // Micrositio routes
   app.get("/api/micrositio/:slug", async (req, res) => {
