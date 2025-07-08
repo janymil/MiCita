@@ -46,12 +46,12 @@ interface APIStats {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-function APIAnalyticsPage() {
+export default function APIAnalyticsPage() {
   const [isRealTime, setIsRealTime] = useState(true);
 
   const { data: stats, refetch: refetchStats } = useQuery<APIStats>({
     queryKey: ["/api/admin/analytics/api-calls"],
-    refetchInterval: isRealTime ? 2000 : false, // Update every 2 seconds if real-time
+    refetchInterval: isRealTime ? 2000 : false,
   });
 
   const { data: recentCalls, refetch: refetchCalls } = useQuery<APICallRecord[]>({
@@ -317,5 +317,3 @@ function APIAnalyticsPage() {
     </div>
   );
 }
-
-export default APIAnalyticsPage;
