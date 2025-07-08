@@ -138,7 +138,7 @@ export default function Register() {
             <div className="w-12 h-12 peru-gradient rounded-xl flex items-center justify-center">
               <Search className="text-white w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold text-gray-900">BuscarPeru</span>
+            <span className="text-2xl font-bold text-gray-900">Mi Cita</span>
           </Link>
           <p className="text-gray-600 mt-2">
             Únete a la plataforma líder de gestión empresarial en Perú
@@ -150,7 +150,7 @@ export default function Register() {
             <CardTitle className="text-2xl font-bold text-gray-900">
               {currentStep === "user" && "Crear Cuenta"}
               {currentStep === "business" && "Configurar tu Negocio"}
-              {currentStep === "success" && "¡Bienvenido a BuscarPeru!"}
+              {currentStep === "success" && "¡Bienvenido a Mi Cita!"}
             </CardTitle>
             {currentStep !== "success" && (
               <div className="flex items-center justify-center mt-4">
@@ -605,7 +605,7 @@ export default function Register() {
           <Card className="mt-6 bg-gradient-to-br from-red-50 to-yellow-50 border-red-200">
             <CardContent className="p-6">
               <h3 className="font-medium text-red-900 mb-4 text-center">
-                ¿Por qué elegir BuscarPeru?
+                ¿Por qué elegir Mi Cita?
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div className="text-center">

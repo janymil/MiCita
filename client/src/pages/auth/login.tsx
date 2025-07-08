@@ -60,7 +60,7 @@ export default function Login() {
             <div className="w-12 h-12 peru-gradient rounded-xl flex items-center justify-center">
               <Search className="text-white w-6 h-6" />
             </div>
-            <span className="text-2xl font-bold text-gray-900">BuscarPeru</span>
+            <span className="text-2xl font-bold text-gray-900">Mi Cita</span>
           </Link>
           <p className="text-gray-600 mt-2">
             Accede a tu panel de gestión empresarial

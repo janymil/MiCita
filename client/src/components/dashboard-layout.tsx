@@ -44,7 +44,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <div className="w-8 h-8 peru-gradient rounded-lg flex items-center justify-center">
                 <Search className="text-white w-4 h-4" />
               </div>
-              <span className="text-xl font-bold text-gray-900">BuscarPeru</span>
+              <span className="text-xl font-bold text-gray-900">Mi Cita</span>
             </Link>
           </div>
           

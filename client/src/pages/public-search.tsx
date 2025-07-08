@@ -47,7 +47,7 @@ export default function PublicSearchPage() {
             <div className="w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center border border-white/20">
               <Search className="text-white w-8 h-8" />
             </div>
-            <span className="text-4xl font-bold text-white">BuscarPerú</span>
+            <span className="text-4xl font-bold text-white">Mi Cita</span>
           </Link>
 
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">

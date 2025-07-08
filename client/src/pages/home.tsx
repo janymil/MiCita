@@ -301,7 +301,7 @@ export default function Home() {
                 <div className="w-8 h-8 peru-gradient rounded-lg flex items-center justify-center">
                   <Search className="text-white w-4 h-4" />
                 </div>
-                <span className="text-xl font-bold">BuscarPeru</span>
+                <span className="text-xl font-bold">Mi Cita</span>
               </div>
               <p className="text-gray-400 mb-4">
                 La plataforma líder en gestión empresarial y descubrimiento de negocios locales en Perú.
@@ -339,7 +339,7 @@ export default function Home() {
 
           <div className="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 mb-4 md:mb-0">
-              © 2024 BuscarPeru. Todos los derechos reservados.
+              © 2024 Mi Cita. Todos los derechos reservados.
             </p>
             <div className="flex space-x-6 text-gray-400">
               <a href="#" className="hover:text-white transition-colors">Términos de Servicio</a>
