@@ -27,6 +27,7 @@ export default function SimpleMap({
   const [error, setError] = useState<string | null>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
+  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
   // Load Google Maps once
   useEffect(() => {
@@ -64,11 +65,22 @@ export default function SimpleMap({
       const map = new window.google.maps.Map(mapRef.current, {
         center: { lat: -12.0464, lng: -77.0428 },
         zoom: 12,
-        mapTypeControl: false,
-        streetViewControl: false,
+        mapTypeControl: true,
+        streetViewControl: true,
+        fullscreenControl: true,
+        zoomControl: true,
+        gestureHandling: 'greedy',
+        clickableIcons: true,
+        disableDoubleClickZoom: false,
+        draggable: true,
+        keyboardShortcuts: true,
+        scrollwheel: true,
       });
 
       mapInstanceRef.current = map;
+
+      // Create info window
+      infoWindowRef.current = new window.google.maps.InfoWindow();
 
       // Add bounds change listener
       if (onMapBoundsChange) {
@@ -100,9 +112,41 @@ export default function SimpleMap({
         position: { lat: business.location.lat, lng: business.location.lng },
         map,
         title: business.name,
+        icon: {
+          url: "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(`
+            <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 0C5.372 0 0 5.372 0 12c0 9 12 20 12 20s12-11 12-20c0-6.628-5.372-12-12-12z" fill="#DC2626"/>
+              <circle cx="12" cy="12" r="6" fill="white"/>
+              <circle cx="12" cy="12" r="3" fill="#DC2626"/>
+            </svg>
+          `),
+          scaledSize: new window.google.maps.Size(24, 32),
+          anchor: new window.google.maps.Point(12, 32)
+        }
       });
 
       marker.addListener("click", () => {
+        // Create info window content
+        const content = `
+          <div style="padding: 8px; max-width: 250px;">
+            <h3 style="margin: 0 0 4px 0; font-weight: bold; font-size: 14px;">${business.name}</h3>
+            <p style="margin: 0 0 4px 0; font-size: 12px; color: #666;">${business.address || 'Dirección no disponible'}</p>
+            ${business.rating ? `
+              <div style="display: flex; align-items: center; margin: 4px 0;">
+                <span style="color: #fbbf24; font-size: 12px;">★</span>
+                <span style="font-size: 12px; margin-left: 2px;">${business.rating}</span>
+                ${business.reviewCount ? `<span style="font-size: 12px; color: #666; margin-left: 2px;">(${business.reviewCount})</span>` : ''}
+              </div>
+            ` : ''}
+            ${business.phone ? `<p style="margin: 4px 0 0 0; font-size: 12px; color: #2563eb;">${business.phone}</p>` : ''}
+          </div>
+        `;
+        
+        if (infoWindowRef.current) {
+          infoWindowRef.current.setContent(content);
+          infoWindowRef.current.open(map, marker);
+        }
+        
         if (onBusinessClick) onBusinessClick(business);
       });
 
@@ -112,6 +156,14 @@ export default function SimpleMap({
 
     if (markersRef.current.length > 0) {
       map.fitBounds(bounds);
+      
+      // Ensure reasonable zoom level after fitting bounds
+      const listener = window.google.maps.event.addListener(map, "idle", () => {
+        if (map.getZoom() > 16) {
+          map.setZoom(16);
+        }
+        window.google.maps.event.removeListener(listener);
+      });
     }
   }, [businesses, onBusinessClick]);
 
