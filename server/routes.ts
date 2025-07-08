@@ -384,9 +384,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create or find client (with duplicate prevention)
       let client = await storage.getClientsByBusinessId(appointmentData.businessId)
         .then(clients => clients.find(c => 
-          c.email.toLowerCase() === appointmentData.clientEmail.toLowerCase() ||
-          c.phone === appointmentData.clientPhone
+          c.email.toLowerCase() === appointmentData.clientEmail.toLowerCase()
         ));
+      
+      // If no email match, check phone as secondary option
+      if (!client) {
+        client = await storage.getClientsByBusinessId(appointmentData.businessId)
+          .then(clients => clients.find(c => 
+            c.phone === appointmentData.clientPhone
+          ));
+      }
 
       if (!client) {
         client = await storage.createClient({
