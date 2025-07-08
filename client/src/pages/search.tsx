@@ -96,6 +96,12 @@ export default function SearchPage() {
     google: googlePlacesResults.length
   });
   
+  // Debug: Log the actual data to see what we're getting
+  console.log('Raw search results data:', searchResults);
+  console.log('Registered businesses:', registeredBusinesses);
+  console.log('Public businesses:', publicBusinesses);
+  console.log('Google places:', googlePlacesResults);
+  
 
 
   return (
