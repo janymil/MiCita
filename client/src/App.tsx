@@ -10,8 +10,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import PublicSearchPage from "@/pages/public-search";
 import BusinessLandingPage from "@/pages/business-landing";
+import Search from "@/pages/search";
 import BusinessMicrosite from "@/pages/business-microsite";
-import APIAnalyticsPage from "@/pages/admin/api-analytics";
 
 // Auth pages
 import Login from "@/pages/auth/login";
@@ -31,9 +31,9 @@ function Router() {
   return (
     <Switch>
       {/* Public routes */}
-      <Route path="/" component={Home} />
+      <Route path="/" component={PublicSearchPage} />
       <Route path="/business" component={BusinessLandingPage} />
-      <Route path="/buscar" component={PublicSearchPage} />
+      <Route path="/buscar" component={Search} />
 
       {/* Auth routes */}
       <Route path="/login" component={Login} />
@@ -48,9 +48,6 @@ function Router() {
       <Route path="/dashboard/analytics" component={Analytics} />
       <Route path="/dashboard/finanzas" component={Finanzas} />
       <Route path="/dashboard/configuracion" component={Settings} />
-
-      {/* Admin routes */}
-      <Route path="/admin/api-analytics" component={APIAnalyticsPage} />
 
       {/* Business micrositio route - catch-all for business slugs */}
       <Route path="/:slug" component={BusinessMicrosite} />

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useNavigate } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, MapPin, Star, ArrowRight, Rocket, Headphones, TrendingUp } from "lucide-react";
@@ -11,6 +11,7 @@ import { BUSINESS_CATEGORIES } from "@/lib/constants";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLocation, setSearchLocation] = useState("Lima, Perú");
   const [isSearching, setIsSearching] = useState(false);
@@ -41,7 +42,7 @@ export default function Home() {
 
     const searchUrl = `/buscar?${params.toString()}`;
     console.log('Navigating to:', searchUrl);
-    setLocation(searchUrl); // Use setLocation for client-side routing
+    navigate(searchUrl); // Use navigate for client-side routing
     setIsSearching(false);
   };
 
