@@ -21,6 +21,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { APPOINTMENT_STATUSES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTimePeruvian } from "@/lib/utils";
 import EditAppointmentDialog from "@/components/edit-appointment-dialog";
 import AppointmentFormDialog from "@/components/appointment-form-dialog";
 
@@ -222,7 +223,7 @@ export default function Appointments() {
                           </div>
                           <div className="text-sm text-gray-500 flex items-center">
                             <Clock className="w-4 h-4 mr-1" />
-                            {appointment.date} a las {appointment.time}
+                            {formatDateTimePeruvian(appointment.date, appointment.time)}
                           </div>
                           {appointment.clientNotes && (
                             <div className="text-xs text-gray-500 mt-1 max-w-md">

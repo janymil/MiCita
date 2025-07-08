@@ -2,6 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell
+} from 'recharts';
+import {
   BarChart3,
   TrendingUp,
   TrendingDown,
@@ -13,6 +16,7 @@ import {
   Target
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
+import { formatDatePeruvian } from "@/lib/utils";
 
 export default function Analytics() {
   const { data: analytics, isLoading } = useQuery({
@@ -51,7 +55,7 @@ export default function Analytics() {
   // Calculate additional metrics
   const thisMonth = new Date();
   thisMonth.setDate(1);
-  
+
   const monthlyAppointments = appointments?.filter((a: any) => 
     new Date(a.createdAt) >= thisMonth
   ).length || 0;
@@ -177,7 +181,7 @@ export default function Analytics() {
                   const days = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
                   const maxHeight = Math.max(...(analytics.weeklyRevenue || [1]));
                   const height = (amount / maxHeight) * 200;
-                  
+
                   return (
                     <div key={index} className="flex flex-col items-center">
                       <div
@@ -271,7 +275,7 @@ export default function Analytics() {
                 const serviceAppointments = appointments?.filter((a: any) => 
                   a.serviceId === service.id
                 ).length || 0;
-                
+
                 const popularity = services.length > 0 
                   ? (serviceAppointments / appointments?.length || 0) * 100
                   : 0;
@@ -291,7 +295,7 @@ export default function Analytics() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="text-right">
                       <div className="text-lg font-semibold text-gray-900">
                         {popularity.toFixed(1)}%
@@ -322,7 +326,7 @@ export default function Analytics() {
                   los días con menor demanda.
                 </p>
               </div>
-              
+
               <div className="p-4 bg-green-50 rounded-lg">
                 <h4 className="font-semibold text-green-900 mb-2">Servicios Populares</h4>
                 <p className="text-green-800 text-sm">
@@ -330,7 +334,7 @@ export default function Analytics() {
                   Considera aumentar la disponibilidad o precios.
                 </p>
               </div>
-              
+
               <div className="p-4 bg-purple-50 rounded-lg">
                 <h4 className="font-semibold text-purple-900 mb-2">Retención de Clientes</h4>
                 <p className="text-purple-800 text-sm">
@@ -338,7 +342,7 @@ export default function Analytics() {
                   y aumenta la tasa de retención.
                 </p>
               </div>
-              
+
               <div className="p-4 bg-orange-50 rounded-lg">
                 <h4 className="font-semibold text-orange-900 mb-2">Nuevos Servicios</h4>
                 <p className="text-orange-800 text-sm">

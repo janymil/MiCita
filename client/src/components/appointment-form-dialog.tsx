@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { formatDateISO } from "@/lib/utils";
 import { Calendar, Clock, User, CreditCard } from "lucide-react";
 
 const appointmentSchema = z.object({
@@ -98,7 +99,7 @@ export default function AppointmentFormDialog({
     mutationFn: async (appointmentData: AppointmentForm) => {
       // Get the selected service to determine duration and price
       const selectedService = services?.find((s: any) => s.id.toString() === appointmentData.serviceId);
-      
+
       const payload = {
         clientId: parseInt(appointmentData.clientId),
         serviceId: parseInt(appointmentData.serviceId),
@@ -130,7 +131,7 @@ export default function AppointmentFormDialog({
         title: "Cita creada",
         description: "La cita ha sido creada exitosamente."
       });
-      
+
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/appointments`] });
       onClose();
       form.reset();

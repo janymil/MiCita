@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Calendar, Clock, User, Phone, Mail, CreditCard } from "lucide-react";
+import { formatDateISO, formatDatePeruvian } from "@/lib/utils";
 
 interface EditAppointmentDialogProps {
   appointment: any;
@@ -82,16 +83,16 @@ export default function EditAppointmentDialog({
         },
         body: JSON.stringify(appointmentData),
       });
-      
+
       const result = await response.json();
-      
+
       if (!response.ok) {
         if (response.status === 409) {
           throw new Error(`${result.message}\n\nConflictos detectados: ${result.conflicts?.length || 0}`);
         }
         throw new Error(result.message || 'Error actualizando la cita');
       }
-      
+
       return result;
     },
     onSuccess: () => {
@@ -99,7 +100,7 @@ export default function EditAppointmentDialog({
         title: "Cita actualizada",
         description: "Los cambios se han guardado exitosamente."
       });
-      
+
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/appointments`] });
       onClose();
     },
@@ -118,12 +119,12 @@ export default function EditAppointmentDialog({
       const response = await fetch(`/api/dashboard/businesses/${businessId}/appointments/${appointment.id}`, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.message || 'Error eliminando la cita');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -131,7 +132,7 @@ export default function EditAppointmentDialog({
         title: "Cita eliminada",
         description: "La cita ha sido eliminada exitosamente."
       });
-      
+
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/appointments`] });
       onClose();
     },
@@ -224,7 +225,7 @@ export default function EditAppointmentDialog({
                 <Input
                   id="date"
                   type="date"
-                  value={formData.date}
+                  value={formatDatePeruvian(formData.date)}
                   onChange={(e) => setFormData({...formData, date: e.target.value})}
                   className="pl-10"
                   required

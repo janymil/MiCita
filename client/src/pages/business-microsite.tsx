@@ -2,7 +2,7 @@ import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,17 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import BookingWidget from "@/components/booking-widget";
 import { categories } from "@/lib/constants";
+import { formatDatePeruvian } from "@/lib/utils";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
-  
+
   console.log("BusinessMicrosite: slug =", slug);
-  
+
   const { data: micrositeData, isLoading, error } = useQuery({
     queryKey: [`/api/micrositio/${slug}`],
     enabled: !!slug,
   });
-  
+
   console.log("BusinessMicrosite: micrositeData =", micrositeData);
   console.log("BusinessMicrosite: isLoading =", isLoading);
   console.log("BusinessMicrosite: error =", error);
@@ -42,7 +43,7 @@ export default function BusinessMicrosite() {
     if (slug && (slug.startsWith('dashboard') || slug === 'login' || slug === 'registro' || slug === 'business' || slug === 'buscar')) {
       return null; // Let the router handle these routes normally
     }
-    
+
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -89,7 +90,7 @@ export default function BusinessMicrosite() {
                 )}
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {settings?.publicPhone && (
                 <Button size="sm" className="bg-green-600 hover:bg-green-700">
@@ -242,14 +243,14 @@ export default function BusinessMicrosite() {
                     <span>{settings?.publicPhone || business.phone}</span>
                   </div>
                 )}
-                
+
                 {(settings?.publicEmail || business.email) && (
                   <div className="flex items-center">
                     <Mail className="w-4 h-4 mr-3 text-gray-500" />
                     <span>{settings?.publicEmail || business.email}</span>
                   </div>
                 )}
-                
+
                 {(settings?.streetAddress || business.address) && (
                   <div className="flex items-start">
                     <MapPin className="w-4 h-4 mr-3 text-gray-500 mt-1" />
@@ -340,7 +341,7 @@ export default function BusinessMicrosite() {
                 ) : (
                   <p className="text-gray-600">Horarios no disponibles</p>
                 )}
-                
+
                 {settings?.scheduleNotes && (
                   <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                     <p className="text-sm text-gray-600">{settings.scheduleNotes}</p>

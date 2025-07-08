@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar, Clock, User, Phone as PhoneIcon, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatDatePeruvian, formatDateISO } from "@/lib/utils";
 
 interface BookingWidgetProps {
   services: Array<{
@@ -80,9 +81,9 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
         },
         body: JSON.stringify(appointmentData),
       });
-      
+
       const result = await response.json();
-      
+
       if (!response.ok) {
         if (response.status === 409) {
           // Conflict detected
@@ -90,15 +91,15 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
         }
         throw new Error(result.message || 'Error creating appointment');
       }
-      
+
       return result;
     },
     onSuccess: (data) => {
       toast({
         title: "¡Reserva exitosa!",
-        description: `Tu cita para ${data.bookingDetails?.service} el ${data.bookingDetails?.date} a las ${data.bookingDetails?.time} ha sido confirmada.`,
+        description: `Tu cita para ${data.bookingDetails?.service} el ${formatDatePeruvian(data.bookingDetails?.date)} a las ${data.bookingDetails?.time} ha sido confirmada.`,
       });
-      
+
       // Reset form
       setSelectedService("");
       setSelectedDate("");
@@ -108,7 +109,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
       setCustomerEmail("");
       setCustomerNotes("");
       setStep(1);
-      
+
       // Invalidate availability cache
       queryClient.invalidateQueries({ queryKey: [`/api/appointments/availability/${businessId}`] });
     },
@@ -119,7 +120,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
         description: error.message,
         variant: "destructive"
       });
-      
+
       // If there's a conflict, refresh availability
       if (isConflict) {
         queryClient.invalidateQueries({ queryKey: [`/api/appointments/availability/${businessId}`] });
@@ -165,7 +166,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
           description: "Este horario fue reservado por otro cliente. Por favor selecciona otro horario.",
           variant: "destructive"
         });
-        
+
         // Refresh availability data
         queryClient.invalidateQueries({ queryKey: [`/api/appointments/availability/${businessId}`] });
         return;
@@ -210,7 +211,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
           <Calendar className="w-6 h-6 mr-3 text-red-600" />
           Reservar Cita
         </CardTitle>
-        
+
         {/* Modern Step Indicator */}
         <div className="flex items-center justify-between mt-6 relative">
           <div className="absolute top-4 left-0 w-full h-0.5 bg-gray-200">
@@ -219,7 +220,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
               style={{ width: `${((step - 1) / 2) * 100}%` }}
             />
           </div>
-          
+
           {[1, 2, 3].map((stepNumber) => (
             <div key={stepNumber} className="flex flex-col items-center relative z-10">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-300 ${
@@ -366,7 +367,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
                 )}
               </div>
             )}
-            
+
             <div className="flex space-x-3">
               <Button 
                 variant="outline" 
@@ -462,7 +463,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-blue-100">
                   <span className="text-sm font-medium text-gray-600">Fecha:</span>
-                  <span className="text-sm font-bold text-gray-900">{selectedDate}</span>
+                  <span className="text-sm font-bold text-gray-900">{formatDatePeruvian(selectedDate)}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-blue-100">
                   <span className="text-sm font-medium text-gray-600">Hora:</span>
@@ -478,7 +479,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
                 </div>
               </div>
             </div>
-            
+
             <div className="flex space-x-3">
               <Button 
                 variant="outline" 

@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/queryClient";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { formatDatePeruvian, formatDateTimePeruvian } from "@/lib/utils";
 
 
 
@@ -62,13 +63,13 @@ function CalendarContent() {
     else if (view === 'week') setCurrentDate(subWeeks(currentDate, 1));
     else if (view === 'day') setCurrentDate(subDays(currentDate, 1));
   };
-  
+
   const nextPeriod = () => {
     if (view === 'month') setCurrentDate(addMonths(currentDate, 1));
     else if (view === 'week') setCurrentDate(addWeeks(currentDate, 1));
     else if (view === 'day') setCurrentDate(addDays(currentDate, 1));
   };
-  
+
   const goToToday = () => setCurrentDate(new Date());
 
   // Generate calendar days based on view
@@ -77,7 +78,7 @@ function CalendarContent() {
       const monthStart = startOfMonth(currentDate);
       const monthEnd = endOfMonth(currentDate);
       const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-      
+
       // Add padding days to start from Monday
       const startPadding = getDay(monthStart) === 0 ? 6 : getDay(monthStart) - 1;
       const paddingDays = Array.from({ length: startPadding }, (_, i) => {
@@ -85,7 +86,7 @@ function CalendarContent() {
         date.setDate(date.getDate() - (startPadding - i));
         return date;
       });
-      
+
       return [...paddingDays, ...calendarDays];
     } else if (view === 'week') {
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday
@@ -132,7 +133,7 @@ function CalendarContent() {
           <h1 className="text-3xl font-bold text-gray-900">Calendario de Citas</h1>
           <p className="text-gray-600">Gestiona tus citas de manera visual y organizada</p>
         </div>
-        
+
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-white border rounded-lg">
             <Button
@@ -161,12 +162,12 @@ function CalendarContent() {
               Día
             </Button>
           </div>
-          
+
           <Button variant="outline" size="sm" onClick={goToToday}>
             <CalendarIcon className="w-4 h-4 mr-1" />
             Hoy
           </Button>
-          
+
           <Button variant="outline" size="sm">
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -180,13 +181,13 @@ function CalendarContent() {
             <Button variant="ghost" size="sm" onClick={previousPeriod}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
-            
+
             <h2 className="text-xl font-semibold">
               {view === 'month' && format(currentDate, 'MMMM yyyy', { locale: es })}
               {view === 'week' && `Semana del ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMM', { locale: es })} - ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMM yyyy', { locale: es })}`}
               {view === 'day' && format(currentDate, 'EEEE, d MMMM yyyy', { locale: es })}
             </h2>
-            
+
             <Button variant="ghost" size="sm" onClick={nextPeriod}>
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -206,13 +207,13 @@ function CalendarContent() {
                 {day}
               </div>
             ))}
-            
+
             {/* Calendar days */}
             {allDays.map((date, index) => {
               const dayAppointments = getAppointmentsForDate(date);
               const isCurrentMonth = isSameMonth(date, currentDate);
               const isToday = isSameDay(date, new Date());
-              
+
               return (
                 <div
                   key={index}
@@ -242,16 +243,16 @@ function CalendarContent() {
                       <span className="text-xs text-gray-500">{dayAppointments.length}</span>
                     )}
                   </div>
-                  
+
                   <div className="space-y-1">
                     {dayAppointments.slice(0, view === 'day' ? 10 : view === 'week' ? 5 : 3).map((appointment: Appointment) => {
                       const service = services.find((s: Service) => s.id === appointment.serviceId);
                       const client = clients.find((c: Client) => c.id === appointment.clientId);
-                      
+
                       // Use client name and service name from the found records
                       const clientName = client?.name || `Cliente ID: ${appointment.clientId}`;
                       const serviceName = service?.name || `Servicio ID: ${appointment.serviceId}`;
-                      
+
                       return (
                         <div 
                           key={appointment.id} 
@@ -280,13 +281,13 @@ function CalendarContent() {
                         </div>
                       );
                     })}
-                    
+
                     {view !== 'day' && dayAppointments.length > (view === 'week' ? 5 : 3) && (
                       <div className="text-xs text-gray-500">
                         +{dayAppointments.length - (view === 'week' ? 5 : 3)} más
                       </div>
                     )}
-                    
+
                     {dayAppointments.length === 0 && (view !== 'month' || isCurrentMonth) && (
                       <div className="text-xs text-gray-400 text-center mt-4">
                         Sin citas
@@ -328,6 +329,12 @@ function CalendarContent() {
 export default function CalendarPage() {
   return (
     <DashboardLayout>
+       <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">Calendario</h1>
+          <div className="text-sm text-gray-600">
+            {formatDatePeruvian(new Date())}
+          </div>
+        </div>
       <CalendarContent />
     </DashboardLayout>
   );
