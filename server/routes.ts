@@ -6,7 +6,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
-import { sendGridEmailService } from "./sendgrid-email-service";
+import { emailService } from "./email-service.js";
 import { AppointmentData } from "./email-templates";
 
 // Smart scheduling algorithm to prevent double bookings
@@ -15,13 +15,13 @@ class SmartScheduler {
   static hasTimeOverlap(start1: number, end1: number, start2: number, end2: number): boolean {
     return start1 < end2 && start2 < end1;
   }
-  
+
   // Convert time string to minutes since midnight
   static timeToMinutes(time: string): number {
     const [hour, min] = time.split(':').map(Number);
     return hour * 60 + min;
   }
-  
+
   // Get the actual service duration for an appointment
   static async getServiceDuration(serviceId: number): Promise<number> {
     try {
@@ -31,7 +31,7 @@ class SmartScheduler {
       return 30;
     }
   }
-  
+
   // Advanced conflict detection considering actual appointment durations
   static async detectConflicts(
     proposedStart: number,
@@ -41,14 +41,14 @@ class SmartScheduler {
   ): Promise<{ hasConflict: boolean; conflictingAppointments: any[] }> {
     const proposedEnd = proposedStart + proposedDuration;
     const conflictingAppointments = [];
-    
+
     for (const appointment of existingAppointments) {
       if (appointment.date !== date) continue;
-      
+
       const appointmentStart = this.timeToMinutes(appointment.time);
       const appointmentDuration = await this.getServiceDuration(appointment.serviceId);
       const appointmentEnd = appointmentStart + appointmentDuration;
-      
+
       if (this.hasTimeOverlap(proposedStart, proposedEnd, appointmentStart, appointmentEnd)) {
         conflictingAppointments.push({
           ...appointment,
@@ -57,13 +57,13 @@ class SmartScheduler {
         });
       }
     }
-    
+
     return {
       hasConflict: conflictingAppointments.length > 0,
       conflictingAppointments
     };
   }
-  
+
   // Find optimal time slots with buffer time
   static async generateOptimalSlots(
     date: string,
@@ -77,67 +77,67 @@ class SmartScheduler {
     const slots = [];
     const selectedDate = new Date(date);
     const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-    
+
     // Check if the day is a working day
     const daySchedule = workingHours[dayName];
     if (!daySchedule || !daySchedule.enabled) {
       return slots;
     }
-    
+
     // Check if the date is blocked
     const isDateBlocked = blockedDates?.some(blocked => {
       const startDate = new Date(blocked.startDate);
       const endDate = new Date(blocked.endDate);
       return selectedDate >= startDate && selectedDate <= endDate;
     });
-    
+
     if (isDateBlocked) {
       return slots;
     }
-    
+
     const startTime = daySchedule.start;
     const endTime = daySchedule.end;
     const startMinutes = this.timeToMinutes(startTime);
     const endMinutes = this.timeToMinutes(endTime);
-    
+
     // Generate appointment slots (not just 30-min intervals)
     // Consider service duration + buffer time
     const totalSlotTime = serviceDuration + bufferMinutes;
-    
+
     for (let minutes = startMinutes; minutes <= endMinutes - serviceDuration; minutes += 15) {
       const hour = Math.floor(minutes / 60);
       const min = minutes % 60;
       const timeSlot = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
-      
+
       // Check if proposed appointment would end before business closes
       if (minutes + serviceDuration > endMinutes) {
         continue;
       }
-      
+
       // Check if the time slot is manually blocked
       const isTimeBlocked = blockedHours?.some(blocked => {
         if (blocked.date !== date) return false;
-        
+
         const blockedStart = this.timeToMinutes(blocked.startTime);
         const blockedEnd = this.timeToMinutes(blocked.endTime);
-        
+
         return this.hasTimeOverlap(minutes, minutes + serviceDuration, blockedStart, blockedEnd);
       });
-      
+
       if (isTimeBlocked) {
         continue;
       }
-      
+
       // Advanced conflict detection with actual service durations
       const hasAppointmentConflict = await Promise.all(
         existingAppointments.map(async appointment => {
           if (appointment.date !== date) return false;
-          
+
           const appointmentStart = this.timeToMinutes(appointment.time);
           // Get actual service duration for existing appointment
           const actualDuration = await this.getServiceDuration(appointment.serviceId || 0);
           const appointmentEnd = appointmentStart + actualDuration;
-          
+
           // Check for overlap including buffer time
           return this.hasTimeOverlap(
             minutes, 
@@ -147,14 +147,14 @@ class SmartScheduler {
           );
         })
       ).then(results => results.some(hasConflict => hasConflict));
-      
+
       slots.push({
         time: timeSlot,
         available: !hasAppointmentConflict,
         reason: hasAppointmentConflict ? 'conflicto_cita' : null
       });
     }
-    
+
     return slots;
   }
 }
@@ -205,7 +205,7 @@ const upload = multer({
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    
+
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -220,11 +220,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userData = insertUserSchema.parse(req.body);
       const existingUser = await storage.getUserByEmail(userData.email);
-      
+
       if (existingUser) {
         return res.status(400).json({ message: "Email ya está registrado" });
       }
-      
+
       const user = await storage.createUser(userData);
       res.json({ user: { id: user.id, email: user.email, name: user.name } });
     } catch (error) {
@@ -236,11 +236,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email, password } = req.body;
       const user = await storage.getUserByEmail(email);
-      
+
       if (!user || user.password !== password) {
         return res.status(401).json({ message: "Credenciales inválidas" });
       }
-      
+
       res.json({ user: { id: user.id, email: user.email, name: user.name } });
     } catch (error) {
       res.status(400).json({ message: "Error en el login" });
@@ -252,12 +252,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { q, category, city } = req.query;
       const query = (q as string) || "";
-      
+
       const [businesses, publicBusinesses] = await Promise.all([
         storage.searchBusinesses(query, category as string, city as string),
         storage.searchPublicBusinesses(query, category as string)
       ]);
-      
+
       // For registered businesses, get their customUrl and coverImage from settings
       const businessesWithCustomUrl = await Promise.all(
         businesses.map(async (business) => {
@@ -270,12 +270,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
-      
+
       const combinedResults = [
         ...businessesWithCustomUrl,
         ...publicBusinesses.map(p => ({ ...p, type: "public" }))
       ];
-      
+
       res.json(combinedResults);
     } catch (error) {
       res.status(500).json({ message: "Error en la búsqueda" });
@@ -289,22 +289,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.businessId);
       const { date, serviceId } = req.query;
-      
+
       if (!date || !serviceId) {
         return res.status(400).json({ message: "Fecha y servicio son requeridos" });
       }
-      
+
       // Get business settings for working hours and blocked times
       const settings = await storage.getBusinessSettings(businessId);
       const service = await storage.getService(parseInt(serviceId as string));
-      
+
       if (!service) {
         return res.status(404).json({ message: "Servicio no encontrado" });
       }
-      
+
       // Get existing appointments for the date
       const existingAppointments = await storage.getAppointmentsByDate(businessId, date as string);
-      
+
       // Generate available time slots
       const availableSlots = await generateAvailableTimeSlots(
         date as string,
@@ -314,7 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingAppointments,
         service.duration
       );
-      
+
       res.json(availableSlots);
     } catch (error) {
       console.error("Error getting availability:", error);
@@ -326,25 +326,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/appointments/public", async (req, res) => {
     try {
       const appointmentData = req.body;
-      
+
       // Validate required fields
       if (!appointmentData.businessId || !appointmentData.serviceId || !appointmentData.date || 
           !appointmentData.time || !appointmentData.clientName || !appointmentData.clientPhone || 
           !appointmentData.clientEmail) {
         return res.status(400).json({ message: "Todos los campos son requeridos" });
       }
-      
+
       // Get business settings and service information
       const settings = await storage.getBusinessSettings(appointmentData.businessId);
       const service = await storage.getService(appointmentData.serviceId);
-      
+
       if (!service) {
         return res.status(404).json({ message: "Servicio no encontrado" });
       }
-      
+
       // Get all existing appointments for conflict detection
       const existingAppointments = await storage.getAppointmentsByDate(appointmentData.businessId, appointmentData.date);
-      
+
       // Advanced conflict detection using SmartScheduler
       const proposedStartMinutes = SmartScheduler.timeToMinutes(appointmentData.time);
       const conflictCheck = await SmartScheduler.detectConflicts(
@@ -353,7 +353,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingAppointments,
         appointmentData.date
       );
-      
+
       if (conflictCheck.hasConflict) {
         return res.status(409).json({ 
           message: "El horario seleccionado tiene conflicto con otra cita",
@@ -361,7 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           suggestedAction: "Por favor selecciona otro horario"
         });
       }
-      
+
       // Double-check availability using the slot generation
       const availableSlots = await generateAvailableTimeSlots(
         appointmentData.date,
@@ -371,23 +371,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         existingAppointments,
         service.duration
       );
-      
+
       const requestedSlot = availableSlots.find(slot => slot.time === appointmentData.time);
-      
+
       if (!requestedSlot || !requestedSlot.available) {
         return res.status(400).json({ 
           message: "El horario seleccionado ya no está disponible",
           reason: requestedSlot?.reason || "slot_unavailable"
         });
       }
-      
+
       // Create or find client (with duplicate prevention)
       let client = await storage.getClientsByBusinessId(appointmentData.businessId)
         .then(clients => clients.find(c => 
           c.email.toLowerCase() === appointmentData.clientEmail.toLowerCase() ||
           c.phone === appointmentData.clientPhone
         ));
-      
+
       if (!client) {
         client = await storage.createClient({
           businessId: appointmentData.businessId,
@@ -396,7 +396,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           email: appointmentData.clientEmail.toLowerCase()
         });
       }
-      
+
       // Create appointment with additional metadata
       const appointment = await storage.createAppointment({
         businessId: appointmentData.businessId,
@@ -433,16 +433,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           notes: appointmentData.clientNotes || undefined
         };
 
-        // Send emails asynchronously (don't wait for completion)
-        sendGridEmailService.sendAppointmentEmails(emailData)
-          .then(result => {
-            console.log('Email send results:', result);
-          })
-          .catch(error => {
-            console.error('Failed to send appointment emails:', error);
-          });
+        // Send emails using Nodemailer
+        try {
+          const emailResults = await emailService.sendAppointmentEmails(emailData);
+          console.log('Email send results:', emailResults);
+        } catch (error) {
+          console.error('Error sending emails:', error);
+        }
       }
-      
+
       res.json({ 
         success: true, 
         appointment: {
@@ -470,26 +469,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/appointments/check-availability", async (req, res) => {
     try {
       const { businessId, serviceId, date, time } = req.body;
-      
+
       if (!businessId || !serviceId || !date || !time) {
         return res.status(400).json({ message: "Todos los campos son requeridos" });
       }
-      
+
       const service = await storage.getService(serviceId);
       if (!service) {
         return res.status(404).json({ message: "Servicio no encontrado" });
       }
-      
+
       const existingAppointments = await storage.getAppointmentsByDate(businessId, date);
       const proposedStartMinutes = SmartScheduler.timeToMinutes(time);
-      
+
       const conflictCheck = await SmartScheduler.detectConflicts(
         proposedStartMinutes,
         service.duration,
         existingAppointments,
         date
       );
-      
+
       res.json({
         available: !conflictCheck.hasConflict,
         conflicts: conflictCheck.conflictingAppointments,
@@ -522,7 +521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/featured", async (req, res) => {
     try {
       const featured = await storage.getFeaturedBusinesses();
-      
+
       // Add customUrl and coverImage from settings for each featured business
       const featuredWithCustomUrl = await Promise.all(
         featured.map(async (business) => {
@@ -534,7 +533,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         })
       );
-      
+
       res.json(featuredWithCustomUrl);
     } catch (error) {
       res.status(500).json({ message: "Error obteniendo negocios destacados" });
@@ -546,17 +545,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { slug } = req.params;
       const business = await storage.getBusinessBySlug(slug);
-      
+
       if (!business) {
         return res.status(404).json({ message: "Negocio no encontrado" });
       }
-      
+
       const [services, gallery, reviews] = await Promise.all([
         storage.getServicesByBusinessId(business.id),
         storage.getGalleryByBusinessId(business.id),
         storage.getReviewsByBusinessId(business.id)
       ]);
-      
+
       res.json({ business, services, gallery, reviews });
     } catch (error) {
       res.status(500).json({ message: "Error obteniendo negocio" });
@@ -579,7 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessData = insertBusinessSchema.parse(req.body);
       const userId = 1; // Mock user ID
-      
+
       // Check if user already has a business
       const existingBusinesses = await storage.getBusinessesByUserId(userId);
       if (existingBusinesses.length > 0) {
@@ -588,14 +587,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Ya tienes un negocio registrado. Solo puedes tener un negocio por cuenta." 
         });
       }
-      
+
       // NO SLUG GENERATION - micrositio URLs are handled through settings customUrl only
       const business = await storage.createBusiness({
         ...businessData,
         slug: null, // No slug needed - customUrl in settings handles micrositio access
         userId
       });
-      
+
       res.json(business);
     } catch (error) {
       res.status(400).json({ message: "Error creando negocio" });
@@ -617,16 +616,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.businessId);
       console.log("Creating service with data:", req.body);
-      
+
       // Validate the request body
       const serviceData = insertServiceSchema.parse(req.body);
       console.log("Parsed service data:", serviceData);
-      
+
       const service = await storage.createService({
         ...serviceData,
         businessId
       });
-      
+
       console.log("Service created successfully:", service);
       res.json(service);
     } catch (error: any) {
@@ -649,7 +648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const serviceData = insertServiceSchema.partial().parse(req.body);
-      
+
       const service = await storage.updateService(id, serviceData);
       res.json(service);
     } catch (error) {
@@ -671,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
       const clientData = insertClientSchema.partial().parse(req.body);
-      
+
       const client = await storage.updateClient(id, clientData);
       res.json(client);
     } catch (error) {
@@ -705,12 +704,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.businessId);
       const clientData = insertClientSchema.parse(req.body);
-      
+
       const client = await storage.createClient({
         ...clientData,
         businessId
       });
-      
+
       res.json(client);
     } catch (error) {
       res.status(400).json({ message: "Error creando cliente" });
@@ -722,14 +721,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.businessId);
       const { date } = req.query;
-      
+
       let appointments;
       if (date) {
         appointments = await storage.getAppointmentsByDate(businessId, date as string);
       } else {
         appointments = await storage.getAppointmentsByBusinessId(businessId);
       }
-      
+
       res.json(appointments);
     } catch (error) {
       res.status(500).json({ message: "Error obteniendo citas" });
@@ -740,12 +739,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.businessId);
       const appointmentData = insertAppointmentSchema.parse(req.body);
-      
+
       const appointment = await storage.createAppointment({
         ...appointmentData,
         businessId
       });
-      
+
       res.json(appointment);
     } catch (error) {
       res.status(400).json({ message: "Error creando cita" });
@@ -758,7 +757,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointmentId = parseInt(req.params.id);
       const businessId = parseInt(req.params.businessId);
       const appointmentData = req.body;
-      
+
       // Validate that this appointment belongs to the business
       const existingAppointment = await storage.getAppointment(appointmentId);
       if (!existingAppointment || existingAppointment.businessId !== businessId) {
@@ -767,22 +766,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Validate appointment data
       const validatedData = insertAppointmentSchema.partial().parse(appointmentData);
-      
+
       // If date or time is being changed, check for conflicts
       if (validatedData.date || validatedData.time) {
         const newDate = validatedData.date || existingAppointment.date;
         const newTime = validatedData.time || existingAppointment.time;
-        
+
         // Get service duration for conflict checking
         const service = await storage.getService(existingAppointment.serviceId);
         if (!service) {
           return res.status(400).json({ message: "Servicio no encontrado" });
         }
-        
+
         // Check for conflicts (excluding current appointment)
         const existingAppointments = await storage.getAppointmentsByDate(businessId, newDate);
         const otherAppointments = existingAppointments.filter(apt => apt.id !== appointmentId);
-        
+
         const proposedStartMinutes = SmartScheduler.timeToMinutes(newTime);
         const conflictCheck = await SmartScheduler.detectConflicts(
           proposedStartMinutes,
@@ -790,7 +789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           otherAppointments,
           newDate
         );
-        
+
         if (conflictCheck.hasConflict) {
           return res.status(409).json({ 
             message: "El nuevo horario tiene conflicto con otra cita",
@@ -798,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
-      
+
       const appointment = await storage.updateAppointment(appointmentId, validatedData);
       res.json(appointment);
     } catch (error) {
@@ -812,13 +811,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const appointmentId = parseInt(req.params.id);
       const businessId = parseInt(req.params.businessId);
-      
+
       // Validate that this appointment belongs to the business
       const existingAppointment = await storage.getAppointment(appointmentId);
       if (!existingAppointment || existingAppointment.businessId !== businessId) {
         return res.status(404).json({ message: "Cita no encontrada" });
       }
-      
+
       await storage.deleteAppointment(appointmentId);
       res.json({ message: "Cita eliminada exitosamente" });
     } catch (error) {
@@ -831,24 +830,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/dashboard/businesses/:businessId/analytics", async (req, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
-      
+
       const [appointments, clients, services] = await Promise.all([
         storage.getAppointmentsByBusinessId(businessId),
         storage.getClientsByBusinessId(businessId),
         storage.getServicesByBusinessId(businessId)
       ]);
-      
+
       // Calculate analytics
       const thisMonth = new Date();
       thisMonth.setDate(1);
-      
+
       const monthlyAppointments = appointments.filter(a => a.createdAt && a.createdAt >= thisMonth);
       const completedAppointments = appointments.filter(a => a.status === 'completed');
       const monthlyRevenue = completedAppointments
         .filter(a => a.createdAt && a.createdAt >= thisMonth)
         .reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
       const newClientsThisMonth = clients.filter(c => c.createdAt && c.createdAt >= thisMonth);
-      
+
       // Calculate real weekly revenue for the last 7 weeks
       const now = new Date();
       const weeklyRevenue = [];
@@ -856,22 +855,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const weekStart = new Date(now);
         weekStart.setDate(now.getDate() - (i * 7) - now.getDay());
         weekStart.setHours(0, 0, 0, 0);
-        
+
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
-        
+
         const weekAppointments = appointments.filter(a => {
           if (!a.createdAt) return false;
           const appointmentDate = new Date(a.createdAt);
           return appointmentDate >= weekStart && appointmentDate <= weekEnd && 
                  a.status === 'completed'; // Only count completed appointments for revenue
         });
-        
+
         const weekRevenue = weekAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
         weeklyRevenue.push(weekRevenue);
       }
-      
+
       // Get upcoming appointments with proper names
       const upcomingAppointments = await Promise.all(
         appointments
@@ -890,7 +889,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               storage.getClient(appointment.clientId || 0),
               storage.getService(appointment.serviceId || 0)
             ]);
-            
+
             return {
               ...appointment,
               clientName: client?.name || 'Cliente Desconocido',
@@ -898,14 +897,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             };
           })
       );
-      
+
       // Count appointments by status
       const pendingAppointments = appointments.filter(a => a.status === 'pending').length;
       const confirmedToday = appointments.filter(a => {
         const today = new Date().toISOString().split('T')[0];
         return a.date === today && a.status === 'confirmed';
       }).length;
-      
+
       // Financial analytics
       const totalRevenue = completedAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
       const pendingPayments = appointments
@@ -931,7 +930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         averageAppointmentValue,
         completedAppointments: completedAppointments.length
       };
-      
+
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ message: "Error obteniendo analytics" });
@@ -943,7 +942,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.businessId);
       const { period = 'thisMonth' } = req.query;
-      
+
       const [appointments, services] = await Promise.all([
         storage.getAppointmentsByBusinessId(businessId),
         storage.getServicesByBusinessId(businessId)
@@ -993,7 +992,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (let i = 11; i >= 0; i--) {
         const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-        
+
         const monthAppointments = appointments.filter(a => {
           if (!a.createdAt || a.status !== 'completed') return false;
           const appointmentDate = new Date(a.createdAt);
@@ -1001,7 +1000,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         const monthRevenue = monthAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-        
+
         monthlyData.push({
           month: monthStart.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
           revenue: monthRevenue,
@@ -1019,7 +1018,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               storage.getClient(appointment.clientId || 0),
               storage.getService(appointment.serviceId || 0)
             ]);
-            
+
             return {
               id: appointment.id,
               date: appointment.date,
@@ -1061,19 +1060,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/micrositio/:slug", async (req, res) => {
     const slug = req.params.slug;
     console.log(`Looking for micrositio with slug: ${slug}`);
-    
+
     try {
       // Get all business settings to find one with matching custom URL
       const businesses = await storage.searchBusinesses("");
       console.log(`Found ${businesses.length} businesses to search through`);
-      
+
       let foundBusiness = null;
       let foundSettings = null;
 
       for (const business of businesses) {
         const settings = await storage.getBusinessSettings(business.id);
         console.log(`Business ${business.id} (${business.name}) has customUrl: ${settings?.customUrl}, slug: ${business.slug}`);
-        
+
         // ONLY check customUrl in settings - ignore business slug completely
         if (settings?.customUrl && settings.customUrl === slug) {
           foundBusiness = business;
@@ -1123,9 +1122,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Received settings update request:", req.body);
       const body = insertBusinessSettingsSchema.parse(req.body);
       console.log("Parsed settings data:", body);
-      
+
       // customUrl is stored in settings ONLY - do NOT touch business slug
-      
+
       const settings = await storage.updateBusinessSettings(businessId, body);
       console.log("Settings updated successfully:", settings);
       res.json(settings);
@@ -1151,7 +1150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.file) {
         return res.status(400).json({ error: "No se proporcionó ninguna imagen" });
       }
-      
+
       // Return the URL of the uploaded file
       const imageUrl = `/uploads/${req.file.filename}`;
       res.json({ url: imageUrl });
@@ -1165,7 +1164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/debug/email-config", (req, res) => {
     const hasSendGridKey = !!process.env.SENDGRID_API_KEY;
     const hasVerifiedSender = !!process.env.SENDGRID_VERIFIED_SENDER;
-    
+
     res.json({
       emailService: 'SendGrid',
       configured: hasSendGridKey && hasVerifiedSender,
