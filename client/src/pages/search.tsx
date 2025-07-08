@@ -103,6 +103,9 @@ export default function SearchPage() {
           west: debouncedMapBounds.getSouthWest().lng()
         };
         params.append("bounds", JSON.stringify(boundsData));
+        
+        // When using map filter, ignore city parameter to avoid conflicts
+        params.delete("city");
       }
       
       const response = await fetch(`/api/search?${params}`);
@@ -112,7 +115,7 @@ export default function SearchPage() {
       const data = await response.json();
       return data;
     },
-    enabled: !mapFilterEnabled || !mapBounds || !!debouncedMapBounds,
+    enabled: !mapFilterEnabled || !!debouncedMapBounds,
     staleTime: 0,
     cacheTime: 0,
     refetchOnWindowFocus: false,
@@ -127,11 +130,14 @@ export default function SearchPage() {
 
   // Debounce map bounds changes to avoid constant API calls
   useEffect(() => {
-    if (!mapFilterEnabled) return;
+    if (!mapFilterEnabled) {
+      setDebouncedMapBounds(null);
+      return;
+    }
     
     const timeout = setTimeout(() => {
       setDebouncedMapBounds(mapBounds);
-    }, 2000); // 2 second delay after map stops moving
+    }, 1500); // 1.5 second delay after map stops moving
 
     return () => clearTimeout(timeout);
   }, [mapBounds, mapFilterEnabled]);
@@ -468,7 +474,7 @@ export default function SearchPage() {
                   {mapFilterEnabled && debouncedMapBounds && (
                     <span className="ml-2 text-blue-600">• Filtrado por área del mapa</span>
                   )}
-                  {mapFilterEnabled && mapBounds && !debouncedMapBounds && (
+                  {mapFilterEnabled && !debouncedMapBounds && (
                     <span className="ml-2 text-orange-600">• Mueve el mapa para buscar en el área</span>
                   )}
                   {currentPage > 1 && (
