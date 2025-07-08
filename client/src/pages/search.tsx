@@ -59,17 +59,19 @@ export default function SearchPage() {
   });
 
   const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      return;
+    }
+    
     const params = new URLSearchParams();
-    if (searchQuery.trim()) params.append("q", searchQuery.trim());
+    params.append("q", searchQuery.trim());
     if (selectedCategory && selectedCategory !== "all") params.append("category", selectedCategory);
     if (selectedCity) params.append("city", selectedCity);
     
     console.log('Performing search with params:', params.toString());
     
-    // Force navigation and refetch
-    const newUrl = `/buscar?${params.toString()}`;
-    setLocation(newUrl);
-    refetch();
+    // Force full page navigation
+    window.location.href = `/buscar?${params.toString()}`;
   };
 
   const clearFilters = () => {

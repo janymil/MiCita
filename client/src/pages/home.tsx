@@ -24,21 +24,16 @@ export default function Home() {
   });
 
   const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      return;
+    }
+    
     setIsSearching(true);
     
-    // Clear any cached data and force navigation
-    const params = new URLSearchParams();
-    if (searchQuery.trim()) {
-      params.append("q", searchQuery.trim());
-    }
-    if (searchLocation.trim()) {
-      params.append("location", searchLocation.trim());
-    }
-    
     // Force navigation to search results page
-    const searchUrl = `/buscar?${params.toString()}`;
-    setLocation(searchUrl);
-    setIsSearching(false);
+    const searchUrl = `/buscar?q=${encodeURIComponent(searchQuery.trim())}`;
+    console.log('Navigating to:', searchUrl);
+    window.location.href = searchUrl; // Force full page navigation
   };
 
   const handleCategoryClick = (categoryId: string) => {

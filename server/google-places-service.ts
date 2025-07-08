@@ -33,6 +33,7 @@ interface GooglePlacesSearchResponse {
   results: GooglePlacesResult[];
   status: string;
   next_page_token?: string;
+  error_message?: string;
 }
 
 export interface BusinessFromPlaces {
@@ -158,25 +159,33 @@ export class GooglePlacesService {
       // Add location
       searchQuery += ` ${location}`;
 
-      const url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es&region=pe`;
-
-      console.log('Searching Google Places with query:', searchQuery);
+      let allBusinesses: BusinessFromPlaces[] = [];
+      let nextPageToken: string | undefined;
+      let requestCount = 0;
+      const maxRequests = 3; // Get up to 60 results (3 pages × 20 results)
       
-      const response = await fetch(url);
-      const data: GooglePlacesSearchResponse = await response.json();
+      do {
+        const url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es&region=pe${nextPageToken ? `&pagetoken=${nextPageToken}` : ''}`;
 
-      if (data.status !== 'OK') {
-        console.error('Google Places API error:', data.status);
-        return [];
-      }
+        console.log(`Searching Google Places with query: ${searchQuery} (Request ${requestCount + 1}/${maxRequests})`);
+        
+        const response = await fetch(url);
+        const data: GooglePlacesSearchResponse = await response.json();
 
-      const businesses: BusinessFromPlaces[] = [];
-
-      for (const place of data.results) {
-        // Filter by category if specified
-        if (category && !place.types.some(type => this.getCategoryTypes(category).includes(type))) {
-          continue;
+        if (data.status !== 'OK') {
+          console.error('Google Places API error:', data.status, data.error_message);
+          break;
         }
+
+        console.log(`Page ${requestCount + 1} returned ${data.results.length} results. Next page token: ${data.next_page_token ? 'YES' : 'NO'}`);
+
+        const businesses: BusinessFromPlaces[] = [];
+
+        for (const place of data.results) {
+          // Filter by category if specified
+          if (category && !place.types.some(type => this.getCategoryTypes(category).includes(type))) {
+            continue;
+          }
 
         let photoUrl = '';
         if (place.photos && place.photos.length > 0) {
@@ -199,11 +208,22 @@ export class GooglePlacesService {
           isRegistered: false // These are external businesses
         };
 
-        businesses.push(business);
-      }
+          businesses.push(business);
+        }
 
-      console.log(`Found ${businesses.length} businesses from Google Places`);
-      return businesses;
+        allBusinesses = allBusinesses.concat(businesses);
+        nextPageToken = data.next_page_token;
+        requestCount++;
+        
+        // Google requires a brief delay between paginated requests
+        if (nextPageToken && requestCount < maxRequests) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+      } while (nextPageToken && requestCount < maxRequests);
+
+      console.log(`Found ${allBusinesses.length} businesses from Google Places (${requestCount} API calls)`);
+      return allBusinesses;
 
     } catch (error) {
       console.error('Error searching Google Places:', error);
