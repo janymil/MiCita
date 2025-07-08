@@ -449,7 +449,7 @@ export default function BusinessLandingPage() {
                 <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
                   <Search className="text-white w-4 h-4" />
                 </div>
-                <span className="text-xl font-bold">BuscarPerú</span>
+                <span className="text-xl font-bold">Mi Cita</span>
               </div>
               <p className="text-gray-400">
                 Potencia tu negocio con herramientas profesionales diseñadas para el mercado peruano.

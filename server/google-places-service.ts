@@ -133,11 +133,29 @@ export class GooglePlacesService {
     try {
       const types = this.getCategoryTypes(category);
       
-      // Build search query
-      let searchQuery = query;
-      if (category) {
-        searchQuery += ` ${category}`;
+      // Build search query - if no query, use category or general business search
+      let searchQuery = query || '';
+      if (!searchQuery && category) {
+        // Use category name in Spanish for better results
+        const categoryNames: { [key: string]: string } = {
+          'belleza': 'salon de belleza',
+          'gastronomia': 'restaurantes',
+          'salud': 'clinicas doctores',
+          'fitness': 'gimnasios',
+          'educacion': 'colegios universidades',
+          'servicios': 'servicios profesionales',
+          'automotriz': 'talleres mecanicos',
+          'hogar': 'tiendas para el hogar',
+          'tecnologia': 'tiendas electronicas',
+          'consultoria': 'consultores abogados'
+        };
+        searchQuery = categoryNames[category] || 'negocios';
       }
+      if (!searchQuery) {
+        searchQuery = 'negocios restaurantes servicios'; // Default broad search
+      }
+      
+      // Add location
       searchQuery += ` ${location}`;
 
       const url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es&region=pe`;
