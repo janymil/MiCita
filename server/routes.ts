@@ -86,13 +86,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.searchPublicBusinesses(query, category as string)
       ]);
       
-      // For registered businesses, get their customUrl from settings
+      // For registered businesses, get their customUrl and coverImage from settings
       const businessesWithCustomUrl = await Promise.all(
         businesses.map(async (business) => {
           const settings = await storage.getBusinessSettings(business.id);
           return {
             ...business,
             customUrl: settings?.customUrl || business.slug,
+            coverImage: settings?.coverImage || business.coverImage,
             type: "registered"
           };
         })
@@ -108,6 +109,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error en la búsqueda" });
     }
   });
+
+
 
   app.get("/api/categories", async (req, res) => {
     const categories = [
@@ -127,13 +130,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const featured = await storage.getFeaturedBusinesses();
       
-      // Add customUrl from settings for each featured business
+      // Add customUrl and coverImage from settings for each featured business
       const featuredWithCustomUrl = await Promise.all(
         featured.map(async (business) => {
           const settings = await storage.getBusinessSettings(business.id);
           return {
             ...business,
-            customUrl: settings?.customUrl || business.slug
+            customUrl: settings?.customUrl || business.slug,
+            coverImage: settings?.coverImage || business.coverImage
           };
         })
       );
