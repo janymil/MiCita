@@ -13,12 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, getDay, startOfWeek, endOfWeek, startOfDay, endOfDay, addWeeks, subWeeks, addDays, subDays } from "date-fns";
 import { es } from "date-fns/locale";
 
-type AppointmentForm = z.infer<typeof insertAppointmentSchema>;
 
-const appointmentSchema = insertAppointmentSchema.extend({
-  clientName: z.string().optional(),
-  serviceName: z.string().optional(),
-});
 
 function CalendarContent() {
   const { user } = useAuth();
@@ -54,37 +49,9 @@ function CalendarContent() {
     enabled: !!currentBusiness?.id,
   });
 
-  const form = useForm<AppointmentForm>({
-    resolver: zodResolver(appointmentSchema),
-    defaultValues: {
-      clientId: 0,
-      serviceId: 0,
-      date: "",
-      time: "",
-      status: "pending",
-      notes: "",
-    },
-  });
 
-  const createAppointmentMutation = useMutation({
-    mutationFn: async (data: AppointmentForm) => {
-      return apiRequest(`/api/dashboard/businesses/${currentBusiness?.id}/appointments`, {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "appointments"],
-      });
-      setIsDialogOpen(false);
-      form.reset();
-    },
-  });
 
-  const onSubmit = (data: AppointmentForm) => {
-    createAppointmentMutation.mutate(data);
-  };
+
 
   // Calendar navigation
   const previousPeriod = () => {
