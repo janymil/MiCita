@@ -248,6 +248,15 @@ function CalendarContent() {
                       const service = services.find((s: Service) => s.id === appointment.serviceId);
                       const client = clients.find((c: Client) => c.id === appointment.clientId);
                       
+                      // Debug logging
+                      console.log('Appointment:', appointment);
+                      console.log('Client lookup:', appointment.clientId, client);
+                      console.log('Service lookup:', appointment.serviceId, service);
+                      
+                      // Use appointment data or client name if available
+                      const clientName = client?.name || 'Cliente no encontrado';
+                      const serviceName = service?.name || 'Servicio no encontrado';
+                      
                       return (
                         <div 
                           key={appointment.id} 
@@ -267,11 +276,11 @@ function CalendarContent() {
                           </Badge>
                           <div className="flex items-center gap-1 mt-1">
                             <span className="text-gray-600">👤</span>
-                            <span className="truncate">{client?.name || 'Cliente de Ejemplo'}</span>
+                            <span className="truncate">{clientName}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <span className="text-gray-600">✂️</span>
-                            <span className="truncate">{service?.name || 'Corte Mujer'}</span>
+                            <span className="truncate font-medium">{serviceName}</span>
                           </div>
                         </div>
                       );
