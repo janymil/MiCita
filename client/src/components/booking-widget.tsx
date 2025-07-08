@@ -33,6 +33,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [customerNotes, setCustomerNotes] = useState("");
   const [step, setStep] = useState(1); // 1: Service, 2: Date/Time, 3: Customer Info
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -105,6 +106,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
       setCustomerName("");
       setCustomerPhone("");
       setCustomerEmail("");
+      setCustomerNotes("");
       setStep(1);
       
       // Invalidate availability cache
@@ -185,7 +187,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
       clientName: customerName,
       clientPhone: customerPhone,
       clientEmail: customerEmail,
-      notes: selectedServiceData?.name ? `Reserva para ${selectedServiceData.name}` : ''
+      clientNotes: customerNotes
     };
 
     createAppointment.mutate(appointmentData);
@@ -390,6 +392,18 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
                     className="pl-10"
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Notas Adicionales (Opcional)</Label>
+                <textarea
+                  id="notes"
+                  value={customerNotes}
+                  onChange={(e) => setCustomerNotes(e.target.value)}
+                  placeholder="Alguna información adicional que quieras compartir..."
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                  rows={3}
+                />
               </div>
             </div>
 

@@ -443,8 +443,9 @@ export class MemStorage implements IStorage {
       date: appointment.date,
       time: appointment.time,
       duration: appointment.duration,
-      status: appointment.status || "scheduled",
+      status: appointment.status || "pending",
       notes: appointment.notes || null,
+      clientNotes: appointment.clientNotes || null,
       price: appointment.price || null,
       createdAt: new Date()
     };

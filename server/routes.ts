@@ -402,7 +402,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         time: appointmentData.time,
         duration: service.duration,
         status: 'pending', // Always start as pending for public bookings
-        notes: `Reserva online - ${service.name}${appointmentData.notes ? ` | ${appointmentData.notes}` : ''}`,
+        notes: `Reserva online - ${service.name}`,
+        clientNotes: appointmentData.clientNotes || null,
         price: service.price
       });
       
@@ -689,6 +690,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(appointment);
     } catch (error) {
       res.status(400).json({ message: "Error creando cita" });
+    }
+  });
+
+  // Update appointment with enhanced validation and status management
+  app.put("/api/dashboard/businesses/:businessId/appointments/:id", async (req, res) => {
+    try {
+      const appointmentId = parseInt(req.params.id);
+      const businessId = parseInt(req.params.businessId);
+      const appointmentData = req.body;
+      
+      // Validate that this appointment belongs to the business
+      const existingAppointment = await storage.getAppointment(appointmentId);
+      if (!existingAppointment || existingAppointment.businessId !== businessId) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+
+      // Validate appointment data
+      const validatedData = insertAppointmentSchema.partial().parse(appointmentData);
+      
+      // If date or time is being changed, check for conflicts
+      if (validatedData.date || validatedData.time) {
+        const newDate = validatedData.date || existingAppointment.date;
+        const newTime = validatedData.time || existingAppointment.time;
+        
+        // Get service duration for conflict checking
+        const service = await storage.getService(existingAppointment.serviceId);
+        if (!service) {
+          return res.status(400).json({ message: "Servicio no encontrado" });
+        }
+        
+        // Check for conflicts (excluding current appointment)
+        const existingAppointments = await storage.getAppointmentsByDate(businessId, newDate);
+        const otherAppointments = existingAppointments.filter(apt => apt.id !== appointmentId);
+        
+        const proposedStartMinutes = SmartScheduler.timeToMinutes(newTime);
+        const conflictCheck = await SmartScheduler.detectConflicts(
+          proposedStartMinutes,
+          service.duration,
+          otherAppointments,
+          newDate
+        );
+        
+        if (conflictCheck.hasConflict) {
+          return res.status(409).json({ 
+            message: "El nuevo horario tiene conflicto con otra cita",
+            conflicts: conflictCheck.conflictingAppointments 
+          });
+        }
+      }
+      
+      const appointment = await storage.updateAppointment(appointmentId, validatedData);
+      res.json(appointment);
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+      res.status(500).json({ message: "Error actualizando la cita" });
+    }
+  });
+
+  // Delete appointment
+  app.delete("/api/dashboard/businesses/:businessId/appointments/:id", async (req, res) => {
+    try {
+      const appointmentId = parseInt(req.params.id);
+      const businessId = parseInt(req.params.businessId);
+      
+      // Validate that this appointment belongs to the business
+      const existingAppointment = await storage.getAppointment(appointmentId);
+      if (!existingAppointment || existingAppointment.businessId !== businessId) {
+        return res.status(404).json({ message: "Cita no encontrada" });
+      }
+      
+      await storage.deleteAppointment(appointmentId);
+      res.json({ message: "Cita eliminada exitosamente" });
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+      res.status(500).json({ message: "Error eliminando la cita" });
     }
   });
 

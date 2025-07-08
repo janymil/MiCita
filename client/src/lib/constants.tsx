@@ -23,7 +23,8 @@ export const APPOINTMENT_STATUSES = {
   confirmed: { label: "Confirmada", color: "bg-green-100 text-green-800" },
   completed: { label: "Completada", color: "bg-blue-100 text-blue-800" },
   cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800" },
-  no_show: { label: "No asistió", color: "bg-gray-100 text-gray-800" }
+  rescheduled: { label: "Reprogramada", color: "bg-purple-100 text-purple-800" },
+  no_show: { label: "No Asistió", color: "bg-gray-100 text-gray-800" }
 };
 
 export const BUSINESS_CATEGORIES = [

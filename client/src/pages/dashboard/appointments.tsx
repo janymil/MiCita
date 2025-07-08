@@ -27,6 +27,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { APPOINTMENT_STATUSES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import EditAppointmentDialog from "@/components/edit-appointment-dialog";
 
 const appointmentSchema = z.object({
   clientId: z.string().min(1, "Selecciona un cliente"),
@@ -46,6 +47,7 @@ export default function Appointments() {
   const [dateFilter, setDateFilter] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<any>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -445,6 +447,16 @@ export default function Appointments() {
                         <Badge className={status?.color}>
                           {status?.label}
                         </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingAppointment(appointment);
+                            setIsEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
                         
                         <div className="text-lg font-semibold text-red-600">
                           S/ {appointment.price}
@@ -505,6 +517,19 @@ export default function Appointments() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Appointment Dialog */}
+      {editingAppointment && (
+        <EditAppointmentDialog
+          appointment={editingAppointment}
+          isOpen={isEditDialogOpen}
+          onClose={() => {
+            setIsEditDialogOpen(false);
+            setEditingAppointment(null);
+          }}
+          businessId={1} // TODO: Get from context
+        />
+      )}
     </DashboardLayout>
   );
 }

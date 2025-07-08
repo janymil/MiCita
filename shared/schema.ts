@@ -69,8 +69,9 @@ export const appointments = pgTable("appointments", {
   date: text("date").notNull(), // Store as 'YYYY-MM-DD' format
   time: text("time").notNull(), // Store as 'HH:MM' format
   duration: integer("duration").notNull(),
-  status: text("status").notNull().default("scheduled"), // scheduled, confirmed, completed, cancelled
-  notes: text("notes"),
+  status: text("status").notNull().default("pending"), // pending, confirmed, completed, cancelled, rescheduled, no_show
+  notes: text("notes"), // Business notes
+  clientNotes: text("client_notes"), // Customer notes during booking
   price: decimal("price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
