@@ -169,7 +169,49 @@ export default function SearchPage() {
     if (selectedDistrict && selectedDistrict !== "all") {
       filtered = filtered.filter(business => {
         if (business.address) {
-          return business.address.toLowerCase().includes(selectedDistrict.toLowerCase());
+          const address = business.address.toLowerCase();
+          const district = selectedDistrict.toLowerCase();
+          
+          // Direct district name match
+          if (address.includes(district)) {
+            return true;
+          }
+          
+          // Handle common district abbreviations and variations
+          const districtMappings = {
+            'comas': ['comas'],
+            'san juan de miraflores': ['san juan', 'sjm'],
+            'san juan de lurigancho': ['san juan', 'sjl', 's.j.l'],
+            'villa el salvador': ['villa el salvador', 'ves'],
+            'villa maría del triunfo': ['villa maría', 'vmt'],
+            'san martín de porres': ['san martín', 'smp'],
+            'los olivos': ['los olivos'],
+            'independencia': ['independencia'],
+            'santa anita': ['santa anita'],
+            'el agustino': ['el agustino'],
+            'la victoria': ['la victoria'],
+            'san luis': ['san luis'],
+            'jesús maría': ['jesús maría', 'jesus maria'],
+            'pueblo libre': ['pueblo libre'],
+            'magdalena': ['magdalena'],
+            'san miguel': ['san miguel'],
+            'cercado de lima': ['cercado', 'lima 15001'],
+            'miraflores': ['miraflores'],
+            'san isidro': ['san isidro'],
+            'barranco': ['barranco'],
+            'surco': ['surco', 'santiago de surco'],
+            'la molina': ['la molina'],
+            'san borja': ['san borja'],
+            'lince': ['lince'],
+            'breña': ['breña', 'brena'],
+            'rímac': ['rímac', 'rimac'],
+            'ate': ['ate'],
+            'chorrillos': ['chorrillos'],
+            'callao': ['callao']
+          };
+          
+          const variations = districtMappings[district] || [district];
+          return variations.some(variation => address.includes(variation));
         }
         return false;
       });
@@ -395,6 +437,11 @@ export default function SearchPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos los distritos</SelectItem>
+                          {availableDistricts.length > 0 && (
+                            <div className="px-2 py-1 text-xs text-gray-500 border-b mb-1">
+                              ⚠️ Filtro limitado: Google Places no siempre especifica distritos
+                            </div>
+                          )}
                           {availableDistricts.map((district) => (
                             <SelectItem key={district} value={district}>
                               {district}
