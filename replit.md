@@ -161,13 +161,6 @@ Changelog:
   - Dual-layer validation: slot generation + real-time conflict detection
   - Enhanced UI with visual indicators for available/occupied time slots
   - Comprehensive error handling for double booking scenarios
-- July 08, 2025: Created specialized micrositio template system with category-specific designs:
-  - Developed 9 specialized templates for different business categories (Belleza, Salud, Fitness, etc.)
-  - Each template features unique visual styling and layouts tailored to business type
-  - Fixed BookingWidget component to handle undefined services prop gracefully
-  - Templates remain in project but are currently disconnected from main micrositio system
-  - Original extensive business-microsite.tsx template restored as primary implementation
-  - User preference: Use general template for all businesses, keep specialized templates for future use
 
 ## PRD Implementation Status
 

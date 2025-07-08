@@ -1,11 +1,16 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, ExternalLink } from "lucide-react";
+import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import BookingWidget from "@/components/booking-widget";
 import { categories } from "@/lib/constants";
+import { formatDatePeruvian } from "@/lib/utils";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
@@ -53,29 +58,52 @@ export default function BusinessMicrosite() {
   }
 
   const { business, settings, services, gallery, reviews } = micrositeData;
-  const categoryInfo = categories.find(c => c.id === business.category) || { name: business.category, icon: "briefcase", color: "category-general" };
+  const categoryInfo = categories.find(c => c.id === business.category);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-8">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center space-x-6">
-            {settings?.profileImage && (
-              <img 
-                src={settings.profileImage} 
-                alt={business.name}
-                className="w-20 h-20 rounded-full border-4 border-white/20"
-              />
-            )}
-            <div>
-              <h1 className="text-4xl font-bold">{business.name}</h1>
-              {settings?.professionalTitle && (
-                <p className="text-xl text-blue-100 mt-2">{settings.professionalTitle}</p>
+      <header className="bg-white shadow-sm border-b">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              {settings?.profileImage ? (
+                <img 
+                  src={settings.profileImage} 
+                  alt={business.name}
+                  className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-xl">
+                  {business.name.charAt(0).toUpperCase()}
+                </div>
               )}
-              <Badge className="mt-2 bg-white/20 text-white">
-                {categoryInfo.name}
-              </Badge>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">{business.name}</h1>
+                {settings?.professionalTitle && (
+                  <p className="text-gray-600">{settings.professionalTitle}</p>
+                )}
+                {categoryInfo && (
+                  <Badge variant="secondary" className="mt-1">
+                    {categoryInfo.name}
+                  </Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              {settings?.publicPhone && (
+                <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                  <Phone className="w-4 h-4 mr-2" />
+                  Llamar
+                </Button>
+              )}
+              {settings?.enablePublicBooking && (
+                <Button size="sm" className="bg-red-600 hover:bg-red-700">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Reservar Cita
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -83,55 +111,54 @@ export default function BusinessMicrosite() {
 
       {/* Cover Image */}
       {settings?.coverImage && (
-        <div className="h-80 bg-gray-200">
+        <div className="h-64 bg-gray-200 relative">
           <img 
             src={settings.coverImage} 
-            alt="Cover"
+            alt="Portada"
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
           />
         </div>
       )}
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
             {/* About */}
-            <Card className="mb-8">
+            <Card>
               <CardHeader>
                 <CardTitle>Acerca de nosotros</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-700">
-                  {settings?.publicDescription || business.description}
+                <p className="text-gray-700 leading-relaxed">
+                  {settings?.publicDescription || business.description || "Información no disponible."}
                 </p>
               </CardContent>
             </Card>
 
             {/* Services */}
             {services && services.length > 0 && (
-              <Card className="mb-8">
+              <Card>
                 <CardHeader>
-                  <CardTitle>Servicios</CardTitle>
+                  <CardTitle>Nuestros Servicios</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {services.map((service) => (
-                      <div key={service.id} className="border-l-4 border-blue-500 pl-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h3 className="font-semibold">{service.name}</h3>
-                            {service.description && (
-                              <p className="text-gray-600 text-sm">{service.description}</p>
-                            )}
-                            <p className="text-sm text-gray-500 mt-1">
-                              <Clock className="w-4 h-4 inline mr-1" />
-                              {service.duration} minutos
-                            </p>
-                          </div>
-                          <span className="text-lg font-bold text-blue-600">
-                            S/ {service.price}
-                          </span>
+                      <div key={service.id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold text-lg">{service.name}</h3>
+                          <span className="text-red-600 font-bold">S/ {service.price}</span>
+                        </div>
+                        {service.description && (
+                          <p className="text-gray-600 text-sm mb-2">{service.description}</p>
+                        )}
+                        <div className="flex items-center text-sm text-gray-500">
+                          <Clock className="w-4 h-4 mr-1" />
+                          {service.duration} min
                         </div>
                       </div>
                     ))}
@@ -144,17 +171,57 @@ export default function BusinessMicrosite() {
             {settings?.enableGallery && gallery && gallery.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Galería</CardTitle>
+                  <CardTitle className="flex items-center">
+                    <Camera className="w-5 h-5 mr-2" />
+                    Galería de Trabajos
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {gallery.map((item) => (
-                      <img 
-                        key={item.id}
-                        src={item.imageUrl} 
-                        alt={item.title}
-                        className="w-full h-24 object-cover rounded"
-                      />
+                      <div key={item.id} className="relative group">
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.title || "Trabajo"}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                        {item.title && (
+                          <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                            <p className="text-white text-sm font-medium">{item.title}</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Reviews */}
+            {reviews && reviews.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Reseñas de Clientes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {reviews.map((review) => (
+                      <div key={review.id} className="border-b border-gray-100 pb-4 last:border-b-0">
+                        <div className="flex items-center mb-2">
+                          <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                              <Star 
+                                key={i} 
+                                className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} 
+                              />
+                            ))}
+                          </div>
+                          <span className="ml-2 font-medium">{review.clientName}</span>
+                        </div>
+                        {review.comment && (
+                          <p className="text-gray-600">{review.comment}</p>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </CardContent>
@@ -163,72 +230,134 @@ export default function BusinessMicrosite() {
           </div>
 
           {/* Sidebar */}
-          <div>
+          <div className="space-y-6">
             {/* Contact Info */}
-            <Card className="mb-6">
+            <Card>
               <CardHeader>
-                <CardTitle>Contacto</CardTitle>
+                <CardTitle>Información de Contacto</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
                 {(settings?.publicPhone || business.phone) && (
                   <div className="flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-gray-500" />
+                    <Phone className="w-4 h-4 mr-3 text-gray-500" />
                     <span>{settings?.publicPhone || business.phone}</span>
                   </div>
                 )}
+
                 {(settings?.publicEmail || business.email) && (
                   <div className="flex items-center">
-                    <Mail className="w-4 h-4 mr-2 text-gray-500" />
+                    <Mail className="w-4 h-4 mr-3 text-gray-500" />
                     <span>{settings?.publicEmail || business.email}</span>
                   </div>
                 )}
+
                 {(settings?.streetAddress || business.address) && (
                   <div className="flex items-start">
-                    <MapPin className="w-4 h-4 mr-2 text-gray-500 mt-1" />
-                    <span>{settings?.streetAddress || business.address}</span>
+                    <MapPin className="w-4 h-4 mr-3 text-gray-500 mt-1" />
+                    <div>
+                      {settings?.streetAddress ? (
+                        <>
+                          <p>{settings.streetAddress}</p>
+                          {settings.district && <p className="text-sm text-gray-600">{settings.district}</p>}
+                          {settings.region && <p className="text-sm text-gray-600">{settings.region}</p>}
+                          {settings.postalCode && <p className="text-sm text-gray-600">{settings.postalCode}</p>}
+                          {settings.country && <p className="text-sm text-gray-600">{settings.country}</p>}
+                        </>
+                      ) : (
+                        <p>{business.address}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Social Media Links */}
+                {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
+                  <div>
+                    <div className="border-t pt-4 mt-4">
+                      <Label className="text-sm text-gray-600 mb-3 block">Redes Sociales</Label>
+                      <div className="flex space-x-3">
+                        {settings?.facebookUrl && (
+                          <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                            </svg>
+                          </a>
+                        )}
+                        {settings?.instagramUrl && (
+                          <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987 6.62 0 11.987-5.367 11.987-11.987C24.014 5.367 18.637.001 12.017.001z"/>
+                            </svg>
+                          </a>
+                        )}
+                        {settings?.tiktokUrl && (
+                          <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-.88-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
+                            </svg>
+                          </a>
+                        )}
+                        {settings?.youtubeUrl && (
+                          <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer" className="p-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Hours */}
-            <Card className="mb-6">
+            {/* Business Hours */}
+            <Card>
               <CardHeader>
-                <CardTitle>Horarios</CardTitle>
+                <CardTitle className="flex items-center">
+                  <Clock className="w-5 h-5 mr-2" />
+                  Horarios
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {settings?.workingHours ? (
                   <div className="space-y-2">
                     {Object.entries(settings.workingHours).map(([day, hours]) => (
-                      <div key={day} className="flex justify-between text-sm">
-                        <span className="capitalize">
+                      <div key={day} className="flex justify-between">
+                        <span className="capitalize font-medium">
                           {day === 'monday' ? 'Lunes' :
                            day === 'tuesday' ? 'Martes' :
                            day === 'wednesday' ? 'Miércoles' :
                            day === 'thursday' ? 'Jueves' :
                            day === 'friday' ? 'Viernes' :
-                           day === 'saturday' ? 'Sábado' : 'Domingo'}
+                           day === 'saturday' ? 'Sábado' : 'Domingo'}:
                         </span>
-                        <span>
+                        <span className={hours.enabled ? 'text-gray-900' : 'text-gray-500 italic'}>
                           {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-600">No disponible</p>
+                  <p className="text-gray-600">Horarios no disponibles</p>
+                )}
+
+                {settings?.scheduleNotes && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">{settings.scheduleNotes}</p>
+                  </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Social Links */}
-            {(settings?.facebookUrl || settings?.instagramUrl || settings?.youtubeUrl) && (
+            {/* Social Media */}
+            {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Redes Sociales</CardTitle>
+                  <CardTitle>Síguenos</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-4">
                     {settings?.facebookUrl && (
                       <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer">
                         <Button variant="outline" size="sm">
@@ -243,6 +372,13 @@ export default function BusinessMicrosite() {
                         </Button>
                       </a>
                     )}
+                    {settings?.tiktokUrl && (
+                      <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Twitter className="w-4 h-4" />
+                        </Button>
+                      </a>
+                    )}
                     {settings?.youtubeUrl && (
                       <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer">
                         <Button variant="outline" size="sm">
@@ -254,20 +390,49 @@ export default function BusinessMicrosite() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Booking Widget */}
+            {settings?.enablePublicBooking && services && services.length > 0 && (
+              <BookingWidget 
+                services={services} 
+                businessId={business.id}
+                workingHours={settings?.workingHours}
+                blockedDates={settings?.blockedDates}
+                blockedHours={settings?.blockedHours}
+              />
+            )}
+
+            {/* Contact Form */}
+            {settings?.enableContactForm && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <MessageSquare className="w-5 h-5 mr-2" />
+                    Enviar Mensaje
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="contact-name">Nombre</Label>
+                    <Input id="contact-name" placeholder="Tu nombre" />
+                  </div>
+                  <div>
+                    <Label htmlFor="contact-email">Email</Label>
+                    <Input id="contact-email" type="email" placeholder="tu@email.com" />
+                  </div>
+                  <div>
+                    <Label htmlFor="contact-message">Mensaje</Label>
+                    <Textarea id="contact-message" placeholder="Escribe tu mensaje..." rows={4} />
+                  </div>
+                  <Button className="w-full bg-red-600 hover:bg-red-700">
+                    Enviar Mensaje
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Booking Widget */}
-      {settings?.enablePublicBooking && (
-        <BookingWidget 
-          businessId={business.id} 
-          services={services || []}
-          workingHours={settings?.workingHours}
-          blockedDates={settings?.blockedDates}
-          blockedHours={settings?.blockedHours}
-        />
-      )}
     </div>
   );
 }

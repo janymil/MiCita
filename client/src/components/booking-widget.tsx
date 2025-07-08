@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDatePeruvian, formatDateISO } from "@/lib/utils";
 
 interface BookingWidgetProps {
-  services?: Array<{
+  services: Array<{
     id: number;
     name: string;
     price: string;
@@ -27,7 +27,7 @@ interface AvailableSlot {
   available: boolean;
 }
 
-export default function BookingWidget({ services = [], businessId, workingHours, blockedDates, blockedHours }: BookingWidgetProps) {
+export default function BookingWidget({ services, businessId, workingHours, blockedDates, blockedHours }: BookingWidgetProps) {
   const [selectedService, setSelectedService] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
