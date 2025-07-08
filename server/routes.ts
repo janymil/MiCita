@@ -9,6 +9,52 @@ import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClie
 import { emailService } from "./email-service.js";
 import { AppointmentData } from "./email-templates";
 
+// Helper function to send email notifications for status changes
+async function sendStatusChangeEmail(appointment: any, previousAppointment: any, businessId: number) {
+  try {
+    const business = await storage.getBusiness(businessId);
+    const client = await storage.getClient(appointment.clientId);
+    const service = await storage.getService(appointment.serviceId);
+    
+    if (!business || !client || !service) {
+      console.error('Missing data for email notification');
+      return;
+    }
+
+    const appointmentData: AppointmentData = {
+      clientName: client.name,
+      clientEmail: client.email,
+      clientPhone: client.phone,
+      businessName: business.name,
+      businessEmail: business.email,
+      serviceName: service.name,
+      date: appointment.date,
+      time: appointment.time,
+      duration: service.duration,
+      price: appointment.price,
+      notes: appointment.notes || ''
+    };
+
+    // Send appropriate email based on status
+    if (appointment.status === 'cancelled') {
+      await emailService.sendAppointmentCancelled(appointmentData);
+    } else if (appointment.status === 'rescheduled' || 
+               (appointment.date !== previousAppointment.date || appointment.time !== previousAppointment.time)) {
+      // Send rescheduled email if status changed to rescheduled OR if date/time changed
+      const rescheduledData = {
+        ...appointmentData,
+        previousDate: previousAppointment.date,
+        previousTime: previousAppointment.time
+      };
+      await emailService.sendAppointmentRescheduled(rescheduledData);
+    }
+
+    console.log(`Status change email sent for appointment ${appointment.id}: ${previousAppointment.status} → ${appointment.status}`);
+  } catch (error) {
+    console.error('Error sending status change email:', error);
+  }
+}
+
 // Smart scheduling algorithm to prevent double bookings
 class SmartScheduler {
   // Check if two time periods overlap
@@ -806,6 +852,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const appointment = await storage.updateAppointment(appointmentId, validatedData);
+      
+      // Send email notifications for status changes or date/time changes
+      if ((validatedData.status && validatedData.status !== existingAppointment.status) ||
+          (validatedData.date && validatedData.date !== existingAppointment.date) ||
+          (validatedData.time && validatedData.time !== existingAppointment.time)) {
+        await sendStatusChangeEmail(appointment, existingAppointment, businessId);
+      }
+      
       res.json(appointment);
     } catch (error) {
       console.error("Error updating appointment:", error);

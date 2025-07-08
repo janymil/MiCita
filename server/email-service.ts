@@ -1,5 +1,5 @@
 import { createTransporter } from './email-config';
-import { getClientConfirmationTemplate, getBusinessNotificationTemplate, AppointmentData } from './email-templates';
+import { getClientConfirmationTemplate, getBusinessNotificationTemplate, getAppointmentCancelledTemplate, getAppointmentRescheduledTemplate, AppointmentData } from './email-templates';
 
 export class EmailService {
   private transporter;
@@ -72,6 +72,56 @@ export class EmailService {
     ]);
 
     return { clientSent, businessSent };
+  }
+
+  async sendAppointmentCancelled(appointmentData: AppointmentData): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email service not configured. Skipping appointment cancellation email.');
+      return false;
+    }
+
+    try {
+      const template = getAppointmentCancelledTemplate(appointmentData);
+      
+      await this.transporter.sendMail({
+        from: `"${appointmentData.businessName}" <${process.env.EMAIL_USER}>`,
+        replyTo: appointmentData.businessEmail,
+        to: appointmentData.clientEmail,
+        subject: template.subject,
+        html: template.html
+      });
+
+      console.log(`Appointment cancellation email sent to: ${appointmentData.clientEmail}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to send appointment cancellation email:', error);
+      return false;
+    }
+  }
+
+  async sendAppointmentRescheduled(appointmentData: AppointmentData & { previousDate: string; previousTime: string }): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email service not configured. Skipping appointment rescheduling email.');
+      return false;
+    }
+
+    try {
+      const template = getAppointmentRescheduledTemplate(appointmentData);
+      
+      await this.transporter.sendMail({
+        from: `"${appointmentData.businessName}" <${process.env.EMAIL_USER}>`,
+        replyTo: appointmentData.businessEmail,
+        to: appointmentData.clientEmail,
+        subject: template.subject,
+        html: template.html
+      });
+
+      console.log(`Appointment rescheduling email sent to: ${appointmentData.clientEmail}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to send appointment rescheduling email:', error);
+      return false;
+    }
   }
 }
 
