@@ -343,6 +343,7 @@ export default function SearchPage() {
                     <SelectValue placeholder="Ubicación" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="">Todas las ciudades</SelectItem>
                     {PERUVIAN_CITIES.map((city) => (
                       <SelectItem key={city} value={city}>
                         {city}
@@ -687,7 +688,7 @@ export default function SearchPage() {
             <div className="order-2 lg:order-2" style={{ height: '600px' }}>
               <SimpleMap
                 businesses={filteredResults}
-                onMapBoundsChange={(bounds) => setMapBounds(bounds)}
+                onMapBoundsChange={mapFilterEnabled ? (bounds) => setMapBounds(bounds) : undefined}
                 onBusinessClick={(business) => setSelectedBusiness(business)}
                 selectedBusiness={selectedBusiness}
                 className="h-full w-full"
