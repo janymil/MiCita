@@ -167,8 +167,24 @@ export class GooglePlacesService {
         searchQuery = 'negocios restaurantes servicios'; // Default broad search
       }
       
-      // Add location
-      searchQuery += ` ${location}`;
+      // Use location with radius for broader coverage - Lima metropolitan area
+      const locationParam = location === 'Lima, Peru' ? 'Lima, Peru' : location;
+      let searchUrl = '';
+      
+      // For Lima, use nearby search with coordinates to get broader coverage
+      if (location === 'Lima, Peru') {
+        // Lima center coordinates for broader metropolitan area coverage
+        const limaLat = -12.0464;
+        const limaLng = -77.0428;
+        const radius = 25000; // 25km radius to cover greater Lima area
+        
+        searchUrl = `${this.baseUrl}/nearbysearch/json?location=${limaLat},${limaLng}&radius=${radius}&keyword=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es`;
+        console.log(`🌍 Using nearby search for Lima with 25km radius (broader coverage)`);
+      } else {
+        // Fallback to text search for other locations
+        searchUrl = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery + ' ' + locationParam)}&key=${this.apiKey}&language=es&region=pe`;
+        console.log(`🔍 Using text search for location: ${locationParam}`);
+      }
 
       let allBusinesses: BusinessFromPlaces[] = [];
       let nextPageToken: string | undefined;
@@ -176,9 +192,13 @@ export class GooglePlacesService {
       const maxRequests = 10; // Get up to 200 results (10 pages × 20 results)
       
       do {
-        const url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es&region=pe${nextPageToken ? `&pagetoken=${nextPageToken}` : ''}`;
+        let url = searchUrl;
+        if (nextPageToken) {
+          // For pagination, use the base URL with pagetoken
+          url = `${this.baseUrl}/nearbysearch/json?pagetoken=${nextPageToken}&key=${this.apiKey}`;
+        }
 
-        console.log(`Searching Google Places with query: ${searchQuery} (Request ${requestCount + 1}/${maxRequests})`);
+        console.log(`Searching Google Places (Request ${requestCount + 1}/${maxRequests})`);
         
         const response = await fetch(url);
         const data: GooglePlacesSearchResponse = await response.json();
@@ -237,7 +257,7 @@ export class GooglePlacesService {
         
       } while (nextPageToken && requestCount < maxRequests);
 
-      console.log(`Found ${allBusinesses.length} businesses from Google Places (${requestCount} API calls)`);
+      console.log(`✅ Found ${allBusinesses.length} businesses from Google Places (${requestCount} API calls) - Geographic coverage: ${location}`);
       return allBusinesses;
 
     } catch (error) {

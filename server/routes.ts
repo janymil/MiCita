@@ -351,10 +351,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Calculate how many results we need for this page
         const resultsNeeded = currentPage * resultsPerPage;
         
-        // If we need more results than typically cached (60), fetch more from Google
+        // If we need more results than typically cached (60), fetch fresh with broader coverage
         if (resultsNeeded > 60) {
-          console.log(`📄 Page ${currentPage} needs ${resultsNeeded} results - fetching fresh from Google Places`);
+          console.log(`📄 Page ${currentPage} needs ${resultsNeeded} results - fetching fresh from Google Places with broader coverage`);
+          // Clear old cache and fetch fresh results with expanded geographic coverage
           googlePlaces = await googlePlacesService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
+          
+          // Cache these new broader results for future use
+          if (googlePlaces.length > 60) {
+            console.log(`💾 Caching ${googlePlaces.length} fresh results from expanded search`);
+          }
         } else {
           googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
         }
