@@ -15,7 +15,6 @@ import {
   Edit,
   Trash2,
   CheckCircle,
-  XCircle,
   User
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
@@ -35,28 +34,31 @@ export default function Appointments() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // TODO: Get businessId from user session or context
+  const businessId = 1;
 
   const { data: appointments, isLoading } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/appointments"],
+    queryKey: [`/api/dashboard/businesses/${businessId}/appointments`],
   });
 
   const { data: clients } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/clients"],
+    queryKey: [`/api/dashboard/businesses/${businessId}/clients`],
   });
 
   const { data: services } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/services"],
+    queryKey: [`/api/dashboard/businesses/${businessId}/services`],
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return apiRequest(`/api/dashboard/businesses/1/appointments/${id}`, {
+      return apiRequest(`/api/dashboard/businesses/${businessId}/appointments/${id}`, {
         method: "PUT",
         body: JSON.stringify({ status }),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/appointments"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/appointments`] });
       toast({
         title: "Estado actualizado",
         description: "El estado de la cita ha sido actualizado.",
@@ -66,15 +68,22 @@ export default function Appointments() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/dashboard/businesses/1/appointments/${id}`, {
+      return apiRequest(`/api/dashboard/businesses/${businessId}/appointments/${id}`, {
         method: "DELETE",
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/appointments"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/appointments`] });
       toast({
         title: "Cita eliminada",
         description: "La cita ha sido eliminada exitosamente.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error al eliminar",
+        description: error.message || "No se pudo eliminar la cita. Intenta nuevamente.",
+        variant: "destructive",
       });
     },
   });
@@ -259,18 +268,11 @@ export default function Appointments() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateStatusMutation.mutate({
-                              id: appointment.id,
-                              status: "cancelled"
-                            })}
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteMutation.mutate(appointment.id)}
+                            onClick={() => {
+                              if (confirm("¿Estás seguro que deseas eliminar esta cita? Esta acción no se puede deshacer.")) {
+                                deleteMutation.mutate(appointment.id);
+                              }
+                            }}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -302,7 +304,7 @@ export default function Appointments() {
       <AppointmentFormDialog
         isOpen={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
-        businessId={1}
+        businessId={businessId}
         title="Nueva Cita"
       />
 
@@ -315,7 +317,7 @@ export default function Appointments() {
             setIsEditDialogOpen(false);
             setEditingAppointment(null);
           }}
-          businessId={1}
+          businessId={businessId}
         />
       )}
     </DashboardLayout>
