@@ -27,16 +27,16 @@ export default function Home() {
     if (!searchQuery.trim()) {
       return;
     }
-    
+
     setIsSearching(true);
-    
+
     // Navigate to search results page
     const params = new URLSearchParams();
     params.append('q', searchQuery.trim());
     if (searchLocation && searchLocation !== 'Lima, Perú') {
       params.append('city', searchLocation);
     }
-    
+
     const searchUrl = `/buscar?${params.toString()}`;
     console.log('Navigating to:', searchUrl);
     setLocation(searchUrl);
@@ -53,7 +53,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <PublicHeader />
-      
+
       {/* Hero Section */}
       <section className="relative peru-gradient py-20 px-4">
         <div className="absolute inset-0 bg-black opacity-10"></div>
@@ -77,7 +77,12 @@ export default function Home() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="border-0 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
                 />
               </div>
               <div className="flex-1 flex items-center px-4 py-3">
@@ -88,7 +93,12 @@ export default function Home() {
                   value={searchLocation}
                   onChange={(e) => setSearchLocation(e.target.value)}
                   className="border-0 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
                 />
               </div>
               <Button
@@ -139,7 +149,7 @@ export default function Home() {
           <h2 className="text-3xl font-bold text-center text-gray-900 mb-8 animate-fade-in">
             Explora por Categorías
           </h2>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
             {BUSINESS_CATEGORIES.map((category, index) => (
               <div
@@ -263,7 +273,7 @@ export default function Home() {
           <p className="text-xl text-white/90 mb-12 max-w-2xl mx-auto">
             Únete a miles de empresas peruanas que ya están utilizando nuestra plataforma para gestionar y hacer crecer sus negocios
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/registro">
               <Button className="bg-white text-red-600 px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-100 transition-colors">

@@ -70,9 +70,20 @@ export default function SearchPage() {
     
     console.log('Performing search with params:', params.toString());
     
-    // Force full page navigation
+    // Force full page navigation to trigger fresh data fetch
     window.location.href = `/buscar?${params.toString()}`;
   };
+
+  // Force search when URL params exist but no search has been performed
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasParams = urlParams.get("q") || urlParams.get("category") || urlParams.get("city");
+    
+    if (hasParams && !searchResults) {
+      console.log('URL has search params but no results, triggering search...');
+      refetch();
+    }
+  }, [searchResults, refetch]);
 
   const clearFilters = () => {
     setSearchQuery("");
