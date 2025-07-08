@@ -485,7 +485,7 @@ export default function BusinessLandingPage() {
           </div>
           
           <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400">&copy; 2025 BuscarPerú. Todos los derechos reservados.</p>
+            <p className="text-gray-400">&copy; 2025 Mi Cita. Todos los derechos reservados.</p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
               <a href="#" className="text-gray-400 hover:text-white">Términos</a>
               <a href="#" className="text-gray-400 hover:text-white">Privacidad</a>
