@@ -65,7 +65,7 @@ class SmartScheduler {
   }
   
   // Find optimal time slots with buffer time
-  static generateOptimalSlots(
+  static async generateOptimalSlots(
     date: string,
     workingHours: any,
     blockedDates: any[],
@@ -129,22 +129,24 @@ class SmartScheduler {
       }
       
       // Advanced conflict detection with actual service durations
-      const hasAppointmentConflict = existingAppointments.some(appointment => {
-        if (appointment.date !== date) return false;
-        
-        const appointmentStart = this.timeToMinutes(appointment.time);
-        // Use a conservative estimate for existing appointments if duration unknown
-        const estimatedDuration = 60; // Conservative 60-minute estimate
-        const appointmentEnd = appointmentStart + estimatedDuration;
-        
-        // Check for overlap including buffer time
-        return this.hasTimeOverlap(
-          minutes, 
-          minutes + serviceDuration + bufferMinutes,
-          appointmentStart - bufferMinutes, 
-          appointmentEnd
-        );
-      });
+      const hasAppointmentConflict = await Promise.all(
+        existingAppointments.map(async appointment => {
+          if (appointment.date !== date) return false;
+          
+          const appointmentStart = this.timeToMinutes(appointment.time);
+          // Get actual service duration for existing appointment
+          const actualDuration = await this.getServiceDuration(appointment.serviceId || 0);
+          const appointmentEnd = appointmentStart + actualDuration;
+          
+          // Check for overlap including buffer time
+          return this.hasTimeOverlap(
+            minutes, 
+            minutes + serviceDuration + bufferMinutes,
+            appointmentStart - bufferMinutes, 
+            appointmentEnd
+          );
+        })
+      ).then(results => results.some(hasConflict => hasConflict));
       
       slots.push({
         time: timeSlot,
@@ -884,7 +886,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Financial analytics
       const totalRevenue = completedAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
       const pendingPayments = appointments
-        .filter(a => a.status === 'confirmed')
+        .filter(a => a.status === 'pending' || a.status === 'confirmed')
         .reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
       const averageAppointmentValue = completedAppointments.length > 0 
         ? totalRevenue / completedAppointments.length 
