@@ -82,7 +82,8 @@ export default function SearchPage() {
       minRating,
       openNow,
       sortBy,
-      mapFilterEnabled ? debouncedMapBounds?.toString() : null
+      mapFilterEnabled ? debouncedMapBounds?.toString() : null,
+      currentPage
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -93,6 +94,7 @@ export default function SearchPage() {
       if (minRating > 0) params.append("minRating", minRating.toString());
       if (openNow) params.append("openNow", "true");
       if (sortBy !== "relevance") params.append("sort", sortBy);
+      params.append("page", currentPage.toString());
       
       // Add map bounds if map filter is enabled and we have debounced bounds
       if (mapFilterEnabled && debouncedMapBounds) {
@@ -113,7 +115,7 @@ export default function SearchPage() {
         throw new Error('Search failed');
       }
       const data = await response.json();
-      return data;
+      return data.results || data; // Handle both old and new response formats
     },
     enabled: !mapFilterEnabled || !!debouncedMapBounds,
     staleTime: 0,

@@ -302,10 +302,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public search routes
   app.get("/api/search", async (req, res) => {
     try {
-      const { q, category, city, bounds } = req.query;
+      const { q, category, city, bounds, page = '1' } = req.query;
       const query = (q as string) || "";
+      const currentPage = parseInt(page as string);
+      const resultsPerPage = 20;
 
-      console.log('Search request:', { query, category, city, bounds: !!bounds });
+      console.log('Search request:', { query, category, city, bounds: !!bounds, page: currentPage });
       
       let googlePlaces = [];
       
@@ -352,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storage.searchPublicBusinesses(query, category as string)
       ]);
       
-      console.log('Search results:', { 
+      console.log('Search results before pagination:', { 
         businesses: businesses.length, 
         publicBusinesses: publicBusinesses.length, 
         googlePlaces: googlePlaces.length 
@@ -371,13 +373,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
+      // Combine all results first
       const combinedResults = [
         ...businessesWithCustomUrl,
         ...publicBusinesses.map(p => ({ ...p, type: "public" })),
         ...googlePlaces.map(p => ({ ...p, type: "google" }))
       ];
 
-      res.json(combinedResults);
+      // Apply server-side pagination
+      const totalResults = combinedResults.length;
+      const totalPages = Math.ceil(totalResults / resultsPerPage);
+      const startIndex = (currentPage - 1) * resultsPerPage;
+      const endIndex = startIndex + resultsPerPage;
+      const paginatedResults = combinedResults.slice(startIndex, endIndex);
+
+      console.log('Pagination applied:', { 
+        totalResults, 
+        totalPages, 
+        currentPage, 
+        startIndex, 
+        endIndex,
+        paginatedResults: paginatedResults.length 
+      });
+
+      res.json({
+        results: paginatedResults,
+        pagination: {
+          currentPage,
+          totalPages,
+          totalResults,
+          resultsPerPage,
+          hasNextPage: currentPage < totalPages,
+          hasPrevPage: currentPage > 1
+        }
+      });
     } catch (error) {
       console.error('Search error:', error);
       res.status(500).json({ message: "Error en la búsqueda" });
