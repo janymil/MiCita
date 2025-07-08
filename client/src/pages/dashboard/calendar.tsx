@@ -42,13 +42,13 @@ function CalendarContent() {
 
   // Fetch services
   const { data: services = [] } = useQuery({
-    queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "services"],
+    queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/services`],
     enabled: !!currentBusiness?.id,
   });
 
   // Fetch clients
   const { data: clients = [] } = useQuery({
-    queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "clients"],
+    queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/clients`],
     enabled: !!currentBusiness?.id,
   });
 
@@ -248,7 +248,7 @@ function CalendarContent() {
                       const service = services.find((s: Service) => s.id === appointment.serviceId);
                       const client = clients.find((c: Client) => c.id === appointment.clientId);
                       
-                      // Use appointment data or client name if available  
+                      // Use client name and service name from the found records
                       const clientName = client?.name || `Cliente ID: ${appointment.clientId}`;
                       const serviceName = service?.name || `Servicio ID: ${appointment.serviceId}`;
                       
