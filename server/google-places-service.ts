@@ -1,3 +1,6 @@
+import { BusinessFromPlaces } from "@shared/schema";
+import { apiAnalytics } from "./api-analytics";
+
 interface GooglePlacesResult {
   place_id: string;
   name: string;
@@ -133,9 +136,9 @@ export class GooglePlacesService {
 
     try {
       console.log(`Google Places search: query="${query}", category="${category}", location="${location}"`);
-      
+
       const types = this.getCategoryTypes(category);
-      
+
       // Build search query - if no query, use category or general business search
       let searchQuery = query || '';
       if (!searchQuery && category) {
@@ -157,7 +160,7 @@ export class GooglePlacesService {
       if (!searchQuery) {
         searchQuery = 'negocios restaurantes servicios'; // Default broad search
       }
-      
+
       // Add location
       searchQuery += ` ${location}`;
 
@@ -165,12 +168,12 @@ export class GooglePlacesService {
       let nextPageToken: string | undefined;
       let requestCount = 0;
       const maxRequests = 3; // Get up to 60 results (3 pages × 20 results)
-      
+
       do {
         const url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es&region=pe${nextPageToken ? `&pagetoken=${nextPageToken}` : ''}`;
 
         console.log(`Searching Google Places with query: ${searchQuery} (Request ${requestCount + 1}/${maxRequests})`);
-        
+
         const response = await fetch(url);
         const data: GooglePlacesSearchResponse = await response.json();
 
@@ -216,15 +219,22 @@ export class GooglePlacesService {
         allBusinesses = allBusinesses.concat(businesses);
         nextPageToken = data.next_page_token;
         requestCount++;
-        
+
         // Google requires a brief delay between paginated requests
         if (nextPageToken && requestCount < maxRequests) {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
-        
+
       } while (nextPageToken && requestCount < maxRequests);
 
       console.log(`Found ${allBusinesses.length} businesses from Google Places (${requestCount} API calls)`);
+      apiAnalytics.track('google_places_search', {
+        query,
+        category,
+        location,
+        resultCount: allBusinesses.length,
+        apiCalls: requestCount,
+      });
       return allBusinesses;
 
     } catch (error) {
@@ -249,7 +259,7 @@ export class GooglePlacesService {
       ].join(',');
 
       const url = `${this.baseUrl}/details/json?place_id=${placeId}&fields=${fields}&key=${this.apiKey}&language=es`;
-      
+
       const response = await fetch(url);
       const data = await response.json();
 
@@ -257,6 +267,11 @@ export class GooglePlacesService {
         console.error('Google Places Details API error:', data.status, data.error_message);
         return null;
       }
+
+      apiAnalytics.track('google_places_details', {
+        placeId,
+        status: data.status,
+      });
 
       return data.result;
 
@@ -271,7 +286,7 @@ export class GooglePlacesService {
     if (!this.apiKey || !photoReference) {
       return '';
     }
-    
+
     return `${this.baseUrl}/photo?maxwidth=${maxWidth}&photoreference=${photoReference}&key=${this.apiKey}`;
   }
 
@@ -302,18 +317,18 @@ export class GooglePlacesService {
 
       // Find best match based on name similarity
       let bestMatch = data.results[0];
-      
+
       if (data.results.length > 1) {
         // Score matches based on name similarity
         const scoredResults = data.results.map(place => {
           let score = 0;
-          
+
           // Name similarity (simple contains check)
           if (place.name.toLowerCase().includes(businessName.toLowerCase()) || 
               businessName.toLowerCase().includes(place.name.toLowerCase())) {
             score += 50;
           }
-          
+
           // Exact name match
           if (place.name.toLowerCase() === businessName.toLowerCase()) {
             score += 100;
@@ -325,13 +340,13 @@ export class GooglePlacesService {
         // Sort by score and take the best match
         scoredResults.sort((a, b) => b.score - a.score);
         bestMatch = scoredResults[0].place;
-        
+
         console.log(`Found ${data.results.length} potential matches, selected: ${bestMatch.name} (score: ${scoredResults[0].score})`);
       }
 
       // Get detailed information for the best match
       const details = await this.getBusinessDetails(bestMatch.place_id);
-      
+
       if (!details) {
         return null;
       }

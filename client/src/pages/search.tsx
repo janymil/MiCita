@@ -295,7 +295,30 @@ export default function SearchPage() {
                             src={business.photoUrl} 
                             alt={business.name}
                             className="w-full h-full object-cover"
+                            onLoad={() => {
+                              // Track successful photo API call
+                              fetch('/api/admin/analytics/photo-call', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  photoReference: business.photoUrl?.split('photoreference=')[1]?.split('&')[0],
+                                  success: true,
+                                  responseTime: 0
+                                })
+                              }).catch(console.error);
+                            }}
                             onError={(e) => {
+                              // Track failed photo API call
+                              fetch('/api/admin/analytics/photo-call', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  photoReference: business.photoUrl?.split('photoreference=')[1]?.split('&')[0],
+                                  success: false,
+                                  responseTime: 0
+                                })
+                              }).catch(console.error);
+                              
                               e.currentTarget.style.display = 'none';
                               e.currentTarget.nextElementSibling?.classList.remove('hidden');
                             }}
