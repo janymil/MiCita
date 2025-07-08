@@ -12,8 +12,8 @@ export interface EmailConfig {
 export function getEmailConfig(): EmailConfig {
   return {
     host: 'smtp.hostinger.com',
-    port: 587,
-    secure: false,
+    port: 465,
+    secure: true,
     user: process.env.EMAIL_USER || '',
     pass: process.env.EMAIL_PASS || '',
     from: process.env.EMAIL_FROM || process.env.EMAIL_USER || ''
@@ -27,7 +27,7 @@ export function createTransporter() {
     throw new Error('Email configuration is missing. Please set EMAIL_USER and EMAIL_PASS in Replit secrets.');
   }
 
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     host: config.host,
     port: config.port,
     secure: config.secure,
