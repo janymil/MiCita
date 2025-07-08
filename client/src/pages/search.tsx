@@ -70,8 +70,8 @@ export default function SearchPage() {
     
     console.log('Performing search with params:', params.toString());
     
-    // Force full page navigation to trigger fresh data fetch
-    window.location.href = `/buscar?${params.toString()}`;
+    // Use wouter navigation
+    setLocation(`/buscar?${params.toString()}`);
   };
 
   // Force search when URL params exist but no search has been performed
@@ -133,7 +133,12 @@ export default function SearchPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
                 />
               </div>
               

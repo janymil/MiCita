@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useNavigate } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, MapPin, Star, ArrowRight, Rocket, Headphones, TrendingUp } from "lucide-react";
@@ -11,9 +11,12 @@ import { BUSINESS_CATEGORIES } from "@/lib/constants";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLocation, setSearchLocation] = useState("Lima, Perú");
   const [isSearching, setIsSearching] = useState(false);
+  const searchInputRef = useRef(null);
+  const locationInputRef = useRef(null);
 
   const { data: categories } = useQuery({
     queryKey: ["/api/categories"],
@@ -39,7 +42,8 @@ export default function Home() {
 
     const searchUrl = `/buscar?${params.toString()}`;
     console.log('Navigating to:', searchUrl);
-    setLocation(searchUrl);
+    navigate(searchUrl); // Use navigate for client-side routing
+    setIsSearching(false);
   };
 
   const handleCategoryClick = (categoryId: string) => {
@@ -48,6 +52,13 @@ export default function Home() {
 
   const handleBusinessView = (customUrl: string) => {
     setLocation(`/${customUrl}`);
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearch();
+    }
   };
 
   return (
@@ -77,12 +88,8 @@ export default function Home() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="border-0 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSearch();
-                    }
-                  }}
+                  onKeyDown={handleSearchKeyDown}
+                  ref={searchInputRef}
                 />
               </div>
               <div className="flex-1 flex items-center px-4 py-3">
@@ -93,12 +100,8 @@ export default function Home() {
                   value={searchLocation}
                   onChange={(e) => setSearchLocation(e.target.value)}
                   className="border-0 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSearch();
-                    }
-                  }}
+                  onKeyDown={handleSearchKeyDown}
+                  ref={locationInputRef}
                 />
               </div>
               <Button
@@ -280,8 +283,8 @@ export default function Home() {
                 Comenzar Prueba Gratuita
               </Button>
             </Link>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="border-2 border-white text-white px-8 py-4 rounded-xl font-semibold text-lg hover:bg-white/10 transition-colors bg-transparent"
             >
               Agendar Demostración
