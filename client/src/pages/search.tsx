@@ -463,17 +463,17 @@ export default function SearchPage() {
               )}
 
               {/* Results count and sorting */}
-              {totalResults > 0 && (
+              {paginationInfo.totalResults > 0 && (
                 <div className="flex items-center text-sm text-gray-600">
-                  <span>{totalResults} resultados encontrados</span>
+                  <span>{paginationInfo.totalResults} resultados encontrados</span>
                   {mapFilterEnabled && debouncedMapBounds && (
                     <span className="ml-2 text-blue-600">• Filtrado por área del mapa</span>
                   )}
                   {mapFilterEnabled && !debouncedMapBounds && (
                     <span className="ml-2 text-orange-600">• Mueve el mapa para buscar en el área</span>
                   )}
-                  {currentPage > 1 && (
-                    <span className="ml-2">• Página {currentPage} de {totalPages}</span>
+                  {paginationInfo.currentPage > 1 && (
+                    <span className="ml-2">• Página {paginationInfo.currentPage} de {paginationInfo.totalPages}</span>
                   )}
                 </div>
               )}
