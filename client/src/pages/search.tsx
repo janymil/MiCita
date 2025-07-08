@@ -11,17 +11,7 @@ import { Slider } from "@/components/ui/slider";
 import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
-import { BUSINESS_CATEGORIES, PERUVIAN_CITIES } from "@/lib/constants";
-
-// Lima districts for local filtering
-const LIMA_DISTRICTS = [
-  "Miraflores", "San Isidro", "Barranco", "Surco", "La Molina", "San Borja",
-  "Jesús María", "Lince", "Magdalena", "Pueblo Libre", "Cercado de Lima",
-  "Breña", "San Miguel", "Callao", "Chorrillos", "Villa El Salvador",
-  "San Juan de Miraflores", "Villa María del Triunfo", "Los Olivos",
-  "Comas", "Independencia", "San Martín de Porres", "Rímac", "Ate",
-  "Santa Anita", "El Agustino", "La Victoria", "San Luis"
-];
+import { BUSINESS_CATEGORIES, PERUVIAN_CITIES, CITY_DISTRICTS } from "@/lib/constants";
 
 export default function SearchPage() {
   const [location, setLocation] = useLocation();
@@ -29,6 +19,21 @@ export default function SearchPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("all");
+  
+  // Get available districts for selected city
+  const availableDistricts = selectedCity && CITY_DISTRICTS[selectedCity] ? CITY_DISTRICTS[selectedCity] : [];
+  
+  // Reset district when city changes
+  useEffect(() => {
+    if (selectedCity && !CITY_DISTRICTS[selectedCity]) {
+      setSelectedDistrict("all");
+    } else if (selectedDistrict !== "all" && selectedCity && CITY_DISTRICTS[selectedCity]) {
+      // Check if current district is valid for selected city
+      if (!CITY_DISTRICTS[selectedCity].includes(selectedDistrict)) {
+        setSelectedDistrict("all");
+      }
+    }
+  }, [selectedCity, selectedDistrict]);
   const [minRating, setMinRating] = useState(0);
   const [maxPrice, setMaxPrice] = useState(4);
   const [openNow, setOpenNow] = useState(false);
@@ -95,6 +100,12 @@ export default function SearchPage() {
     refetchOnWindowFocus: false,
     refetchOnMount: true
   });
+
+  const handleCityChange = (newCity: string) => {
+    setSelectedCity(newCity);
+    // Reset district when city changes
+    setSelectedDistrict("all");
+  };
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -265,7 +276,7 @@ export default function SearchPage() {
               
               <div className="flex items-center bg-gray-50 rounded-lg px-4 py-3 lg:w-64">
                 <MapPin className="text-gray-400 mr-3 w-5 h-5" />
-                <Select value={selectedCity} onValueChange={setSelectedCity}>
+                <Select value={selectedCity} onValueChange={handleCityChange}>
                   <SelectTrigger className="border-0 bg-transparent focus:ring-0">
                     <SelectValue placeholder="Ubicación" />
                   </SelectTrigger>
@@ -368,13 +379,23 @@ export default function SearchPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Distrito
                       </label>
-                      <Select value={selectedDistrict} onValueChange={setSelectedDistrict}>
+                      <Select 
+                        value={selectedDistrict} 
+                        onValueChange={setSelectedDistrict}
+                        disabled={!selectedCity || availableDistricts.length === 0}
+                      >
                         <SelectTrigger>
-                          <SelectValue placeholder="Todos los distritos" />
+                          <SelectValue placeholder={
+                            !selectedCity 
+                              ? "Selecciona una ciudad primero" 
+                              : availableDistricts.length === 0 
+                                ? "No hay distritos disponibles"
+                                : "Todos los distritos"
+                          } />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos los distritos</SelectItem>
-                          {LIMA_DISTRICTS.map((district) => (
+                          {availableDistricts.map((district) => (
                             <SelectItem key={district} value={district}>
                               {district}
                             </SelectItem>

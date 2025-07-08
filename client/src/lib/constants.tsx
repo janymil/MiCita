@@ -8,6 +8,45 @@ export const PERUVIAN_CITIES = [
   "Huaraz", "Chulucanas", "Ilo", "Bagua Grande", "Pisco"
 ];
 
+// Districts by city mapping for dynamic district filtering
+export const CITY_DISTRICTS = {
+  "Lima": [
+    "Cercado de Lima", "Miraflores", "San Isidro", "Barranco", "Surco", 
+    "La Molina", "San Borja", "Jesús María", "Lince", "Magdalena", 
+    "Pueblo Libre", "Breña", "San Miguel", "Chorrillos", "Villa El Salvador",
+    "San Juan de Miraflores", "Villa María del Triunfo", "Los Olivos",
+    "Comas", "Independencia", "San Martín de Porres", "Rímac", "Ate",
+    "Santa Anita", "El Agustino", "La Victoria", "San Luis", "Callao"
+  ].sort(),
+  "Arequipa": [
+    "Cercado", "Cayma", "Cerro Colorado", "Characato", "Chiguata",
+    "Jacobo Hunter", "La Joya", "Mariano Melgar", "Miraflores",
+    "Mollebaya", "Paucarpata", "Pocsi", "Polobaya", "Quequeña",
+    "Sabandia", "Sachaca", "San Juan de Siguas", "San Juan de Tarucani",
+    "Santa Isabel de Siguas", "Santa Rita de Siguas", "Socabaya",
+    "Tiabaya", "Uchumayo", "Vitor", "Yanahuara", "Yarabamba", "Yura"
+  ].sort(),
+  "Trujillo": [
+    "Trujillo", "El Porvenir", "Florencia de Mora", "Huanchaco",
+    "La Esperanza", "Laredo", "Moche", "Poroto", "Salaverry",
+    "Simbal", "Victor Larco Herrera"
+  ].sort(),
+  "Chiclayo": [
+    "Chiclayo", "Chongoyape", "Eten", "Eten Puerto", "José Leonardo Ortiz",
+    "La Victoria", "Lagunas", "Lambayeque", "Monsefú", "Motupe",
+    "Olmos", "Pacora", "Pimentel", "Pítipo", "Pomalca", "Pucalá",
+    "Puerto Eten", "Reque", "Santa Rosa", "Saña", "Túcume"
+  ].sort(),
+  "Cusco": [
+    "Cusco", "Ccorca", "Poroy", "San Jerónimo", "San Sebastián",
+    "Santiago", "Saylla", "Wanchaq"
+  ].sort(),
+  "Piura": [
+    "Piura", "Castilla", "Catacaos", "Cura Mori", "El Tallán",
+    "La Arena", "La Unión", "Las Lomas", "Tambo Grande"
+  ].sort()
+};
+
 export const DEFAULT_BUSINESS_HOURS = {
   monday: { open: "09:00", close: "18:00", closed: false },
   tuesday: { open: "09:00", close: "18:00", closed: false },
