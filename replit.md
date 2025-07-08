@@ -169,6 +169,12 @@ Changelog:
   - Enhanced search terms including phone/website domain indexing for better discoverability
   - 370+ businesses cached with 5 enhanced contact records from real Google Places data
   - Cost-effective approach: $0.181 per enhanced search vs $0.096 basic (strategic 89% increase for premium data)
+- July 08, 2025: Fixed Dynamic District Filtering System:
+  - Added comprehensive district mappings for major Peruvian cities (Lima, Arequipa, Trujillo, Chiclayo, Cusco, Piura)
+  - Districts sorted alphabetically and update dynamically based on selected city
+  - Added district abbreviation handling (S.J.L for San Juan de Lurigancho, etc.)
+  - Implemented Google Places address limitation warning - many businesses use postal codes instead of district names
+  - District filter properly disabled until city selection, resets when city changes
 
 ## PRD Implementation Status
 
