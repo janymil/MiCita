@@ -685,13 +685,16 @@ export default function SearchPage() {
             
             {/* Map Container */}
             <div className="order-2 lg:order-2">
-              <BusinessMap
-                businesses={filteredResults}
-                onMapBoundsChange={(bounds) => setMapBounds(bounds)}
-                onBusinessClick={(business) => setSelectedBusiness(business)}
-                selectedBusiness={selectedBusiness}
-                className="h-full"
-              />
+              {viewMode === "map" && (
+                <BusinessMap
+                  key="business-map" // Add key to prevent remounting issues
+                  businesses={filteredResults}
+                  onMapBoundsChange={(bounds) => setMapBounds(bounds)}
+                  onBusinessClick={(business) => setSelectedBusiness(business)}
+                  selectedBusiness={selectedBusiness}
+                  className="h-full"
+                />
+              )}
             </div>
           </div>
         ) : (

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
+import { MapPin } from "lucide-react";
 
 interface BusinessMapProps {
   businesses: any[];
@@ -20,16 +21,23 @@ export default function BusinessMap({
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [markers, setMarkers] = useState<google.maps.Marker[]>([]);
   const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Initialize Google Maps
   useEffect(() => {
     const initMap = async () => {
       try {
+        setIsLoading(true);
+        setMapError(null);
+        
         const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
         console.log("Google Maps API Key available:", !!apiKey);
         
         if (!apiKey) {
           console.error("Google Maps API key not found");
+          setMapError("Google Maps API key not configured");
+          setIsLoading(false);
           return;
         }
 
@@ -68,6 +76,7 @@ export default function BusinessMap({
 
         console.log("Map instance created successfully");
         setMap(mapInstance);
+        setIsLoading(false);
 
         // Create info window
         const infoWindowInstance = new google.maps.InfoWindow();
@@ -87,18 +96,39 @@ export default function BusinessMap({
           message: error.message,
           stack: error.stack
         });
+        setMapError(`Error loading map: ${error.message}`);
+        setIsLoading(false);
       }
     };
 
     initMap();
-  }, [onMapBoundsChange]);
+  }, []); // Remove onMapBoundsChange dependency to prevent re-initialization
+
+  // Clean up markers on unmount
+  useEffect(() => {
+    return () => {
+      markers.forEach(marker => {
+        try {
+          marker.setMap(null);
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      });
+    };
+  }, [markers]);
 
   // Update markers when businesses change
   useEffect(() => {
     if (!map || !businesses) return;
 
-    // Clear existing markers
-    markers.forEach(marker => marker.setMap(null));
+    // Clear existing markers safely
+    markers.forEach(marker => {
+      try {
+        marker.setMap(null);
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+    });
     setMarkers([]);
 
     const newMarkers: google.maps.Marker[] = [];
@@ -235,10 +265,22 @@ export default function BusinessMap({
     };
   }, [businesses, onBusinessClick]);
 
+  if (mapError) {
+    return (
+      <div className={`w-full ${className} rounded-lg overflow-hidden border border-gray-300 bg-gray-100 flex items-center justify-center`}>
+        <div className="text-center p-8">
+          <MapPin className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Mapa no disponible</h3>
+          <p className="text-sm text-gray-600">{mapError}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`w-full ${className} rounded-lg overflow-hidden border border-gray-300`}>
       <div ref={mapRef} className="w-full h-full">
-        {!map && (
+        {isLoading && (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-2"></div>
