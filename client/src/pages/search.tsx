@@ -641,11 +641,6 @@ export default function SearchPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todos los distritos</SelectItem>
-                          {availableDistricts.length > 0 && (
-                            <div className="px-2 py-1 text-xs text-gray-500 border-b mb-1">
-                              ⚠️ Filtro limitado: Google Places no siempre especifica distritos
-                            </div>
-                          )}
                           {availableDistricts.map((district) => (
                             <SelectItem key={district} value={district}>
                               {district}

@@ -77,7 +77,7 @@ async function executeEnhancedWave1() {
   console.log('');
   
   console.log('🔥 ENHANCED FEATURES ENABLED:');
-  console.log('   📸 10 photos per business (vs 2 standard)');
+  console.log('   📸 1 photo per business');
   console.log('   📧 Email addresses via contacts enrichment');
   console.log('   📱 Social media profiles extraction');
   console.log('   ⏰ Busy hours / popular times data');
