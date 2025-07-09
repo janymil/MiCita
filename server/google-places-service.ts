@@ -494,6 +494,249 @@ export class GooglePlacesService {
       return null;
     }
   }
+
+  // New method: Nearby Search for better map-based results
+  async nearbySearch(
+    location: { lat: number; lng: number },
+    radius: number = 5000, // 5km default
+    query?: string,
+    category?: string,
+    pageToken?: string
+  ): Promise<{ businesses: BusinessFromPlaces[], nextPageToken?: string }> {
+    if (!this.apiKey) {
+      return { businesses: [] };
+    }
+
+    try {
+      const types = this.getCategoryTypes(category);
+      
+      let url = `${this.baseUrl}/nearbysearch/json?`;
+      url += `location=${location.lat},${location.lng}`;
+      url += `&radius=${radius}`;
+      url += `&key=${this.apiKey}`;
+      url += `&language=es`;
+      
+      if (pageToken) {
+        url = `${this.baseUrl}/nearbysearch/json?pagetoken=${pageToken}&key=${this.apiKey}`;
+      } else {
+        if (query) {
+          url += `&keyword=${encodeURIComponent(query)}`;
+        }
+        if (types.length > 0) {
+          // Nearby search supports one type at a time
+          url += `&type=${types[0]}`;
+        }
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        console.error('Nearby Search API error:', data.status, data.error_message);
+        return { businesses: [] };
+      }
+
+      const businesses: BusinessFromPlaces[] = data.results.map((place: any) => {
+        let photoUrl = '';
+        if (place.photos && place.photos.length > 0) {
+          photoUrl = this.getPhotoUrl(place.photos[0].photo_reference);
+        }
+
+        return {
+          id: place.place_id,
+          name: place.name,
+          address: place.vicinity || place.formatted_address,
+          category: this.mapToOurCategory(place.types),
+          rating: place.rating || 0,
+          reviewCount: place.user_ratings_total || 0,
+          priceLevel: place.price_level || 0,
+          photoUrl,
+          location: {
+            lat: place.geometry.location.lat,
+            lng: place.geometry.location.lng
+          },
+          openNow: place.opening_hours?.open_now,
+          isRegistered: false
+        };
+      });
+
+      return {
+        businesses,
+        nextPageToken: data.next_page_token
+      };
+
+    } catch (error) {
+      console.error('Error in nearby search:', error);
+      return { businesses: [] };
+    }
+  }
+
+  // Grid-based search for comprehensive coverage
+  async gridSearch(
+    bounds: { north: number; south: number; east: number; west: number },
+    query?: string,
+    category?: string,
+    gridSize: number = 0.02 // ~2.2km cells for Lima
+  ): Promise<BusinessFromPlaces[]> {
+    if (!this.apiKey) {
+      return [];
+    }
+
+    const allBusinesses = new Map<string, BusinessFromPlaces>();
+    const searchPromises: Promise<void>[] = [];
+    
+    // Calculate grid cells
+    const latSteps = Math.ceil((bounds.north - bounds.south) / gridSize);
+    const lngSteps = Math.ceil((bounds.east - bounds.west) / gridSize);
+    
+    console.log(`🔍 Grid search: ${latSteps}x${lngSteps} cells for bounds`, bounds);
+
+    // Limit concurrent requests to avoid rate limits
+    const maxConcurrent = 5;
+    let activeRequests = 0;
+    
+    for (let i = 0; i < latSteps; i++) {
+      for (let j = 0; j < lngSteps; j++) {
+        const centerLat = bounds.south + (i + 0.5) * gridSize;
+        const centerLng = bounds.west + (j + 0.5) * gridSize;
+        
+        // Calculate radius to cover the cell (diagonal / 2)
+        const cellRadius = Math.min(
+          Math.sqrt(2) * gridSize * 111000 / 2, // Convert degrees to meters
+          50000 // Max 50km radius
+        );
+
+        // Wait if too many concurrent requests
+        while (activeRequests >= maxConcurrent) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        activeRequests++;
+        const searchPromise = this.nearbySearch(
+          { lat: centerLat, lng: centerLng },
+          cellRadius,
+          query,
+          category
+        ).then(result => {
+          result.businesses.forEach(business => {
+            allBusinesses.set(business.id, business);
+          });
+          activeRequests--;
+        }).catch(error => {
+          console.error(`Grid cell ${i},${j} search failed:`, error);
+          activeRequests--;
+        });
+
+        searchPromises.push(searchPromise);
+        
+        // Small delay between requests
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    }
+
+    await Promise.all(searchPromises);
+    
+    const businesses = Array.from(allBusinesses.values());
+    console.log(`✅ Grid search found ${businesses.length} unique businesses`);
+    
+    return businesses;
+  }
+
+  // Search with map bounds - intelligently chooses between strategies
+  async searchWithBounds(
+    bounds: { north: number; south: number; east: number; west: number },
+    query?: string,
+    category?: string
+  ): Promise<BusinessFromPlaces[]> {
+    if (!this.apiKey) {
+      return [];
+    }
+
+    // Calculate area size
+    const latDiff = bounds.north - bounds.south;
+    const lngDiff = bounds.east - bounds.west;
+    const approxAreaKm2 = latDiff * lngDiff * 111 * 111; // Rough conversion
+
+    console.log(`📍 Search area: ~${Math.round(approxAreaKm2)} km²`);
+
+    // For small areas (< 100 km²), use single nearby search
+    if (approxAreaKm2 < 100) {
+      const center = {
+        lat: (bounds.north + bounds.south) / 2,
+        lng: (bounds.east + bounds.west) / 2
+      };
+      
+      // Calculate radius to cover the bounds
+      const radius = Math.min(
+        Math.max(
+          latDiff * 111000 / 2,
+          lngDiff * 111000 / 2
+        ),
+        50000 // Max 50km
+      );
+
+      const results: BusinessFromPlaces[] = [];
+      let nextPageToken: string | undefined;
+      let pageCount = 0;
+
+      do {
+        const { businesses, nextPageToken: token } = await this.nearbySearch(
+          center,
+          radius,
+          query,
+          category,
+          nextPageToken
+        );
+        
+        results.push(...businesses);
+        nextPageToken = token;
+        pageCount++;
+
+        if (nextPageToken && pageCount < 3) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      } while (nextPageToken && pageCount < 3);
+
+      return results;
+    }
+
+    // For large areas, use grid search
+    return this.gridSearch(bounds, query, category);
+  }
+
+  // Enhanced search for Lima with better coverage
+  async searchLimaComprehensive(query: string, category?: string): Promise<BusinessFromPlaces[]> {
+    // Define Lima metropolitan area bounds
+    const limaBounds = {
+      north: -11.7,
+      south: -12.3,
+      east: -76.7,
+      west: -77.2
+    };
+
+    console.log('🌆 Performing comprehensive Lima search...');
+    
+    // Use grid search for full coverage
+    const gridResults = await this.gridSearch(limaBounds, query, category, 0.03); // ~3.3km cells
+    
+    // If we have good results, enhance top results with details
+    if (gridResults.length > 0) {
+      const topResults = gridResults.slice(0, 10);
+      const enhancedPromises = topResults.map(async (business) => {
+        const details = await this.getBusinessDetails(business.id);
+        if (details) {
+          business.phone = details.formatted_phone_number;
+          business.website = details.website;
+          business.hours = details.opening_hours?.weekday_text;
+        }
+        return business;
+      });
+      
+      await Promise.all(enhancedPromises);
+    }
+    
+    return gridResults;
+  }
 }
 
 export const googlePlacesService = new GooglePlacesService();

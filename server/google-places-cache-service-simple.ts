@@ -254,4 +254,41 @@ export class GooglePlacesCacheService {
       console.error('❌ Error cleaning cache:', error);
     }
   }
+
+  // Public method to cache search results
+  async cacheSearchResults(
+    query: string,
+    category: string | undefined,
+    location: string,
+    results: BusinessFromPlaces[]
+  ): Promise<void> {
+    const queryHash = this.generateCacheKey(query, category, location);
+    
+    try {
+      // Cache individual businesses
+      for (const business of results) {
+        const cachedBusiness = this.convertBusinessToCache(business);
+        await this.storage.cacheBusiness(cachedBusiness);
+      }
+
+      // Cache search pattern
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + this.cacheExpirationHours);
+      
+      await this.storage.saveSearchCache({
+        queryHash,
+        originalQuery: query,
+        category: category || null,
+        location: location || 'Lima, Peru',
+        businessIds: results.map(b => b.id),
+        totalResults: results.length,
+        googleApiCalls: Math.ceil(results.length / 20),
+        expiresAt: expiresAt,
+      });
+      
+      console.log(`✅ Cached ${results.length} search results for future use`);
+    } catch (error) {
+      console.error('❌ Error caching search results:', error);
+    }
+  }
 }

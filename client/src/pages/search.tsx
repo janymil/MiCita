@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List } from "lucide-react";
+import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List, Phone } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
-import SimpleMap from "@/components/simple-map";
+import OpenStreetMap from "@/components/openstreet-map";
 import { BUSINESS_CATEGORIES, PERUVIAN_CITIES, CITY_DISTRICTS } from "@/lib/constants";
 
 export default function SearchPage() {
@@ -42,9 +42,10 @@ export default function SearchPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
-  const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
-  const [debouncedMapBounds, setDebouncedMapBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [mapBounds, setMapBounds] = useState<any | null>(null);
+  const [debouncedMapBounds, setDebouncedMapBounds] = useState<any | null>(null);
   const [mapFilterEnabled, setMapFilterEnabled] = useState(false);
+  const [isMapSearching, setIsMapSearching] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -135,7 +136,11 @@ export default function SearchPage() {
     staleTime: 5000,
     cacheTime: 60000,
     refetchOnWindowFocus: false,
-    refetchOnMount: false
+    refetchOnMount: false,
+    onSuccess: () => {
+      // Clear map searching state when data loads
+      setIsMapSearching(false);
+    }
   });
 
   const handleCityChange = (newCity: string) => {
@@ -148,7 +153,13 @@ export default function SearchPage() {
   useEffect(() => {
     if (!mapFilterEnabled) {
       setDebouncedMapBounds(null);
+      setIsMapSearching(false);
       return;
+    }
+    
+    // Show searching indicator when bounds change
+    if (mapBounds && mapBounds !== debouncedMapBounds) {
+      setIsMapSearching(true);
     }
     
     const timeout = setTimeout(() => {
@@ -159,6 +170,7 @@ export default function SearchPage() {
   }, [mapBounds, mapFilterEnabled]);
 
   const handleSearch = () => {
+    // Update URL without reloading page
     const params = new URLSearchParams();
     if (searchQuery) params.append("q", searchQuery);
     if (selectedCategory && selectedCategory !== "all") params.append("category", selectedCategory);
@@ -168,7 +180,11 @@ export default function SearchPage() {
     if (openNow) params.append("openNow", "true");
     if (sortBy !== "relevance") params.append("sort", sortBy);
     
-    setLocation(`/buscar?${params.toString()}`);
+    // Update URL without reload
+    window.history.pushState({}, '', `/buscar?${params.toString()}`);
+    
+    // Trigger refetch
+    refetch();
   };
   
   const clearFilters = () => {
@@ -183,7 +199,11 @@ export default function SearchPage() {
     if (searchQuery) params.append("q", searchQuery);
     if (selectedCity) params.append("city", selectedCity);
     
-    setLocation(`/buscar?${params.toString()}`);
+    // Update URL without reload
+    window.history.pushState({}, '', `/buscar?${params.toString()}`);
+    
+    // Trigger refetch
+    refetch();
   };
 
   // Force search when URL params exist but no search has been performed
@@ -203,8 +223,17 @@ export default function SearchPage() {
       return true; // Show all if no bounds or location
     }
     
-    const position = new google.maps.LatLng(business.location.lat, business.location.lng);
-    return mapBounds.contains(position);
+    // Simple bounds checking without Google Maps dependency
+    const lat = business.location.lat;
+    const lng = business.location.lng;
+    
+    // Get bounds coordinates using our OpenStreetMap format
+    const north = mapBounds.getNorthEast().lat();
+    const south = mapBounds.getSouthWest().lat();
+    const east = mapBounds.getNorthEast().lng();
+    const west = mapBounds.getSouthWest().lng();
+    
+    return lat >= south && lat <= north && lng >= west && lng <= east;
   };
 
   // Client-side filtering and sorting
@@ -662,9 +691,13 @@ export default function SearchPage() {
       {/* Results */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">Buscando negocios...</p>
+          <div className="text-center py-16">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-red-200 border-t-red-600 mx-auto"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-red-100 animate-pulse"></div>
+            </div>
+            <p className="text-gray-600 mt-6 text-lg font-medium">Buscando negocios...</p>
+            <p className="text-gray-500 mt-2 text-sm">Explorando OpenStreetMap y enriqueciendo con Foursquare</p>
           </div>
         ) : viewMode === "map" ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[600px]">
@@ -719,14 +752,35 @@ export default function SearchPage() {
             </div>
             
             {/* Map Container */}
-            <div className="order-2 lg:order-2" style={{ height: '600px' }}>
-              <SimpleMap
+            <div className="order-2 lg:order-2 relative" style={{ height: '600px' }}>
+              <OpenStreetMap
                 businesses={filteredResults}
                 onMapBoundsChange={mapFilterEnabled ? (bounds) => setMapBounds(bounds) : undefined}
                 onBusinessClick={(business) => setSelectedBusiness(business)}
                 selectedBusiness={selectedBusiness}
                 className="h-full w-full"
               />
+              
+              {/* Map Search Indicator */}
+              {isMapSearching && mapFilterEnabled && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg px-4 py-2 flex items-center space-x-2 z-10">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                  <span className="text-sm font-medium">Buscando en esta área...</span>
+                </div>
+              )}
+              
+              {/* Search in this area button */}
+              {mapFilterEnabled && !isMapSearching && debouncedMapBounds !== mapBounds && (
+                <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
+                  <Button
+                    onClick={() => setDebouncedMapBounds(mapBounds)}
+                    className="bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-lg"
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Buscar en esta área
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -754,97 +808,125 @@ export default function SearchPage() {
               </div>
             )}
 
-            {/* Google Places Results */}
+            {/* Search Results */}
             {googlePlacesResults.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">
-                    Resultados de Google Places ({googlePlacesResults.length})
+                    Negocios encontrados ({googlePlacesResults.length})
                   </h2>
-                  <Badge className="bg-blue-600 text-white">
-                    Google Places
+                  <Badge className="bg-green-600 text-white">
+                    OpenStreetMap + Foursquare
                   </Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {googlePlacesResults.map((business: any) => (
-                    <div key={`google-${business.id}`} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow overflow-hidden">
-                      {/* Business Image */}
-                      <div className="relative h-48 bg-gray-200">
-                        {business.photoUrl ? (
-                          <img 
-                            src={business.photoUrl} 
-                            alt={business.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                        ) : null}
-                        <div className={`absolute inset-0 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center ${business.photoUrl ? 'hidden' : ''}`}>
-                          <div className="text-white text-center">
-                            <div className="text-2xl font-bold mb-1">{business.name.charAt(0)}</div>
-                            <div className="text-xs opacity-75">No Photo</div>
+                    <div key={`business-${business.id}`} className="group cursor-pointer">
+                      <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                        {/* Business Image */}
+                        <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200">
+                          {business.photoUrl ? (
+                            <img 
+                              src={business.photoUrl} 
+                              alt={business.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          
+                          {/* Fallback when no image */}
+                          <div className={`absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center ${business.photoUrl ? 'hidden' : ''}`}>
+                            <div className="text-white text-center">
+                              <div className="text-3xl font-bold mb-2">{business.name.charAt(0).toUpperCase()}</div>
+                              <div className="text-sm opacity-90 px-4 text-center line-clamp-2">{business.name}</div>
+                            </div>
                           </div>
+                          
+                          {/* Rating Badge */}
+                          {business.rating > 0 && (
+                            <div className="absolute top-3 right-3 bg-white bg-opacity-95 backdrop-blur-sm text-gray-900 px-2 py-1 rounded-full text-sm font-medium flex items-center shadow-md">
+                              <span className="text-yellow-500 mr-1">★</span>
+                              {business.rating.toFixed(1)}
+                            </div>
+                          )}
+                          
+                          {/* Status Badge */}
+                          {business.openNow !== undefined && (
+                            <div className="absolute top-3 left-3">
+                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                business.openNow 
+                                  ? 'bg-green-500 text-white' 
+                                  : 'bg-red-500 text-white'
+                              }`}>
+                                {business.openNow ? 'Abierto' : 'Cerrado'}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        
-                        {/* Rating Badge */}
-                        {business.rating > 0 && (
-                          <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-xs flex items-center">
-                            <span className="text-yellow-400 mr-1">★</span>
-                            {business.rating.toFixed(1)}
+
+                        {/* Business Details */}
+                        <div className="p-4">
+                          <div className="mb-2">
+                            <h3 className="font-semibold text-gray-900 text-lg line-clamp-2 group-hover:text-red-600 transition-colors">
+                              {business.name}
+                            </h3>
                           </div>
-                        )}
-                      </div>
-                      
-                      {/* Business Details */}
-                      <div className="p-4">
-                        <div className="mb-3">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-1 line-clamp-2">
-                            {business.name}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">
+                          
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2 leading-relaxed">
                             {business.address}
                           </p>
-                          <Badge variant="outline" className="text-xs">
-                            {business.category}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            {business.rating > 0 && (
-                              <div className="flex items-center text-yellow-500">
-                                <span className="text-sm">★</span>
-                                <span className="text-sm text-gray-600 ml-1">
-                                  {business.rating.toFixed(1)} ({business.reviewCount})
-                                </span>
+                          
+                          {/* Rating and Reviews */}
+                          {business.rating > 0 && (
+                            <div className="flex items-center mb-3">
+                              <div className="flex items-center mr-2">
+                                {[...Array(5)].map((_, i) => (
+                                  <span key={i} className={`text-lg ${
+                                    i < Math.floor(business.rating) ? 'text-yellow-400' : 'text-gray-200'
+                                  }`}>
+                                    ★
+                                  </span>
+                                ))}
                               </div>
+                              <span className="text-sm text-gray-600">
+                                {business.rating.toFixed(1)}
+                                {business.reviewCount && ` (${business.reviewCount})`}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Action Buttons */}
+                          <div className="flex items-center space-x-2">
+                            {business.phone && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="flex-1 text-sm hover:bg-red-50 hover:border-red-300 hover:text-red-600"
+                                onClick={() => window.open(`tel:${business.phone}`, '_self')}
+                              >
+                                <Phone className="w-4 h-4 mr-1" />
+                                Llamar
+                              </Button>
                             )}
-                            {business.priceLevel > 0 && (
-                              <div className="text-sm text-gray-600">
-                                {'$'.repeat(business.priceLevel)}
-                              </div>
-                            )}
+                            <Button 
+                              size="sm" 
+                              className="flex-1 bg-red-600 hover:bg-red-700 text-sm"
+                              onClick={() => {
+                                if (business.website) {
+                                  window.open(business.website, '_blank');
+                                } else {
+                                  window.open(`https://www.openstreetmap.org/search?query=${encodeURIComponent(business.name + ' ' + business.address)}`, '_blank');
+                                }
+                              }}
+                            >
+                              Ver más
+                            </Button>
                           </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => window.open(`https://www.google.com/maps/place/?q=place_id:${business.id}`, '_blank')}
-                            className="text-xs"
-                          >
-                            Ver en Maps
-                          </Button>
                         </div>
-                        
-                        {/* Business Hours if available */}
-                        {business.openNow !== undefined && (
-                          <div className="mt-3 text-xs">
-                            <span className={`px-2 py-1 rounded ${business.openNow ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                              {business.openNow ? 'Abierto ahora' : 'Cerrado'}
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   ))}
