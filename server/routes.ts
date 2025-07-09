@@ -17,7 +17,7 @@ async function sendStatusChangeEmail(appointment: any, previousAppointment: any,
     const business = await storage.getBusiness(businessId);
     const client = await storage.getClient(appointment.clientId);
     const service = await storage.getService(appointment.serviceId);
-
+    
     if (!business || !client || !service) {
       console.error('Missing data for email notification');
       return;
@@ -263,7 +263,7 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-
+  
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -305,14 +305,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const resultsPerPage = 20;
 
       console.log('Search request:', { query, category, city, bounds: !!bounds, page: currentPage });
-
+      
       let googlePlaces = [];
-
+      
       // Search Apify businesses only
       console.log('🔍 Searching Apify businesses');
       const apifyBusinesses = await storage.searchApifyBusinesses(query, category as string);
       console.log(`📁 Found ${apifyBusinesses.length} businesses from Apify`);
-
+      
       // Convert to expected format
       googlePlaces = apifyBusinesses.map(business => ({
         id: business.placeId,
@@ -334,12 +334,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isRegistered: business.isRegistered || false,
         type: "apify"
       }));
-
+      
       const [businesses, publicBusinesses] = await Promise.all([
         storage.searchBusinesses(query, category as string, city as string),
         storage.searchPublicBusinesses(query, category as string)
       ]);
-
+      
       console.log('Search results before pagination:', { 
         businesses: businesses.length, 
         publicBusinesses: publicBusinesses.length, 
@@ -369,14 +369,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Apply server-side pagination with smart total estimation
       const totalResults = combinedResults.length;
       const googlePlacesCount = googlePlaces.length;
-
+      
       // If we have exactly multiples of 20 Google Places results, there might be more available
       const mightHaveMore = googlePlacesCount >= 60 && googlePlacesCount % 20 === 0;
-
+      
       // Estimate total available results - Google Places can have hundreds of results
       const estimatedTotalResults = mightHaveMore ? Math.max(totalResults, 200) : totalResults;
       const totalPages = Math.ceil(estimatedTotalResults / resultsPerPage);
-
+      
       const startIndex = (currentPage - 1) * resultsPerPage;
       const endIndex = startIndex + resultsPerPage;
       const paginatedResults = combinedResults.slice(startIndex, endIndex);
@@ -422,7 +422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Test cached data availability
       try {
         console.log('🧪 Testing cached business data...');
-        const cachedResults = await storage.searchApifyBusinesses('barberia', 'belleza');
+        const cachedResults = await storage.searchCachedGoogleBusinesses('barberia', 'belleza');
         results.cached = {
           status: 'working',
           message: `Found ${cachedResults.length} businesses from Apify cache`,
@@ -441,7 +441,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('🧪 Testing Apify scraping...');
         const { apifyScraper } = await import('./apify-scraper-service');
         const testResult = await apifyScraper.testScraping();
-
+        
         if (testResult.success) {
           results.apify = {
             status: 'working',
@@ -475,7 +475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🧪 Running Apify test scraping...');
       const { apifyScraper } = await import('./apify-scraper-service');
       const result = await apifyScraper.testScraping();
-
+      
       res.json({
         success: result.success,
         message: result.success ? 'Test scraping completed successfully' : 'Test scraping failed',
@@ -495,7 +495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/scrape/category", async (req, res) => {
     try {
       const { category, location = 'Lima, Peru', maxPlaces = 50 } = req.body;
-
+      
       if (!category) {
         return res.status(400).json({ message: 'Category is required' });
       }
@@ -503,7 +503,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🔍 Scraping ${category} businesses...`);
       const { apifyScraper } = await import('./apify-scraper-service');
       const businesses = await apifyScraper.scrapeCategoryBusinesses(category, location, maxPlaces);
-
+      
       res.json({
         success: true,
         message: `Successfully scraped ${businesses.length} businesses`,
@@ -528,7 +528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🚀 Starting comprehensive Lima business scraping...');
       const { apifyScraper } = await import('./apify-scraper-service');
-
+      
       // Start scraping in background and return immediately
       res.json({
         success: true,
@@ -558,10 +558,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/places/:placeId", async (req, res) => {
     try {
       const { placeId } = req.params;
-
+      
       // Check Apify businesses
       const apifyBusiness = await storage.getApifyBusiness(placeId);
-
+      
       if (apifyBusiness) {
         res.json({
           name: apifyBusiness.name,
@@ -578,7 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         return;
       }
-
+      
       return res.status(404).json({ message: "Negocio no encontrado en los datos almacenados" });
     } catch (error) {
       console.error("Error fetching place details:", error);
@@ -590,18 +590,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/apify/pull-fresh", async (req, res) => {
     try {
       console.log('🔄 Pulling fresh data from Apify dataset...');
-
+      
       const response = await fetch('https://api.apify.com/v2/datasets/jC3uI7WSuQKRTj2i1/items?token=apify_api_SThnhfb7cGOxixoqRUbdxCnjvoP6Kc33SbEq&clean=true&format=json&limit=2000');
-
+      
       if (!response.ok) {
         throw new Error(`Apify API error: ${response.status}`);
       }
-
+      
       const apifyData = await response.json();
       console.log(`📦 Retrieved ${apifyData.length} businesses from Apify dataset`);
-
+      
       let processed = 0;
-
+      
       for (const item of apifyData) { // Process all items
         try {
           const cacheData = {
@@ -622,21 +622,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             searchTerms: `${item.title} ${item.address} ${item.categoryName}`.toLowerCase(),
             isRegistered: false
           };
-
+          
           await storage.addApifyBusiness(cacheData);
           processed++;
         } catch (error) {
           console.error(`❌ Error processing business: ${error.message}`);
         }
       }
-
+      
       res.json({
         success: true,
         message: `Successfully processed ${processed} businesses from Apify dataset`,
         processed,
         total: apifyData.length
       });
-
+      
     } catch (error) {
       console.error('❌ Error pulling fresh Apify data:', error);
       res.status(500).json({
@@ -650,7 +650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Map Apify categories to our system
   function mapCategoryFromApify(categoryName: string): string {
     const category = categoryName?.toLowerCase() || '';
-
+    
     if (category.includes('barbería') || category.includes('peluquería') || 
         category.includes('salón') || category.includes('spa') || 
         category.includes('belleza') || category.includes('manicure')) {
@@ -672,7 +672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category.includes('auto') || category.includes('gasolinera')) {
       return 'automotriz';
     }
-
+    
     return 'servicios';
   }
 
@@ -683,7 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const waves = apifyWaveScraper.getWaveConfigs();
       const progress = apifyWaveScraper.getAllProgress();
       const stats = apifyWaveScraper.getSummaryStats();
-
+      
       res.json({
         waves: waves.map(wave => ({
           ...wave,
@@ -701,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { waveId } = req.params;
       const { apifyWaveScraper } = await import('./apify-wave-scraper.js');
-
+      
       // Start wave execution in background
       res.json({
         success: true,
@@ -729,7 +729,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/apify/waves/execute-all", async (req, res) => {
     try {
       const { apifyWaveScraper } = await import('./apify-wave-scraper.js');
-
+      
       res.json({
         success: true,
         message: "All waves started in background - this will take several hours",
@@ -858,7 +858,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .then(clients => clients.find(c => 
           c.email.toLowerCase() === appointmentData.clientEmail.toLowerCase()
         ));
-
+      
       // If no email match, check phone as secondary option
       if (!client) {
         client = await storage.getClientsByBusinessId(appointmentData.businessId)
@@ -912,7 +912,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           notes: appointmentData.clientNotes || undefined
         };
 
-        // Send emailsusing Nodemailer
+        // Send emails using Nodemailer
         try {
           const emailResults = await emailService.sendAppointmentEmails(emailData);
           console.log('Email send results:', emailResults);
@@ -1278,14 +1278,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const appointment = await storage.updateAppointment(appointmentId, validatedData);
-
+      
       // Send email notifications for status changes or date/time changes
       if ((validatedData.status && validatedData.status !== existingAppointment.status) ||
           (validatedData.date && validatedData.date !== existingAppointment.date) ||
           (validatedData.time && validatedData.time !== existingAppointment.time)) {
         await sendStatusChangeEmail(appointment, existingAppointment, businessId);
       }
-
+      
       res.json(appointment);
     } catch (error) {
       console.error("Error updating appointment:", error);
@@ -1636,13 +1636,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.id);
       const business = await storage.getBusiness(businessId);
-
+      
       if (!business) {
         return res.status(404).json({ message: "Negocio no encontrado" });
       }
 
       console.log(`Enriching business ${business.name} with Google Places data...`);
-
+      
       // Search for the business in Google Places
       const enrichedData = await googlePlacesService.findAndEnrichBusiness(
         business.name,
