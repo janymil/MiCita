@@ -383,10 +383,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       // Add registered businesses (if any)
-      const [businesses, publicBusinesses] = await Promise.all([
-        storage.searchBusinesses(searchQuery.query, searchQuery.category, searchQuery.city),
-        storage.searchPublicBusinesses(searchQuery.query, searchQuery.category)
-      ]);
+      console.log('🔍 About to search database with:', {
+        query: searchQuery.query,
+        category: searchQuery.category,
+        city: searchQuery.city
+      });
+
+      let businesses = [];
+      let publicBusinesses = [];
+      
+      try {
+        [businesses, publicBusinesses] = await Promise.all([
+          storage.searchBusinesses(searchQuery.query, searchQuery.category, searchQuery.city),
+          storage.searchPublicBusinesses(searchQuery.query, searchQuery.category)
+        ]);
+
+        console.log('🏢 Database search results:', {
+          query: searchQuery.query,
+          category: searchQuery.category,
+          city: searchQuery.city,
+          registeredBusinesses: businesses.length,
+          publicBusinesses: publicBusinesses.length,
+          registeredNames: businesses.map(b => b.name)
+        });
+      } catch (error) {
+        console.error('❌ Database search error:', error);
+        businesses = [];
+        publicBusinesses = [];
+      }
 
       // For registered businesses, get their customUrl and coverImage from settings
       const businessesWithCustomUrl = await Promise.all(

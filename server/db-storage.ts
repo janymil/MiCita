@@ -76,17 +76,17 @@ export class DBStorage implements IStorage {
   async searchBusinesses(query: string, category?: string, city?: string): Promise<Business[]> {
     let whereConditions = [eq(businesses.isActive, true)];
 
-    if (query) {
+    if (query && query.trim() !== '') {
       whereConditions.push(
         sql`(${businesses.name} ILIKE ${'%' + query + '%'} OR ${businesses.description} ILIKE ${'%' + query + '%'})`
       );
     }
 
-    if (category) {
+    if (category && category !== 'all') {
       whereConditions.push(eq(businesses.category, category));
     }
 
-    if (city) {
+    if (city && city !== 'all') {
       whereConditions.push(eq(businesses.city, city));
     }
 
@@ -230,13 +230,13 @@ export class DBStorage implements IStorage {
   async searchPublicBusinesses(query: string, category?: string): Promise<PublicBusiness[]> {
     let whereConditions = [];
 
-    if (query) {
+    if (query && query.trim() !== '') {
       whereConditions.push(
         sql`(${publicBusinesses.name} ILIKE ${'%' + query + '%'} OR ${publicBusinesses.description} ILIKE ${'%' + query + '%'})`
       );
     }
 
-    if (category) {
+    if (category && category !== 'all') {
       whereConditions.push(eq(publicBusinesses.category, category));
     }
 
