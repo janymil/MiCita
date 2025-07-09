@@ -188,7 +188,7 @@ export default function ModernSearchBar({
           {/* Search Input */}
           <div className="flex-1 relative">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-6 h-6 pointer-events-none" />
               <Input
                 type="text"
                 placeholder="Buscar servicios, negocios..."
@@ -205,7 +205,7 @@ export default function ModernSearchBar({
                   }
                 }}
                 className={cn(
-                  "pl-12 pr-20 h-12 text-base rounded-full border-gray-200",
+                  "pl-12 pr-20 h-24 text-lg rounded-full border-gray-200",
                   "focus:ring-2 focus:ring-red-500 focus:border-transparent",
                   "transition-all duration-200"
                 )}
@@ -215,13 +215,13 @@ export default function ModernSearchBar({
               <button
                 onClick={handleVoiceSearch}
                 className={cn(
-                  "absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full",
+                  "absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-full",
                   "hover:bg-gray-100 transition-colors",
                   isListening && "bg-red-100 animate-pulse"
                 )}
               >
                 <Mic className={cn(
-                  "w-5 h-5",
+                  "w-6 h-6",
                   isListening ? "text-red-500" : "text-gray-400"
                 )} />
               </button>
@@ -298,8 +298,8 @@ export default function ModernSearchBar({
           </div>
 
           {/* Enhanced Location Selector */}
-          <div className="flex items-center gap-2 bg-gray-50 rounded-full px-4 min-w-[280px]">
-            <MapPin className="text-gray-400 w-5 h-5 flex-shrink-0" />
+          <div className="flex items-center gap-2 bg-gray-50 rounded-full px-4 min-w-[280px] h-24">
+            <MapPin className="text-gray-400 w-6 h-6 flex-shrink-0" />
             
             {/* City Selector */}
             <Select 
@@ -356,15 +356,15 @@ export default function ModernSearchBar({
             onClick={() => handleSearch()}
             disabled={isLoading}
             className={cn(
-              "h-12 px-6 rounded-full bg-red-600 hover:bg-red-700",
+              "h-24 px-8 rounded-full bg-red-600 hover:bg-red-700 text-lg",
               "transition-all duration-200 shadow-lg hover:shadow-xl"
             )}
           >
             {isLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white" />
             ) : (
               <>
-                <Search className="w-5 h-5" />
+                <Search className="w-6 h-6" />
                 <span className="ml-2 hidden sm:inline">Buscar</span>
               </>
             )}
