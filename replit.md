@@ -240,6 +240,15 @@ Changelog:
   - Search performance: 220-4000ms response times with comprehensive filtering capabilities
   - Maintained clean separation: Scraper handles data collection, Search Engine handles local database queries
   - System now operates with enhanced discoverability while maintaining zero external API dependencies
+- July 09, 2025: CRITICAL FIX - REGISTERED BUSINESS PRIORITY SYSTEM RESTORED:
+  - Fixed database search logic to properly handle "show all negocios" case without filters
+  - Updated searchBusinesses and searchPublicBusinesses functions to return all active businesses when no query/category specified
+  - Enhanced search parameter handling: category="all" and city="all" now properly ignored in WHERE clauses
+  - Added comprehensive debug logging to track registered business retrieval
+  - Database schema synchronized: added missing columns (street_view_url, photos, popular_times, etc.)
+  - CONFIRMED WORKING: "Barberia Nicolas" now appears first in search results for all unfiltered searches
+  - Search ordering correctly prioritizes: Registered Businesses → Public Businesses → Apify Businesses
+  - Backend logs show proper business retrieval: "registeredBusinesses: 1, registeredNames: ['Barberia Nicolas']"
 
 ## PRD Implementation Status
 
