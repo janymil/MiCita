@@ -12,6 +12,7 @@ interface Business {
   name: string;
   address: string;
   category: string;
+  subcategory?: string;
   phone?: string;
   website?: string;
   rating: number;
@@ -48,6 +49,8 @@ export default function AdminBusinesses() {
   // Filters and search
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState('');
+  const [subcategories, setSubcategories] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -74,7 +77,17 @@ export default function AdminBusinesses() {
     
     fetchBusinesses();
     fetchFilterOptions();
-  }, [pagination.page, searchTerm, selectedCategory, selectedStatus, sortBy, sortOrder, setLocation]);
+  }, [pagination.page, searchTerm, selectedCategory, selectedSubcategory, selectedStatus, sortBy, sortOrder, setLocation]);
+
+  // Fetch subcategories when category changes
+  useEffect(() => {
+    if (selectedCategory) {
+      fetchSubcategories(selectedCategory);
+    } else {
+      setSubcategories([]);
+    }
+    setSelectedSubcategory(''); // Reset subcategory when category changes
+  }, [selectedCategory]);
 
   const fetchBusinesses = async () => {
     try {
@@ -89,6 +102,7 @@ export default function AdminBusinesses() {
       
       if (searchTerm) params.append('search', searchTerm);
       if (selectedCategory) params.append('category', selectedCategory);
+      if (selectedSubcategory) params.append('subcategory', selectedSubcategory);
       if (selectedStatus) params.append('status', selectedStatus);
       
       const response = await fetch(`/api/admin/businesses?${params}`, {
@@ -124,6 +138,18 @@ export default function AdminBusinesses() {
       }
     } catch (error) {
       console.error('Error fetching filter options:', error);
+    }
+  };
+
+  const fetchSubcategories = async (category: string) => {
+    try {
+      const response = await fetch(`/api/subcategories/${category}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSubcategories(data);
+      }
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
     }
   };
 

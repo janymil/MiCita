@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,23 @@ import { BUSINESS_CATEGORIES } from "@/lib/constants";
 export default function PublicSearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [selectedSubcategory, setSelectedSubcategory] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
 
   const { data: businesses, isLoading } = useQuery({
-    queryKey: ["/api/search", searchQuery, selectedCategory, selectedCity],
+    queryKey: ["/api/search", { 
+      q: searchQuery, 
+      category: selectedCategory, 
+      subcategory: selectedSubcategory, 
+      city: selectedCity 
+    }],
     enabled: searchQuery.length > 0 || selectedCategory.length > 0,
+  });
+
+  // Get subcategories for the selected category
+  const { data: subcategories } = useQuery({
+    queryKey: ["/api/subcategories", selectedCategory],
+    enabled: !!selectedCategory && selectedCategory !== 'all',
   });
 
   const { data: featuredBusinesses } = useQuery({
@@ -32,6 +44,11 @@ export default function PublicSearchPage() {
     e.preventDefault();
     // Search is handled by the query dependency
   };
+
+  // Reset subcategory when category changes
+  useEffect(() => {
+    setSelectedSubcategory("");
+  }, [selectedCategory]);
 
   const popularCategories = BUSINESS_CATEGORIES.slice(0, 8);
   const topCities = ["Lima", "Arequipa", "Trujillo", "Chiclayo", "Piura", "Iquitos"];
@@ -158,6 +175,37 @@ export default function PublicSearchPage() {
                 Filtros
               </Button>
             </div>
+
+            {/* Subcategory Filter */}
+            {selectedCategory && subcategories && subcategories.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-4 mb-4">
+                  <span className="text-sm font-medium text-gray-700">Subcategorías:</span>
+                  <Button
+                    variant={selectedSubcategory === "" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedSubcategory("")}
+                  >
+                    Todas
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {subcategories.map((subcategory) => (
+                    <Button
+                      key={subcategory}
+                      variant={selectedSubcategory === subcategory ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedSubcategory(
+                        selectedSubcategory === subcategory ? "" : subcategory
+                      )}
+                      className="text-xs"
+                    >
+                      {subcategory}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {isLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

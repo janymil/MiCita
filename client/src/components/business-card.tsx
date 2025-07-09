@@ -10,6 +10,7 @@ interface BusinessCardProps {
     name: string;
     description?: string;
     category: string;
+    subcategory?: string;
     address?: string;
     rating?: string;
     reviewCount?: number;
@@ -39,21 +40,28 @@ export default function BusinessCard({ business, onBookClick, onViewClick }: Bus
 
       <div className="p-6">
         <div className="flex items-center justify-between mb-2">
-          {category && (
-            <Badge variant="secondary" className={cn(
-              "text-xs font-medium",
-              category.color.includes("belleza") && "bg-pink-100 text-pink-800",
-              category.color.includes("salud") && "bg-green-100 text-green-800",
-              category.color.includes("fitness") && "bg-blue-100 text-blue-800",
-              category.color.includes("restaurante") && "bg-orange-100 text-orange-800",
-              category.color.includes("cafeteria") && "bg-yellow-100 text-yellow-800",
-              category.color.includes("automotriz") && "bg-red-100 text-red-800",
-              category.color.includes("educacion") && "bg-purple-100 text-purple-800",
-              category.color.includes("hogar") && "bg-yellow-100 text-yellow-800"
-            )}>
-              {category.name}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {category && (
+              <Badge variant="secondary" className={cn(
+                "text-xs font-medium",
+                category.color.includes("belleza") && "bg-pink-100 text-pink-800",
+                category.color.includes("salud") && "bg-green-100 text-green-800",
+                category.color.includes("fitness") && "bg-blue-100 text-blue-800",
+                category.color.includes("restaurante") && "bg-orange-100 text-orange-800",
+                category.color.includes("cafeteria") && "bg-yellow-100 text-yellow-800",
+                category.color.includes("automotriz") && "bg-red-100 text-red-800",
+                category.color.includes("educacion") && "bg-purple-100 text-purple-800",
+                category.color.includes("hogar") && "bg-yellow-100 text-yellow-800"
+              )}>
+                {category.name}
+              </Badge>
+            )}
+            {business.subcategory && (
+              <Badge variant="outline" className="text-xs font-medium">
+                {business.subcategory}
+              </Badge>
+            )}
+          </div>
 
           {rating > 0 && (
             <div className="flex items-center">

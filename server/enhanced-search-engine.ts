@@ -17,6 +17,7 @@ import type { ApifyBusiness } from "@shared/schema";
 interface SearchQuery {
   query?: string;
   category?: string;
+  subcategory?: string;
   city?: string;
   district?: string;
   minRating?: number;
@@ -362,6 +363,11 @@ export class EnhancedSearchEngine {
     // Category filter
     if (searchQuery.category && searchQuery.category !== 'all') {
       conditions.push(eq(apifyBusinesses.category, searchQuery.category));
+    }
+    
+    // Subcategory filter
+    if (searchQuery.subcategory && searchQuery.subcategory !== 'all') {
+      conditions.push(eq(apifyBusinesses.subcategory, searchQuery.subcategory));
     }
     
     // Location filters

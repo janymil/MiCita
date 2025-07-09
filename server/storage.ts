@@ -114,8 +114,10 @@ export interface IStorage {
   
   // Apify Businesses  
   getApifyBusiness(placeId: string): Promise<ApifyBusiness | undefined>;
-  searchApifyBusinesses(query: string, category?: string): Promise<ApifyBusiness[]>;
+  searchApifyBusinesses(query: string, category?: string, subcategory?: string): Promise<ApifyBusiness[]>;
   addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness>;
+  getSubcategoriesByCategory(category: string): Promise<string[]>;
+  getAllSubcategories(): Promise<{ category: string; subcategories: string[] }[]>;
   
   // Business Connections
   getBusinessConnections(businessId: number): Promise<BusinessConnection[]>;

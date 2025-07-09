@@ -196,6 +196,7 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   name: text("name").notNull(),
   address: text("address").notNull(),
   category: text("category").notNull(),
+  subcategory: text("subcategory"), // Original category from scraped data
   rating: decimal("rating", { precision: 3, scale: 2 }).default("0"),
   reviewCount: integer("review_count").default(0),
   priceLevel: integer("price_level").default(0),

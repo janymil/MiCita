@@ -284,7 +284,7 @@ export class DBStorage implements IStorage {
     return result[0];
   }
 
-  async searchApifyBusinesses(query: string, category?: string): Promise<ApifyBusiness[]> {
+  async searchApifyBusinesses(query: string, category?: string, subcategory?: string): Promise<ApifyBusiness[]> {
     let whereConditions = [];
 
     // If query is provided and not empty, search in search terms
@@ -299,14 +299,56 @@ export class DBStorage implements IStorage {
       whereConditions.push(eq(apifyBusinesses.category, category));
     }
 
+    // If subcategory is provided and not 'all', filter by subcategory
+    if (subcategory && subcategory !== 'all' && subcategory !== '') {
+      whereConditions.push(eq(apifyBusinesses.subcategory, subcategory));
+    }
+
     const result = await db.select()
       .from(apifyBusinesses)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(apifyBusinesses.rating))
       .limit(100);
     
-    console.log(`🔍 Apify Search: query="${query}", category="${category}", conditions=${whereConditions.length}, results=${result.length}`);
+    console.log(`🔍 Apify Search: query="${query}", category="${category}", subcategory="${subcategory}", conditions=${whereConditions.length}, results=${result.length}`);
     return result;
+  }
+
+  async getSubcategoriesByCategory(category: string): Promise<string[]> {
+    const result = await db.select({ subcategory: apifyBusinesses.subcategory })
+      .from(apifyBusinesses)
+      .where(eq(apifyBusinesses.category, category))
+      .groupBy(apifyBusinesses.subcategory)
+      .orderBy(apifyBusinesses.subcategory);
+    
+    return result.map(r => r.subcategory).filter(Boolean);
+  }
+
+  async getAllSubcategories(): Promise<{ category: string; subcategories: string[] }[]> {
+    const result = await db.select({ 
+      category: apifyBusinesses.category, 
+      subcategory: apifyBusinesses.subcategory 
+    })
+      .from(apifyBusinesses)
+      .where(sql`${apifyBusinesses.subcategory} IS NOT NULL`)
+      .groupBy(apifyBusinesses.category, apifyBusinesses.subcategory)
+      .orderBy(apifyBusinesses.category, apifyBusinesses.subcategory);
+    
+    // Group by category
+    const grouped = result.reduce((acc, item) => {
+      if (!acc[item.category]) {
+        acc[item.category] = [];
+      }
+      if (item.subcategory) {
+        acc[item.category].push(item.subcategory);
+      }
+      return acc;
+    }, {} as { [key: string]: string[] });
+    
+    return Object.entries(grouped).map(([category, subcategories]) => ({
+      category,
+      subcategories
+    }));
   }
 
   async addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness> {

@@ -305,6 +305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { 
         q, 
         category, 
+        subcategory,
         city, 
         district,
         minRating = '0',
@@ -322,6 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🔍 Enhanced search request:', { 
         query: q, 
         category, 
+        subcategory,
         city, 
         district,
         minRating: parseFloat(minRating as string),
@@ -336,6 +338,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const searchQuery = {
         query: (q as string) || "",
         category: category as string,
+        subcategory: subcategory as string,
         city: city as string,
         district: district as string,
         minRating: parseFloat(minRating as string),
@@ -480,6 +483,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('❌ Search suggestions error:', error);
       res.status(500).json({ message: "Error obteniendo sugerencias" });
+    }
+  });
+
+  // Get subcategories by category
+  app.get("/api/subcategories/:category", async (req, res) => {
+    try {
+      const { category } = req.params;
+      const subcategories = await storage.getSubcategoriesByCategory(category);
+      res.json(subcategories);
+    } catch (error) {
+      console.error('❌ Error getting subcategories:', error);
+      res.status(500).json({ message: "Error obteniendo subcategorías" });
+    }
+  });
+
+  // Get all subcategories grouped by category
+  app.get("/api/subcategories", async (req, res) => {
+    try {
+      const subcategories = await storage.getAllSubcategories();
+      res.json(subcategories);
+    } catch (error) {
+      console.error('❌ Error getting all subcategories:', error);
+      res.status(500).json({ message: "Error obteniendo subcategorías" });
     }
   });
 
