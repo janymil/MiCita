@@ -25,7 +25,9 @@ import {
   type Review,
   type InsertReview,
   type BusinessSettings,
-  type InsertBusinessSettings
+  type InsertBusinessSettings,
+  type ApifyBusiness,
+  type InsertApifyBusiness
 } from "@shared/schema";
 
 export interface IStorage {
@@ -82,6 +84,11 @@ export interface IStorage {
   // Business Settings
   getBusinessSettings(businessId: number): Promise<BusinessSettings | undefined>;
   updateBusinessSettings(businessId: number, settings: InsertBusinessSettings): Promise<BusinessSettings>;
+  
+  // Apify Businesses  
+  getApifyBusiness(placeId: string): Promise<ApifyBusiness | undefined>;
+  searchApifyBusinesses(query: string, category?: string): Promise<ApifyBusiness[]>;
+  addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness>;
 }
 
 export class MemStorage implements IStorage {
@@ -580,6 +587,19 @@ export class MemStorage implements IStorage {
       this.businessSettings.set(newSettings.id, newSettings);
       return newSettings;
     }
+  }
+  
+  // Apify Businesses - Memory implementation (for fallback)
+  async getApifyBusiness(placeId: string): Promise<ApifyBusiness | undefined> {
+    return undefined; // Memory storage doesn't store Apify data
+  }
+  
+  async searchApifyBusinesses(query: string, category?: string): Promise<ApifyBusiness[]> {
+    return []; // Memory storage doesn't store Apify data
+  }
+  
+  async addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness> {
+    throw new Error("Memory storage doesn't support Apify businesses");
   }
 }
 

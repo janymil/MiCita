@@ -1,6 +1,6 @@
 import { ApifyClient } from 'apify-client';
 import { storage } from './storage';
-import type { InsertCachedGoogleBusiness } from '../shared/schema';
+import type { InsertApifyBusiness } from '../shared/schema';
 
 interface ApifyPlace {
   title: string;
@@ -69,8 +69,8 @@ export class ApifyScraper {
     return 'servicios';
   }
 
-  // Convert Apify place to our cached business format
-  private convertToCache(place: ApifyPlace): InsertCachedGoogleBusiness {
+  // Convert Apify place to our business format
+  private convertToCache(place: ApifyPlace): InsertApifyBusiness {
     return {
       placeId: place.placeId || `apify_${Date.now()}_${Math.random()}`,
       name: place.title,
@@ -97,7 +97,7 @@ export class ApifyScraper {
     category: string, 
     location: string = 'Lima, Peru',
     maxPlaces: number = 100
-  ): Promise<InsertCachedGoogleBusiness[]> {
+  ): Promise<InsertApifyBusiness[]> {
     console.log(`🔍 Scraping ${category} businesses in ${location} (max: ${maxPlaces})`);
 
     const input = {

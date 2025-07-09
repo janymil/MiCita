@@ -10,8 +10,8 @@ import {
   publicBusinesses,
   reviews,
   businessSettings,
-  cachedGoogleBusinesses,
-  searchCache,
+  apifyBusinesses,
+
   type User,
   type Business,
   type Service,
@@ -21,8 +21,7 @@ import {
   type PublicBusiness,
   type Review,
   type BusinessSettings,
-  type CachedGoogleBusiness,
-  type SearchCache,
+  type ApifyBusiness,
   type InsertUser,
   type InsertBusiness,
   type InsertService,
@@ -32,8 +31,7 @@ import {
   type InsertPublicBusiness,
   type InsertReview,
   type InsertBusinessSettings,
-  type InsertCachedGoogleBusiness,
-  type InsertSearchCache,
+  type InsertApifyBusiness,
 } from "../shared/schema.js";
 import { IStorage } from "./storage.js";
 
@@ -280,48 +278,42 @@ export class DBStorage implements IStorage {
     }
   }
 
-  // Cache methods for Google Places businesses
-  async getCachedGoogleBusiness(placeId: string): Promise<CachedGoogleBusiness | undefined> {
-    const result = await db.select().from(cachedGoogleBusinesses).where(eq(cachedGoogleBusinesses.placeId, placeId)).limit(1);
+  // Apify business methods
+  async getApifyBusiness(placeId: string): Promise<ApifyBusiness | undefined> {
+    const result = await db.select().from(apifyBusinesses).where(eq(apifyBusinesses.placeId, placeId)).limit(1);
     return result[0];
   }
 
-  async getCachedGoogleBusinessesByIds(placeIds: string[]): Promise<CachedGoogleBusiness[]> {
-    if (placeIds.length === 0) return [];
-    const result = await db.select().from(cachedGoogleBusinesses).where(inArray(cachedGoogleBusinesses.placeId, placeIds));
-    return result;
-  }
-
-  async searchCachedGoogleBusinesses(query: string, category?: string): Promise<CachedGoogleBusiness[]> {
+  async searchApifyBusinesses(query: string, category?: string): Promise<ApifyBusiness[]> {
     let whereConditions = [];
 
     // If query is provided and not empty, search in search terms
     if (query && query.trim() && query !== '') {
       whereConditions.push(
-        ilike(cachedGoogleBusinesses.searchTerms, `%${query.toLowerCase().trim()}%`)
+        ilike(apifyBusinesses.searchTerms, `%${query.toLowerCase().trim()}%`)
       );
     }
 
     // If category is provided and not 'all', filter by category
     if (category && category !== 'all' && category !== '') {
-      whereConditions.push(eq(cachedGoogleBusinesses.category, category));
+      whereConditions.push(eq(apifyBusinesses.category, category));
     }
 
     const result = await db.select()
-      .from(cachedGoogleBusinesses)
+      .from(apifyBusinesses)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
-      .orderBy(desc(cachedGoogleBusinesses.rating))
+      .orderBy(desc(apifyBusinesses.rating))
       .limit(100);
     
-    console.log(`🔍 DB Search: query="${query}", category="${category}", conditions=${whereConditions.length}, results=${result.length}`);
+    console.log(`🔍 Apify Search: query="${query}", category="${category}", conditions=${whereConditions.length}, results=${result.length}`);
     return result;
   }
 
-  async cacheBusiness(business: InsertCachedGoogleBusiness): Promise<CachedGoogleBusiness> {
-    const result = await db.insert(cachedGoogleBusinesses)
+  async addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness> {
+    const result = await db.insert(apifyBusinesses)
       .values(business)
       .onConflictDoUpdate({
-        target: cachedGoogleBusinesses.placeId,
+        target: apifyBusinesses.placeId,
         set: {
           name: business.name,
           address: business.address,
@@ -343,47 +335,5 @@ export class DBStorage implements IStorage {
       })
       .returning();
     return result[0];
-  }
-
-  async cacheBusinesses(businesses: InsertCachedGoogleBusiness[]): Promise<CachedGoogleBusiness[]> {
-    if (businesses.length === 0) return [];
-    
-    const results = [];
-    for (const business of businesses) {
-      const result = await this.cacheBusiness(business);
-      results.push(result);
-    }
-    return results;
-  }
-
-  // Search cache methods
-  async getSearchCache(queryHash: string): Promise<SearchCache | undefined> {
-    const result = await db.select().from(searchCache).where(eq(searchCache.queryHash, queryHash)).limit(1);
-    return result[0];
-  }
-
-  async saveSearchCache(cacheData: InsertSearchCache): Promise<SearchCache> {
-    const result = await db.insert(searchCache)
-      .values(cacheData)
-      .onConflictDoUpdate({
-        target: searchCache.queryHash,
-        set: {
-          businessIds: cacheData.businessIds,
-          totalResults: cacheData.totalResults,
-          googleApiCalls: cacheData.googleApiCalls,
-          lastFetched: sql`NOW()`,
-          expiresAt: cacheData.expiresAt,
-        },
-      })
-      .returning();
-    return result[0];
-  }
-
-  async cleanExpiredCache(): Promise<void> {
-    // Clean expired search cache
-    await db.delete(searchCache).where(sql`${searchCache.expiresAt} < NOW()`);
-    
-    // Clean old cached businesses (older than 30 days)
-    await db.delete(cachedGoogleBusinesses).where(sql`${cachedGoogleBusinesses.lastUpdated} < NOW() - INTERVAL '30 days'`);
   }
 }

@@ -189,8 +189,8 @@ export const businessSettings = pgTable("business_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Google Places Cache - Cache individual businesses from Google Places
-export const cachedGoogleBusinesses = pgTable("cached_google_businesses", {
+// Apify Businesses - Businesses scraped from Apify
+export const apifyBusinesses = pgTable("apify_businesses", {
   id: serial("id").primaryKey(),
   placeId: text("place_id").unique().notNull(),
   name: text("name").notNull(),
@@ -206,26 +206,13 @@ export const cachedGoogleBusinesses = pgTable("cached_google_businesses", {
   longitude: decimal("longitude", { precision: 10, scale: 7 }).notNull(),
   openNow: boolean("open_now"),
   hours: jsonb("hours").$type<string[]>(),
-  searchTerms: text("search_terms"), // Preprocessed search terms for full-text search
+  searchTerms: text("search_terms"),
   isRegistered: boolean("is_registered").default(false),
   lastUpdated: timestamp("last_updated").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Search Cache - Cache search patterns and results
-export const searchCache = pgTable("search_cache", {
-  id: serial("id").primaryKey(),
-  queryHash: text("query_hash").unique().notNull(),
-  originalQuery: text("original_query").notNull(),
-  category: text("category"),
-  location: text("location").default("Lima, Peru"),
-  businessIds: text("business_ids").array(), // Array of place_ids found
-  totalResults: integer("total_results").default(0),
-  googleApiCalls: integer("google_api_calls").default(0), // Track API usage
-  lastFetched: timestamp("last_fetched").defaultNow(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -288,15 +275,9 @@ export const insertBusinessSettingsSchema = createInsertSchema(businessSettings)
   updatedAt: true,
 });
 
-export const insertCachedGoogleBusinessSchema = createInsertSchema(cachedGoogleBusinesses).omit({
+export const insertApifyBusinessSchema = createInsertSchema(apifyBusinesses).omit({
   id: true,
   lastUpdated: true,
-  createdAt: true,
-});
-
-export const insertSearchCacheSchema = createInsertSchema(searchCache).omit({
-  id: true,
-  lastFetched: true,
   createdAt: true,
 });
 
@@ -328,8 +309,5 @@ export type InsertReview = z.infer<typeof insertReviewSchema>;
 export type BusinessSettings = typeof businessSettings.$inferSelect;
 export type InsertBusinessSettings = z.infer<typeof insertBusinessSettingsSchema>;
 
-export type CachedGoogleBusiness = typeof cachedGoogleBusinesses.$inferSelect;
-export type InsertCachedGoogleBusiness = z.infer<typeof insertCachedGoogleBusinessSchema>;
-
-export type SearchCache = typeof searchCache.$inferSelect;
-export type InsertSearchCache = z.infer<typeof insertSearchCacheSchema>;
+export type ApifyBusiness = typeof apifyBusinesses.$inferSelect;
+export type InsertApifyBusiness = z.infer<typeof insertApifyBusinessSchema>;

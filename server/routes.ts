@@ -308,30 +308,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let googlePlaces = [];
       
-      // Search cached businesses from Apify scraping only
-      console.log('🔍 Searching Apify cached businesses');
-      const cachedBusinesses = await storage.searchCachedGoogleBusinesses(query, category as string);
-      console.log(`📁 Found ${cachedBusinesses.length} cached businesses from Apify`);
+      // Search Apify businesses only
+      console.log('🔍 Searching Apify businesses');
+      const apifyBusinesses = await storage.searchApifyBusinesses(query, category as string);
+      console.log(`📁 Found ${apifyBusinesses.length} businesses from Apify`);
       
       // Convert to expected format
-      googlePlaces = cachedBusinesses.map(cached => ({
-        id: cached.placeId,
-        name: cached.name,
-        address: cached.address,
-        category: cached.category,
-        rating: parseFloat(cached.rating || '0'),
-        reviewCount: cached.reviewCount || 0,
-        priceLevel: cached.priceLevel || 0,
-        phone: cached.phone || undefined,
-        website: cached.website || undefined,
-        photoUrl: cached.photoUrl || undefined,
+      googlePlaces = apifyBusinesses.map(business => ({
+        id: business.placeId,
+        name: business.name,
+        address: business.address,
+        category: business.category,
+        rating: parseFloat(business.rating || '0'),
+        reviewCount: business.reviewCount || 0,
+        priceLevel: business.priceLevel || 0,
+        phone: business.phone || undefined,
+        website: business.website || undefined,
+        photoUrl: business.photoUrl || undefined,
         location: {
-          lat: parseFloat(cached.latitude),
-          lng: parseFloat(cached.longitude),
+          lat: parseFloat(business.latitude || '0'),
+          lng: parseFloat(business.longitude || '0'),
         },
-        openNow: cached.openNow || undefined,
-        hours: cached.hours || undefined,
-        isRegistered: cached.isRegistered || false,
+        openNow: business.openNow || undefined,
+        hours: business.hours || undefined,
+        isRegistered: business.isRegistered || false,
         type: "apify"
       }));
       
@@ -559,22 +559,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { placeId } = req.params;
       
-      // Check cached businesses first
-      const cachedBusiness = await storage.getCachedGoogleBusiness(placeId);
+      // Check Apify businesses
+      const apifyBusiness = await storage.getApifyBusiness(placeId);
       
-      if (cachedBusiness) {
+      if (apifyBusiness) {
         res.json({
-          name: cachedBusiness.name,
-          address: cachedBusiness.address,
-          phone: cachedBusiness.phone,
-          website: cachedBusiness.website,
-          rating: cachedBusiness.rating,
-          reviewCount: cachedBusiness.reviewCount,
-          photoUrl: cachedBusiness.photoUrl,
-          hours: cachedBusiness.hours,
-          category: cachedBusiness.category,
-          latitude: cachedBusiness.latitude,
-          longitude: cachedBusiness.longitude
+          name: apifyBusiness.name,
+          address: apifyBusiness.address,
+          phone: apifyBusiness.phone,
+          website: apifyBusiness.website,
+          rating: apifyBusiness.rating,
+          reviewCount: apifyBusiness.reviewCount,
+          photoUrl: apifyBusiness.photoUrl,
+          hours: apifyBusiness.hours,
+          category: apifyBusiness.category,
+          latitude: apifyBusiness.latitude,
+          longitude: apifyBusiness.longitude
         });
         return;
       }
@@ -623,7 +623,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isRegistered: false
           };
           
-          await storage.cacheBusiness(cacheData);
+          await storage.addApifyBusiness(cacheData);
           processed++;
         } catch (error) {
           console.error(`❌ Error processing business: ${error.message}`);
