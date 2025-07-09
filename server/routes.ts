@@ -676,14 +676,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return 'servicios';
   }
 
-  // Cache management endpoint
-  app.post("/api/cache/clean", async (req, res) => {
+  // Wave-based scraping endpoints
+  app.get("/api/apify/waves", async (req, res) => {
     try {
-      await storage.cleanExpiredCache();
-      res.json({ message: "Cache limpiado exitosamente" });
+      const { apifyWaveScraper } = await import('./apify-wave-scraper.js');
+      const waves = apifyWaveScraper.getWaveConfigs();
+      const progress = apifyWaveScraper.getAllProgress();
+      const stats = apifyWaveScraper.getSummaryStats();
+      
+      res.json({
+        waves: waves.map(wave => ({
+          ...wave,
+          progress: progress.get(wave.id) || { status: 'pending', businessesFound: 0, businessesProcessed: 0, creditsUsed: 0, errors: [] }
+        })),
+        summary: stats
+      });
     } catch (error) {
-      console.error("Error cleaning cache:", error);
-      res.status(500).json({ message: "Error limpiando cache" });
+      console.error("Error getting wave status:", error);
+      res.status(500).json({ message: "Error obteniendo estado de las olas" });
+    }
+  });
+
+  app.post("/api/apify/waves/:waveId/execute", async (req, res) => {
+    try {
+      const { waveId } = req.params;
+      const { apifyWaveScraper } = await import('./apify-wave-scraper.js');
+      
+      // Start wave execution in background
+      res.json({
+        success: true,
+        message: `Wave ${waveId} started in background`,
+        waveId
+      });
+
+      // Execute wave asynchronously
+      apifyWaveScraper.executeWave(waveId).then(result => {
+        console.log(`🎉 Wave ${waveId} completed:`, result);
+      }).catch(error => {
+        console.error(`❌ Wave ${waveId} failed:`, error);
+      });
+
+    } catch (error) {
+      console.error("Error starting wave:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Error iniciando ola de scraping",
+        error: error.message 
+      });
+    }
+  });
+
+  app.post("/api/apify/waves/execute-all", async (req, res) => {
+    try {
+      const { apifyWaveScraper } = await import('./apify-wave-scraper.js');
+      
+      res.json({
+        success: true,
+        message: "All waves started in background - this will take several hours",
+        estimatedDuration: "4-6 hours",
+        targetBusinesses: 10000
+      });
+
+      // Execute all waves asynchronously
+      apifyWaveScraper.executeAllWaves().then(results => {
+        console.log('🎉 All waves completed:', results);
+      }).catch(error => {
+        console.error('❌ Wave execution failed:', error);
+      });
+
+    } catch (error) {
+      console.error("Error starting all waves:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Error iniciando todas las olas",
+        error: error.message 
+      });
     }
   });
 
