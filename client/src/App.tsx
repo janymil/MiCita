@@ -26,6 +26,7 @@ import Services from "@/pages/dashboard/services";
 import Analytics from "@/pages/dashboard/analytics";
 import Finanzas from "@/pages/dashboard/finanzas";
 import Settings from "@/pages/dashboard/settings";
+import Networking from "@/pages/networking";
 
 // Admin pages
 import AdminLogin from "@/pages/admin/login";
@@ -53,6 +54,7 @@ function Router() {
       <Route path="/dashboard/analytics" component={Analytics} />
       <Route path="/dashboard/finanzas" component={Finanzas} />
       <Route path="/dashboard/configuracion" component={Settings} />
+      <Route path="/dashboard/networking" component={Networking} />
 
       {/* Admin routes */}
       <Route path="/admin" component={AdminLogin} />

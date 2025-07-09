@@ -311,12 +311,230 @@ export const insertApifyBusinessSchema = createInsertSchema(apifyBusinesses).omi
   createdAt: true,
 });
 
+
+
+// Business Networking Tables
+
+// Business connections/partnerships
+export const businessConnections = pgTable("business_connections", {
+  id: serial("id").primaryKey(),
+  requesterId: serial("requester_id").references(() => businesses.id),
+  recipientId: serial("recipient_id").references(() => businesses.id),
+  status: text("status").notNull().default("pending"), // pending, accepted, rejected, blocked
+  connectionType: text("connection_type").notNull().default("general"), // general, partnership, referral, collaboration
+  message: text("message"), // Message when requesting connection
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Business networking posts/opportunities
+export const networkingPosts = pgTable("networking_posts", {
+  id: serial("id").primaryKey(),
+  businessId: serial("business_id").references(() => businesses.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  postType: text("post_type").notNull().default("opportunity"), // opportunity, collaboration, referral, announcement, question
+  category: text("category"), // Categories like: marketing, services, events, jobs, partnerships
+  tags: jsonb("tags").$type<string[]>().default([]),
+  attachments: jsonb("attachments").$type<string[]>().default([]), // URLs to attached files/images
+  targetAudience: text("target_audience").default("all"), // all, connections, specific_categories
+  isActive: boolean("is_active").default(true),
+  viewCount: integer("view_count").default(0),
+  likeCount: integer("like_count").default(0),
+  commentCount: integer("comment_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Comments on networking posts
+export const networkingComments = pgTable("networking_comments", {
+  id: serial("id").primaryKey(),
+  postId: serial("post_id").references(() => networkingPosts.id),
+  businessId: serial("business_id").references(() => businesses.id),
+  content: text("content").notNull(),
+  parentId: serial("parent_id").references(() => networkingComments.id), // For nested comments
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Likes on networking posts
+export const networkingLikes = pgTable("networking_likes", {
+  id: serial("id").primaryKey(),
+  postId: serial("post_id").references(() => networkingPosts.id),
+  businessId: serial("business_id").references(() => businesses.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Business collaboration projects
+export const collaborationProjects = pgTable("collaboration_projects", {
+  id: serial("id").primaryKey(),
+  creatorId: serial("creator_id").references(() => businesses.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  projectType: text("project_type").notNull(), // joint_marketing, cross_promotion, shared_services, event_collaboration
+  status: text("status").notNull().default("open"), // open, in_progress, completed, cancelled
+  requiredSkills: jsonb("required_skills").$type<string[]>().default([]),
+  budget: decimal("budget", { precision: 10, scale: 2 }),
+  timeline: text("timeline"), // Expected timeline
+  maxParticipants: integer("max_participants").default(10),
+  currentParticipants: integer("current_participants").default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Participants in collaboration projects
+export const collaborationParticipants = pgTable("collaboration_participants", {
+  id: serial("id").primaryKey(),
+  projectId: serial("project_id").references(() => collaborationProjects.id),
+  businessId: serial("business_id").references(() => businesses.id),
+  role: text("role").default("participant"), // creator, participant, contributor
+  joinedAt: timestamp("joined_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+});
+
+// Business referrals
+export const businessReferrals = pgTable("business_referrals", {
+  id: serial("id").primaryKey(),
+  referrerId: serial("referrer_id").references(() => businesses.id),
+  referredBusinessId: serial("referred_business_id").references(() => businesses.id),
+  clientName: text("client_name").notNull(),
+  clientEmail: text("client_email"),
+  clientPhone: text("client_phone"),
+  serviceNeeded: text("service_needed").notNull(),
+  referralNotes: text("referral_notes"),
+  status: text("status").notNull().default("pending"), // pending, accepted, completed, declined
+  commission: decimal("commission", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Business networking events
+export const networkingEvents = pgTable("networking_events", {
+  id: serial("id").primaryKey(),
+  organizerId: serial("organizer_id").references(() => businesses.id),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  eventType: text("event_type").notNull(), // workshop, meetup, webinar, conference, social
+  venue: text("venue"),
+  address: text("address"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  maxAttendees: integer("max_attendees"),
+  currentAttendees: integer("current_attendees").default(0),
+  ticketPrice: decimal("ticket_price", { precision: 10, scale: 2 }).default("0"),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Event attendees
+export const eventAttendees = pgTable("event_attendees", {
+  id: serial("id").primaryKey(),
+  eventId: serial("event_id").references(() => networkingEvents.id),
+  businessId: serial("business_id").references(() => businesses.id),
+  attendeeStatus: text("attendee_status").notNull().default("registered"), // registered, attended, cancelled
+  registeredAt: timestamp("registered_at").defaultNow(),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Business = typeof businesses.$inferSelect;
 export type InsertBusiness = z.infer<typeof insertBusinessSchema>;
+
+export type BusinessConnection = typeof businessConnections.$inferSelect;
+export type InsertBusinessConnection = z.infer<typeof insertBusinessConnectionSchema>;
+
+export type NetworkingPost = typeof networkingPosts.$inferSelect;
+export type InsertNetworkingPost = z.infer<typeof insertNetworkingPostSchema>;
+
+export type NetworkingComment = typeof networkingComments.$inferSelect;
+export type InsertNetworkingComment = z.infer<typeof insertNetworkingCommentSchema>;
+
+export type NetworkingLike = typeof networkingLikes.$inferSelect;
+export type InsertNetworkingLike = z.infer<typeof insertNetworkingLikeSchema>;
+
+export type CollaborationProject = typeof collaborationProjects.$inferSelect;
+export type InsertCollaborationProject = z.infer<typeof insertCollaborationProjectSchema>;
+
+export type CollaborationParticipant = typeof collaborationParticipants.$inferSelect;
+export type InsertCollaborationParticipant = z.infer<typeof insertCollaborationParticipantSchema>;
+
+export type BusinessReferral = typeof businessReferrals.$inferSelect;
+export type InsertBusinessReferral = z.infer<typeof insertBusinessReferralSchema>;
+
+export type NetworkingEvent = typeof networkingEvents.$inferSelect;
+export type InsertNetworkingEvent = z.infer<typeof insertNetworkingEventSchema>;
+
+export type EventAttendee = typeof eventAttendees.$inferSelect;
+export type InsertEventAttendee = z.infer<typeof insertEventAttendeeSchema>;
+
+// Insert schemas for networking tables
+export const insertBusinessConnectionSchema = createInsertSchema(businessConnections).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNetworkingPostSchema = createInsertSchema(networkingPosts).omit({
+  id: true,
+  businessId: true,
+  viewCount: true,
+  likeCount: true,
+  commentCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNetworkingCommentSchema = createInsertSchema(networkingComments).omit({
+  id: true,
+  businessId: true,
+  createdAt: true,
+});
+
+export const insertNetworkingLikeSchema = createInsertSchema(networkingLikes).omit({
+  id: true,
+  businessId: true,
+  createdAt: true,
+});
+
+export const insertCollaborationProjectSchema = createInsertSchema(collaborationProjects).omit({
+  id: true,
+  creatorId: true,
+  currentParticipants: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCollaborationParticipantSchema = createInsertSchema(collaborationParticipants).omit({
+  id: true,
+  businessId: true,
+  joinedAt: true,
+});
+
+export const insertBusinessReferralSchema = createInsertSchema(businessReferrals).omit({
+  id: true,
+  referrerId: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertNetworkingEventSchema = createInsertSchema(networkingEvents).omit({
+  id: true,
+  organizerId: true,
+  currentAttendees: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({
+  id: true,
+  businessId: true,
+  registeredAt: true,
+});
 
 export type Service = typeof services.$inferSelect;
 export type InsertService = z.infer<typeof insertServiceSchema>;

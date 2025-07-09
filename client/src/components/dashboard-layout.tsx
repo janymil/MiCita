@@ -10,7 +10,8 @@ import {
   Settings, 
   LogOut,
   Search,
-  DollarSign
+  DollarSign,
+  Network
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ const navigation = [
   { name: "Servicios", href: "/dashboard/servicios", icon: Package },
   { name: "Finanzas", href: "/dashboard/finanzas", icon: DollarSign },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  { name: "Networking", href: "/dashboard/networking", icon: Network },
   { name: "Configuración", href: "/dashboard/configuracion", icon: Settings },
 ];
 

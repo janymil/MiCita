@@ -8,6 +8,15 @@ import {
   publicBusinesses, 
   reviews, 
   businessSettings,
+  businessConnections,
+  networkingPosts,
+  networkingComments,
+  networkingLikes,
+  collaborationProjects,
+  collaborationParticipants,
+  businessReferrals,
+  networkingEvents,
+  eventAttendees,
   type User, 
   type InsertUser,
   type Business,
@@ -27,7 +36,25 @@ import {
   type BusinessSettings,
   type InsertBusinessSettings,
   type ApifyBusiness,
-  type InsertApifyBusiness
+  type InsertApifyBusiness,
+  type BusinessConnection,
+  type InsertBusinessConnection,
+  type NetworkingPost,
+  type InsertNetworkingPost,
+  type NetworkingComment,
+  type InsertNetworkingComment,
+  type NetworkingLike,
+  type InsertNetworkingLike,
+  type CollaborationProject,
+  type InsertCollaborationProject,
+  type CollaborationParticipant,
+  type InsertCollaborationParticipant,
+  type BusinessReferral,
+  type InsertBusinessReferral,
+  type NetworkingEvent,
+  type InsertNetworkingEvent,
+  type EventAttendee,
+  type InsertEventAttendee
 } from "@shared/schema";
 
 export interface IStorage {
@@ -89,6 +116,62 @@ export interface IStorage {
   getApifyBusiness(placeId: string): Promise<ApifyBusiness | undefined>;
   searchApifyBusinesses(query: string, category?: string): Promise<ApifyBusiness[]>;
   addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness>;
+  
+  // Business Connections
+  getBusinessConnections(businessId: number): Promise<BusinessConnection[]>;
+  getConnectionRequests(businessId: number): Promise<BusinessConnection[]>;
+  createConnectionRequest(connection: InsertBusinessConnection): Promise<BusinessConnection>;
+  updateConnectionStatus(connectionId: number, status: string): Promise<BusinessConnection>;
+  deleteConnection(connectionId: number): Promise<void>;
+  
+  // Networking Posts
+  getNetworkingPosts(businessId?: number, category?: string): Promise<NetworkingPost[]>;
+  getNetworkingPost(id: number): Promise<NetworkingPost | undefined>;
+  createNetworkingPost(post: InsertNetworkingPost & { businessId: number }): Promise<NetworkingPost>;
+  updateNetworkingPost(id: number, post: Partial<InsertNetworkingPost>): Promise<NetworkingPost>;
+  deleteNetworkingPost(id: number): Promise<void>;
+  incrementPostViews(id: number): Promise<void>;
+  
+  // Networking Comments
+  getNetworkingComments(postId: number): Promise<NetworkingComment[]>;
+  createNetworkingComment(comment: InsertNetworkingComment & { businessId: number }): Promise<NetworkingComment>;
+  deleteNetworkingComment(id: number): Promise<void>;
+  
+  // Networking Likes
+  getNetworkingLikes(postId: number): Promise<NetworkingLike[]>;
+  createNetworkingLike(like: InsertNetworkingLike & { businessId: number }): Promise<NetworkingLike>;
+  deleteNetworkingLike(postId: number, businessId: number): Promise<void>;
+  
+  // Collaboration Projects
+  getCollaborationProjects(businessId?: number, status?: string): Promise<CollaborationProject[]>;
+  getCollaborationProject(id: number): Promise<CollaborationProject | undefined>;
+  createCollaborationProject(project: InsertCollaborationProject & { creatorId: number }): Promise<CollaborationProject>;
+  updateCollaborationProject(id: number, project: Partial<InsertCollaborationProject>): Promise<CollaborationProject>;
+  deleteCollaborationProject(id: number): Promise<void>;
+  
+  // Collaboration Participants
+  getCollaborationParticipants(projectId: number): Promise<CollaborationParticipant[]>;
+  createCollaborationParticipant(participant: InsertCollaborationParticipant & { businessId: number }): Promise<CollaborationParticipant>;
+  deleteCollaborationParticipant(projectId: number, businessId: number): Promise<void>;
+  
+  // Business Referrals
+  getBusinessReferrals(businessId: number): Promise<BusinessReferral[]>;
+  getReceivedReferrals(businessId: number): Promise<BusinessReferral[]>;
+  createBusinessReferral(referral: InsertBusinessReferral & { referrerId: number }): Promise<BusinessReferral>;
+  updateReferralStatus(id: number, status: string): Promise<BusinessReferral>;
+  
+  // Networking Events
+  getNetworkingEvents(businessId?: number): Promise<NetworkingEvent[]>;
+  getNetworkingEvent(id: number): Promise<NetworkingEvent | undefined>;
+  createNetworkingEvent(event: InsertNetworkingEvent & { organizerId: number }): Promise<NetworkingEvent>;
+  updateNetworkingEvent(id: number, event: Partial<InsertNetworkingEvent>): Promise<NetworkingEvent>;
+  deleteNetworkingEvent(id: number): Promise<void>;
+  
+  // Event Attendees
+  getEventAttendees(eventId: number): Promise<EventAttendee[]>;
+  createEventAttendee(attendee: InsertEventAttendee & { businessId: number }): Promise<EventAttendee>;
+  updateAttendeeStatus(eventId: number, businessId: number, status: string): Promise<EventAttendee>;
+  deleteEventAttendee(eventId: number, businessId: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
