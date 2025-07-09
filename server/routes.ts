@@ -351,15 +351,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Calculate how many results we need for this page
         const resultsNeeded = currentPage * resultsPerPage;
         
-        // If we need more results than typically cached (60), fetch fresh with broader coverage
+        // If we need more results than typically cached (60), fetch fresh with multi-district coverage
         if (resultsNeeded > 60) {
-          console.log(`📄 Page ${currentPage} needs ${resultsNeeded} results - fetching fresh from Google Places with broader coverage`);
-          // Clear old cache and fetch fresh results with expanded geographic coverage
-          googlePlaces = await googlePlacesService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
+          console.log(`📄 Page ${currentPage} needs ${resultsNeeded} results - fetching fresh from Google Places with multi-district coverage`);
+          // Use direct Google Places service for broader Lima district coverage
+          const location = city as string || 'Lima, Peru';
+          console.log(`🌍 Direct call to Google Places service for location: ${location}`);
+          googlePlaces = await googlePlacesService.searchBusinesses(query, category as string, location);
           
           // Cache these new broader results for future use
           if (googlePlaces.length > 60) {
-            console.log(`💾 Caching ${googlePlaces.length} fresh results from expanded search`);
+            console.log(`💾 Caching ${googlePlaces.length} fresh results from multi-district search`);
           }
         } else {
           googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
