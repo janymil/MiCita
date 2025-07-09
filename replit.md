@@ -229,6 +229,17 @@ Changelog:
   - Replaced problematic hover tooltips with reliable click-triggered modal system
   - Enhanced scraping provides 20% cost increase for significantly improved data quality
   - Ready for production deployment with maximum contact information coverage
+- July 09, 2025: INTELLIGENT SEARCH ENHANCEMENT FOR 491 EXISTING BUSINESSES:
+  - Successfully enhanced search terms for all 491 Apify businesses using comprehensive keyword generation
+  - Implemented advanced search term categories: business name variations, category keywords, location terms, service indicators
+  - Added intelligent query analysis with category hints detection (belleza, salud, fitness, gastronomia)
+  - Fixed database query performance issues and SQL parameter binding problems
+  - Corrected frontend display by setting proper business type for Apify results
+  - Achieved dramatic search improvement: 387 salons found for "salon", 365 for "peluqueria"
+  - Enhanced relevance scoring with rating, review count, and contact information bonuses
+  - Search performance: 220-4000ms response times with comprehensive filtering capabilities
+  - Maintained clean separation: Scraper handles data collection, Search Engine handles local database queries
+  - System now operates with enhanced discoverability while maintaining zero external API dependencies
 
 ## PRD Implementation Status
 
