@@ -96,6 +96,8 @@ router.get('/businesses', async (req, res) => {
       page, limit, search, category, subcategory, status, sortBy, sortOrder
     });
     
+    console.log('🔍 Raw query params:', req.query);
+    
     const offset = (page - 1) * limit;
     
     // Build query conditions
@@ -112,6 +114,7 @@ router.get('/businesses', async (req, res) => {
     }
     
     if (subcategory) {
+      console.log('🎯 Adding subcategory filter:', subcategory);
       conditions.push(eq(apifyBusinesses.subcategory, subcategory));
     }
     
@@ -143,6 +146,12 @@ router.get('/businesses', async (req, res) => {
       : businessQuery.orderBy(desc(sortColumn));
     
     const businesses = await businessQuery.limit(limit).offset(offset);
+    
+    console.log('📊 Query results:', {
+      totalConditions: conditions.length,
+      resultCount: businesses.length,
+      hasSubcategoryFilter: !!subcategory
+    });
     
     // Count query
     let countQuery = db.select({ count: count() }).from(apifyBusinesses);
