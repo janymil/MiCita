@@ -147,13 +147,13 @@ export class FoursquareApiService {
         limit: limit.toString()
       });
       
-      // Add location
+      // Add location - use ll (latitude,longitude) format for v3 API
       if (location.includes(',')) {
         // If it's coordinates
         params.append('ll', location);
       } else {
-        // If it's a place name
-        params.append('near', location);
+        // If it's a place name, convert to Lima coordinates
+        params.append('ll', '-12.05,-77.05'); // Lima center coordinates
       }
       
       // Add query
@@ -238,6 +238,9 @@ export class FoursquareApiService {
       console.log('⚠️ Foursquare API key not configured - returning businesses without enrichment');
       return businesses;
     }
+
+    console.log('ℹ️ Foursquare API temporarily disabled due to endpoint deprecation - using OSM data only');
+    return businesses; // Return businesses as-is for now
 
     console.log(`🔄 Enriching ${Math.min(businesses.length, 20)} businesses with Foursquare data`);
     
