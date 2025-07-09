@@ -825,12 +825,11 @@ export default function SearchPage() {
                     <div 
                       key={`business-${business.id}`} 
                       className="group cursor-pointer relative"
-                      title={`${business.name} - ${business.address}${business.phone ? ' - Tel: ' + business.phone : ''}${business.website ? ' - ' + business.website : ''}`}
                     >
                       <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                         
                         {/* Enhanced Hover Business Card */}
-                        <div className="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out group-hover:delay-500 transform scale-95 group-hover:scale-100 -top-4 left-full ml-6">
+                        <div className="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out group-hover:delay-200 transform scale-95 group-hover:scale-100 -top-4 left-full ml-6 pointer-events-none">
                           <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden w-80 max-w-sm">
                             {/* Card Header with Image */}
                             <div className="relative h-32 bg-gradient-to-br from-red-500 to-red-600">
