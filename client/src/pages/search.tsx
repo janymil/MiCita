@@ -113,7 +113,8 @@ export default function SearchPage() {
       sortBy,
       mapFilterEnabled ? debouncedMapBounds?.toString() : null,
       currentPage,
-      resultsPerPage
+      resultsPerPage,
+      viewMode // Add viewMode to trigger refetch when switching to map view
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -128,7 +129,8 @@ export default function SearchPage() {
       if (hasEmail) params.append("hasEmail", "true");
       if (sortBy !== "relevance") params.append("sort", sortBy);
       params.append("page", currentPage.toString());
-      params.append("limit", resultsPerPage.toString());
+      // Use higher limit for map view to show all businesses on map
+      params.append("limit", viewMode === "map" ? "500" : resultsPerPage.toString());
       
       // Add map bounds if map filter is enabled and we have debounced bounds
       if (mapFilterEnabled && debouncedMapBounds) {
