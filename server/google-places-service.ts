@@ -136,6 +136,92 @@ export class GooglePlacesService {
     return 'servicios'; // Default category
   }
 
+  // Multi-district search strategy for Lima to get broader coverage
+  async searchLimaDistricts(query: string, category?: string): Promise<BusinessFromPlaces[]> {
+    const limaDistricts = [
+      'Lima Centro, Lima, Peru',
+      'Miraflores, Lima, Peru', 
+      'San Isidro, Lima, Peru',
+      'Surco, Lima, Peru',
+      'La Molina, Lima, Peru',
+      'San Juan de Lurigancho, Lima, Peru',
+      'Villa El Salvador, Lima, Peru',
+      'Ate, Lima, Peru',
+      'Comas, Lima, Peru',
+      'San Martin de Porres, Lima, Peru'
+    ];
+
+    const allBusinesses: BusinessFromPlaces[] = [];
+    const uniqueBusinesses = new Set<string>();
+
+    console.log(`🔍 Searching ${limaDistricts.length} Lima districts for: "${query}"`);
+
+    for (const district of limaDistricts) {
+      try {
+        const searchQuery = `${query} ${district}`;
+        const url = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es&region=pe`;
+        
+        const response = await fetch(url);
+        const data: GooglePlacesSearchResponse = await response.json();
+
+        if (data.status === 'OK') {
+          console.log(`📍 ${district}: Found ${data.results.length} results`);
+          
+          for (const place of data.results) {
+            // Skip duplicates using place_id
+            if (uniqueBusinesses.has(place.place_id)) {
+              continue;
+            }
+            uniqueBusinesses.add(place.place_id);
+
+            // Filter by category if specified
+            if (category && !place.types.some(type => this.getCategoryTypes(category).includes(type))) {
+              continue;
+            }
+
+            let photoUrl = '';
+            if (place.photos && place.photos.length > 0) {
+              photoUrl = `${this.baseUrl}/photo?maxwidth=400&photoreference=${place.photos[0].photo_reference}&key=${this.apiKey}`;
+            }
+
+            const business: BusinessFromPlaces = {
+              id: place.place_id,
+              name: place.name,
+              address: place.formatted_address,
+              category: this.mapToOurCategory(place.types),
+              rating: place.rating || 0,
+              reviewCount: place.user_ratings_total || 0,
+              priceLevel: place.price_level || 0,
+              phone: place.formatted_phone_number || undefined,
+              website: place.website || undefined,
+              photoUrl,
+              location: {
+                lat: place.geometry.location.lat,
+                lng: place.geometry.location.lng
+              },
+              openNow: place.opening_hours?.open_now || undefined,
+              hours: place.opening_hours?.weekday_text || undefined,
+              isRegistered: false
+            };
+
+            allBusinesses.push(business);
+          }
+        } else {
+          console.log(`❌ ${district}: API error - ${data.status}`);
+        }
+
+        // Add small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`Error searching district ${district}:`, error);
+      }
+    }
+
+    console.log(`✅ Multi-district search complete: Found ${allBusinesses.length} unique businesses across Lima`);
+    return allBusinesses;
+  }
+
   async searchBusinesses(query: string, category?: string, location = 'Lima, Peru'): Promise<BusinessFromPlaces[]> {
     if (!this.apiKey) {
       console.error('Google Places API not configured');
@@ -171,15 +257,10 @@ export class GooglePlacesService {
       const locationParam = location === 'Lima, Peru' ? 'Lima, Peru' : location;
       let searchUrl = '';
       
-      // For Lima, use nearby search with coordinates to get broader coverage
+      // For Lima, use multi-district search strategy to get broader coverage
       if (location === 'Lima, Peru') {
-        // Lima center coordinates for broader metropolitan area coverage
-        const limaLat = -12.0464;
-        const limaLng = -77.0428;
-        const radius = 25000; // 25km radius to cover greater Lima area
-        
-        searchUrl = `${this.baseUrl}/nearbysearch/json?location=${limaLat},${limaLng}&radius=${radius}&keyword=${encodeURIComponent(searchQuery)}&key=${this.apiKey}&language=es`;
-        console.log(`🌍 Using nearby search for Lima with 25km radius (broader coverage)`);
+        console.log(`🌍 Using multi-district search strategy for comprehensive Lima coverage`);
+        return await this.searchLimaDistricts(searchQuery, category);
       } else {
         // Fallback to text search for other locations
         searchUrl = `${this.baseUrl}/textsearch/json?query=${encodeURIComponent(searchQuery + ' ' + locationParam)}&key=${this.apiKey}&language=es&region=pe`;
@@ -195,7 +276,7 @@ export class GooglePlacesService {
         let url = searchUrl;
         if (nextPageToken) {
           // For pagination, use the base URL with pagetoken
-          url = `${this.baseUrl}/nearbysearch/json?pagetoken=${nextPageToken}&key=${this.apiKey}`;
+          url = `${this.baseUrl}/textsearch/json?pagetoken=${nextPageToken}&key=${this.apiKey}`;
         }
 
         console.log(`Searching Google Places (Request ${requestCount + 1}/${maxRequests})`);
