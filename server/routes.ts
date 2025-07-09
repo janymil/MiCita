@@ -379,7 +379,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         openNow: business.openNow || undefined,
         hours: business.hours || undefined,
         isRegistered: business.isRegistered || false,
-        type: "apify"
+        type: "google"
       }));
 
       // Add registered businesses (if any)
