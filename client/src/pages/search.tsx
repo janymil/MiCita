@@ -32,16 +32,26 @@ export default function SearchPage() {
   // Get available districts for selected city
   const availableDistricts = selectedCity && CITY_DISTRICTS[selectedCity] ? CITY_DISTRICTS[selectedCity] : [];
   
-  // Fetch subcategories for selected category
-  const { data: subcategories = [] } = useQuery({
+  // Fetch subcategories for selected category with counts
+  const { data: subcategoriesData = [] } = useQuery({
     queryKey: ["/api/subcategories", selectedCategory],
     queryFn: async () => {
       if (!selectedCategory || selectedCategory === "all") return [];
-      const response = await fetch(`/api/subcategories/${selectedCategory}`);
+      const response = await fetch(`/api/subcategories/${selectedCategory}?includeCounts=true`);
       if (!response.ok) return [];
       return response.json();
     },
     enabled: selectedCategory && selectedCategory !== "all",
+  });
+
+  // Fetch category counts
+  const { data: categoryCounts = {} } = useQuery({
+    queryKey: ["/api/categories/counts"],
+    queryFn: async () => {
+      const response = await fetch('/api/categories/counts');
+      if (!response.ok) return {};
+      return response.json();
+    },
   });
   
   // Reset district when city changes
@@ -637,7 +647,7 @@ export default function SearchPage() {
                           <SelectItem value="all">Todas las categorías</SelectItem>
                           {BUSINESS_CATEGORIES.map((category) => (
                             <SelectItem key={category.id} value={category.id}>
-                              {category.name}
+                              {category.name} {categoryCounts[category.id] ? `(${categoryCounts[category.id]})` : ''}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -652,22 +662,22 @@ export default function SearchPage() {
                       <Select 
                         value={selectedSubcategory} 
                         onValueChange={setSelectedSubcategory}
-                        disabled={!selectedCategory || selectedCategory === "all" || subcategories.length === 0}
+                        disabled={!selectedCategory || selectedCategory === "all" || subcategoriesData.length === 0}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder={
                             !selectedCategory || selectedCategory === "all"
                               ? "Selecciona una categoría primero" 
-                              : subcategories.length === 0 
+                              : subcategoriesData.length === 0 
                                 ? "No hay subcategorías disponibles"
                                 : "Todas las subcategorías"
                           } />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todas las subcategorías</SelectItem>
-                          {subcategories.map((subcategory: string) => (
-                            <SelectItem key={subcategory} value={subcategory}>
-                              {subcategory}
+                          {subcategoriesData.map((item: any) => (
+                            <SelectItem key={item.subcategory} value={item.subcategory}>
+                              {item.subcategory} ({item.count})
                             </SelectItem>
                           ))}
                         </SelectContent>

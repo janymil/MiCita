@@ -45,7 +45,7 @@ export default function AdminBusinesses() {
     hasNext: false,
     hasPrev: false
   });
-  
+
   // Filters and search
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -54,12 +54,12 @@ export default function AdminBusinesses() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
-  
+
   // UI state
   const [selectedBusinesses, setSelectedBusinesses] = useState<number[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [editingBusiness, setEditingBusiness] = useState<Business | null>(null);
-  
+
   // Filter options
   const [filterOptions, setFilterOptions] = useState({
     categories: [],
@@ -74,7 +74,7 @@ export default function AdminBusinesses() {
       setLocation('/admin/login');
       return;
     }
-    
+
     fetchBusinesses();
     fetchFilterOptions();
   }, [pagination.page, searchTerm, selectedCategory, selectedSubcategory, selectedStatus, sortBy, sortOrder, setLocation]);
@@ -99,20 +99,20 @@ export default function AdminBusinesses() {
         sortBy,
         sortOrder
       });
-      
+
       if (searchTerm) params.append('search', searchTerm);
       if (selectedCategory) params.append('category', selectedCategory);
       if (selectedSubcategory) params.append('subcategory', selectedSubcategory);
       if (selectedStatus) params.append('status', selectedStatus);
-      
+
       const response = await fetch(`/api/admin/businesses?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) throw new Error('Failed to fetch businesses');
-      
+
       const data = await response.json();
       setBusinesses(data.businesses);
       setPagination(data.pagination);
@@ -131,7 +131,7 @@ export default function AdminBusinesses() {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setFilterOptions(data);
@@ -143,7 +143,7 @@ export default function AdminBusinesses() {
 
   const fetchSubcategories = async (category: string) => {
     try {
-      const response = await fetch(`/api/subcategories/${category}`);
+      const response = await fetch(`/api/subcategories/${category}?includeCounts=true`);
       if (response.ok) {
         const data = await response.json();
         setSubcategories(data);
@@ -187,7 +187,7 @@ export default function AdminBusinesses() {
 
   const deleteBusiness = async (id: number) => {
     if (!confirm('Are you sure you want to delete this business?')) return;
-    
+
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/businesses/${id}`, {
@@ -196,7 +196,7 @@ export default function AdminBusinesses() {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.ok) {
         fetchBusinesses();
       }
@@ -208,7 +208,7 @@ export default function AdminBusinesses() {
   const bulkDelete = async () => {
     if (selectedBusinesses.length === 0) return;
     if (!confirm(`Are you sure you want to delete ${selectedBusinesses.length} businesses?`)) return;
-    
+
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/admin/businesses/bulk-delete', {
@@ -219,7 +219,7 @@ export default function AdminBusinesses() {
         },
         body: JSON.stringify({ ids: selectedBusinesses })
       });
-      
+
       if (response.ok) {
         setSelectedBusinesses([]);
         fetchBusinesses();
@@ -237,7 +237,7 @@ export default function AdminBusinesses() {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -273,7 +273,7 @@ export default function AdminBusinesses() {
   return (
     <div className="min-h-screen bg-gray-50">
       <AdminNav />
-      
+
       {/* Header */}
       <div className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -635,12 +635,12 @@ export default function AdminBusinesses() {
                     >
                       Previous
                     </button>
-                    
+
                     {/* Page numbers */}
                     {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                       const pageNum = Math.max(1, pagination.page - 2) + i;
                       if (pageNum > pagination.totalPages) return null;
-                      
+
                       return (
                         <button
                           key={pageNum}
@@ -655,7 +655,7 @@ export default function AdminBusinesses() {
                         </button>
                       );
                     })}
-                    
+
                     <button
                       disabled={!pagination.hasNext}
                       onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}

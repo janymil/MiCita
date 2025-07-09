@@ -490,8 +490,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/subcategories/:category", async (req, res) => {
     try {
       const { category } = req.params;
-      const subcategories = await storage.getSubcategoriesByCategory(category);
-      res.json(subcategories);
+      const { includeCounts } = req.query;
+      
+      if (includeCounts === 'true') {
+        const subcategoriesWithCounts = await storage.getSubcategoriesByCategory(category, true);
+        res.json(subcategoriesWithCounts);
+      } else {
+        const subcategories = await storage.getSubcategoriesByCategory(category);
+        res.json(subcategories);
+      }
     } catch (error) {
       console.error('❌ Error getting subcategories:', error);
       res.status(500).json({ message: "Error obteniendo subcategorías" });
@@ -506,6 +513,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('❌ Error getting all subcategories:', error);
       res.status(500).json({ message: "Error obteniendo subcategorías" });
+    }
+  });
+
+  // Get category counts
+  app.get("/api/categories/counts", async (req, res) => {
+    try {
+      const categoryCounts = await storage.getCategoryCounts();
+      res.json(categoryCounts);
+    } catch (error) {
+      console.error('❌ Error getting category counts:', error);
+      res.status(500).json({ message: "Error obteniendo conteos de categorías" });
     }
   });
 

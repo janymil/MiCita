@@ -1,4 +1,4 @@
-import { eq, ilike, and, desc, sql, inArray } from "drizzle-orm";
+import { eq, ilike, and, desc, sql, inArray, count } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   users,
@@ -168,7 +168,7 @@ export class DBStorage implements IStorage {
   async deleteClient(id: number): Promise<void> {
     // First delete any appointments associated with this client
     await db.delete(appointments).where(eq(appointments.clientId, id));
-    
+
     // Then delete the client
     await db.delete(clients).where(eq(clients.id, id));
   }
@@ -263,7 +263,7 @@ export class DBStorage implements IStorage {
 
   async updateBusinessSettings(businessId: number, settings: InsertBusinessSettings): Promise<BusinessSettings> {
     const existing = await this.getBusinessSettings(businessId);
-    
+
     if (existing) {
       const result = await db.update(businessSettings)
         .set(settings)
@@ -309,19 +309,38 @@ export class DBStorage implements IStorage {
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(apifyBusinesses.rating))
       .limit(100);
-    
+
     console.log(`🔍 Apify Search: query="${query}", category="${category}", subcategory="${subcategory}", conditions=${whereConditions.length}, results=${result.length}`);
     return result;
   }
 
-  async getSubcategoriesByCategory(category: string): Promise<string[]> {
-    const result = await db.select({ subcategory: apifyBusinesses.subcategory })
-      .from(apifyBusinesses)
-      .where(eq(apifyBusinesses.category, category))
-      .groupBy(apifyBusinesses.subcategory)
-      .orderBy(apifyBusinesses.subcategory);
-    
-    return result.map(r => r.subcategory).filter(Boolean);
+  async getSubcategoriesByCategory(category: string, includeCounts: boolean = false): Promise<string[] | Array<{subcategory: string, count: number}>> {
+    if (includeCounts) {
+      const result = await db.select({ 
+        subcategory: apifyBusinesses.subcategory,
+        count: count()
+      })
+        .from(apifyBusinesses)
+        .where(and(
+          eq(apifyBusinesses.category, category),
+          sql`${apifyBusinesses.subcategory} IS NOT NULL`
+        ))
+        .groupBy(apifyBusinesses.subcategory)
+        .orderBy(apifyBusinesses.subcategory);
+
+      return result.map(r => ({ subcategory: r.subcategory!, count: r.count }));
+    } else {
+      const result = await db.select({ subcategory: apifyBusinesses.subcategory })
+        .from(apifyBusinesses)
+        .where(and(
+          eq(apifyBusinesses.category, category),
+          sql`${apifyBusinesses.subcategory} IS NOT NULL`
+        ))
+        .groupBy(apifyBusinesses.subcategory)
+        .orderBy(apifyBusinesses.subcategory);
+
+      return result.map(r => r.subcategory).filter(Boolean);
+    }
   }
 
   async getAllSubcategories(): Promise<{ category: string; subcategories: string[] }[]> {
@@ -333,7 +352,7 @@ export class DBStorage implements IStorage {
       .where(sql`${apifyBusinesses.subcategory} IS NOT NULL`)
       .groupBy(apifyBusinesses.category, apifyBusinesses.subcategory)
       .orderBy(apifyBusinesses.category, apifyBusinesses.subcategory);
-    
+
     // Group by category
     const grouped = result.reduce((acc, item) => {
       if (!acc[item.category]) {
@@ -344,7 +363,7 @@ export class DBStorage implements IStorage {
       }
       return acc;
     }, {} as { [key: string]: string[] });
-    
+
     return Object.entries(grouped).map(([category, subcategories]) => ({
       category,
       subcategories
