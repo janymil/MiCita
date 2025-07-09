@@ -45,7 +45,7 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
   // Fetch available time slots for selected date
   const { data: availableSlots, isLoading: loadingSlots } = useQuery({
     queryKey: [`/api/appointments/availability/${businessId}`, selectedDate, selectedService],
-    enabled: !!selectedDate && !!selectedService,
+    enabled: Boolean(selectedDate && selectedService),
     queryFn: async () => {
       const response = await fetch(`/api/appointments/availability/${businessId}?date=${selectedDate}&serviceId=${selectedService}`);
       return response.json();

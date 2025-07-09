@@ -12,6 +12,8 @@ import { DBStorage } from "./db-storage.js";
 import { simpleAdminRoutes } from "./simple-admin-routes.js";
 import { adminRoutes } from "./admin-routes.js";
 import networkingRoutes from "./networking-routes.js";
+import { searchAnalytics } from "./search-analytics.js";
+import { searchPersonalization } from "./personalization.js";
 
 
 // Helper function to send email notifications for status changes
@@ -349,7 +351,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasEmail: hasEmail === 'true',
         sortBy: sort as any,
         page: parseInt(page as string),
-        limit: parseInt(limit as string)
+        limit: parseInt(limit as string),
+        bounds: bounds ? JSON.parse(bounds as string) : undefined
       };
 
       const searchResult = await enhancedSearchEngine.search(searchQuery);
@@ -430,20 +433,233 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      // Combine all results with enhanced results first (higher relevance)
-      const combinedResults = [
-        ...businessesWithCustomUrl,
-        ...publicBusinesses.map(p => ({ ...p, type: "public" })),
-        ...formattedResults
+      // Enhanced district detection function
+      const detectDistrictFromBusiness = (business: any): string | null => {
+        // First check if business already has district field (for ApifyBusinesses)
+        if (business.district) {
+          return business.district.toLowerCase();
+        }
+        
+        // District detection from address
+        if (!business.address || typeof business.address !== 'string') {
+          return null;
+        }
+        
+        const addressLower = business.address.toLowerCase();
+        
+        // Lima districts and their variations
+        const LIMA_DISTRICTS = {
+          'miraflores': ['miraflores'],
+          'san juan de miraflores': ['san juan de miraflores', 'sjm'],
+          'san isidro': ['san isidro'],
+          'san miguel': ['san miguel'],
+          'san borja': ['san borja'],
+          'surco': ['surco', 'santiago de surco'],
+          'la molina': ['la molina'],
+          'barranco': ['barranco'],
+          'jesus maria': ['jesus maria', 'jesús maría'],
+          'magdalena del mar': ['magdalena del mar', 'magdalena'],
+          'pueblo libre': ['pueblo libre'],
+          'lince': ['lince'],
+          'breña': ['breña', 'brena'],
+          'callao': ['callao'],
+          'chorrillos': ['chorrillos'],
+          'ate': ['ate', 'ate vitarte'],
+          'comas': ['comas'],
+          'independencia': ['independencia'],
+          'los olivos': ['los olivos'],
+          'san martin de porres': ['san martin de porres', 'san martín de porres', 'smp'],
+          'rimac': ['rimac', 'rímac'],
+          'la victoria': ['la victoria'],
+          'cercado de lima': ['cercado de lima', 'lima cercado', 'lima centro'],
+          'el agustino': ['el agustino'],
+          'santa anita': ['santa anita'],
+          'lurigancho': ['lurigancho', 'lurigancho chosica'],
+          'san juan de lurigancho': ['san juan de lurigancho', 'sjl'],
+          'villa el salvador': ['villa el salvador', 'ves'],
+          'villa maría del triunfo': ['villa maría del triunfo', 'villa maria del triunfo', 'vmt'],
+          'pachacamac': ['pachacamac'],
+          'lurín': ['lurin', 'lurín'],
+          'punta hermosa': ['punta hermosa'],
+          'pucusana': ['pucusana'],
+          'santa maría del mar': ['santa maría del mar', 'santa maria del mar'],
+          'ancón': ['ancon', 'ancón'],
+          'carabayllo': ['carabayllo'],
+          'puente piedra': ['puente piedra'],
+          'santa rosa': ['santa rosa'],
+          'ventanilla': ['ventanilla'],
+          'bellavista': ['bellavista'],
+          'carmen de la legua reynoso': ['carmen de la legua reynoso', 'carmen de la legua'],
+          'la perla': ['la perla'],
+          'la punta': ['la punta'],
+          'surquillo': ['surquillo'],
+          'san luis': ['san luis'],
+          'chaclacayo': ['chaclacayo'],
+          'cieneguilla': ['cieneguilla']
+        };
+        
+        // Look for district patterns in address
+        for (const [district, variations] of Object.entries(LIMA_DISTRICTS)) {
+          for (const variation of variations) {
+            const regex = new RegExp(`\\b${variation.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\b`, 'i');
+            if (regex.test(addressLower)) {
+              // Special handling for Miraflores to exclude San Juan de Miraflores
+              if (district === 'miraflores' && addressLower.includes('san juan')) {
+                continue;
+              }
+              return district;
+            }
+          }
+        }
+        
+        return null;
+      };
+
+      // Unified filtering function that applies to all business types
+      const applyUnifiedFilters = (businesses: any[], searchQuery: any): any[] => {
+        return businesses.filter(business => {
+          // Rating filter - convert string ratings to numbers for comparison
+          if (searchQuery.minRating && searchQuery.minRating > 0) {
+            const rating = parseFloat(business.rating || '0');
+            if (rating < searchQuery.minRating) return false;
+          }
+
+          // Price filter - handle missing priceLevel gracefully
+          if (searchQuery.maxPrice && searchQuery.maxPrice < 5) {
+            const priceLevel = business.priceLevel || 0;
+            if (priceLevel > searchQuery.maxPrice) return false;
+          }
+
+          // Contact filters - check for existence and non-empty values
+          if (searchQuery.hasPhone) {
+            if (!business.phone || business.phone.trim() === '') return false;
+          }
+          
+          if (searchQuery.hasWebsite) {
+            if (!business.website || business.website.trim() === '') return false;
+          }
+          
+          if (searchQuery.hasEmail) {
+            if (!business.email || business.email.trim() === '') return false;
+          }
+
+          // Open now filter - only apply to businesses with openNow data
+          if (searchQuery.openNow) {
+            if (business.type === 'registered' || business.type === 'public') {
+              // For registered/public businesses without openNow data, exclude them
+              // This prevents false positives until business hours are implemented
+              return false;
+            }
+            if (business.openNow !== true) return false;
+          }
+
+          // District filter - enhanced automatic detection
+          if (searchQuery.district && searchQuery.district !== 'all') {
+            const detectedDistrict = detectDistrictFromBusiness(business);
+            const targetDistrict = searchQuery.district.toLowerCase();
+            
+            
+            if (!detectedDistrict || detectedDistrict !== targetDistrict) {
+              return false;
+            }
+          }
+
+          // Map bounds filter - check if business is within specified coordinates
+          if (searchQuery.bounds) {
+            const bounds = typeof searchQuery.bounds === 'string' 
+              ? JSON.parse(searchQuery.bounds) 
+              : searchQuery.bounds;
+              
+            const lat = parseFloat(business.location?.lat || business.latitude || '0');
+            const lng = parseFloat(business.location?.lng || business.longitude || '0');
+            
+            // Skip businesses without location data
+            if (lat === 0 && lng === 0) return false;
+            
+            // Check if business is within bounds
+            if (lat < bounds.south || lat > bounds.north || 
+                lng < bounds.west || lng > bounds.east) {
+              return false;
+            }
+          }
+
+          return true;
+        });
+      };
+
+      // Apply category normalization
+      const normalizeCategory = (category: string): string => {
+        const categoryMap = {
+          'gastronomía': 'gastronomia',
+          'belleza': 'belleza',
+          'salud': 'salud',
+          'fitness': 'fitness',
+          'restaurante': 'gastronomia',
+          'comida': 'gastronomia',
+          'servicios': 'servicios',
+          'automotriz': 'automotriz'
+        };
+        
+        return categoryMap[category.toLowerCase()] || category.toLowerCase();
+      };
+
+      // Normalize categories for all businesses
+      const normalizedResults = [
+        ...businessesWithCustomUrl.map(b => ({ ...b, category: normalizeCategory(b.category) })),
+        ...publicBusinesses.map(p => ({ ...p, category: normalizeCategory(p.category), type: "public" })),
+        ...formattedResults.map(f => ({ ...f, category: normalizeCategory(f.category) }))
       ];
 
+      // Apply unified filters to combined results
+      const filteredResults = applyUnifiedFilters(normalizedResults, searchQuery);
+      
+      // Apply personalization to results
+      const userId = req.headers['x-user-id'] as string || null;
+      const sessionId = req.sessionID || req.headers['x-session-id'] as string || null;
+      const personalizedResults = searchPersonalization.personalizeResults(
+        filteredResults, 
+        userId, 
+        sessionId, 
+        searchQuery
+      );
+
+      console.log('🔍 Filtering results:', {
+        originalCount: normalizedResults.length,
+        filteredCount: filteredResults.length,
+        filters: {
+          minRating: searchQuery.minRating,
+          maxPrice: searchQuery.maxPrice,
+          hasPhone: searchQuery.hasPhone,
+          hasWebsite: searchQuery.hasWebsite,
+          hasEmail: searchQuery.hasEmail,
+          openNow: searchQuery.openNow,
+          district: searchQuery.district
+        }
+      });
+
+      // Debug district filtering if requested
+      if (searchQuery.district === 'miraflores') {
+        console.log('🏙️ Miraflores filtering debug:');
+        normalizedResults.forEach(business => {
+          const detectedDistrict = detectDistrictFromBusiness(business);
+          if (business.address?.toLowerCase().includes('san juan') || business.name.toLowerCase().includes('carsalud')) {
+            console.log(`   ❌ Should be excluded: "${business.name}" (${detectedDistrict}) - ${business.address}`);
+          }
+        });
+        
+        filteredResults.forEach(business => {
+          const detectedDistrict = detectDistrictFromBusiness(business);
+          console.log(`   ✅ Included: "${business.name}" (${detectedDistrict}) - ${business.address}`);
+        });
+      }
+
       res.json({
-        results: combinedResults,
+        results: personalizedResults,
         pagination: {
           currentPage: searchResult.page,
           totalPages: searchResult.totalPages,
           totalResults: searchResult.totalCount,
-          actualResults: searchResult.totalCount,
+          actualResults: personalizedResults.length,
           resultsPerPage: parseInt(limit as string),
           hasNextPage: searchResult.hasMore,
           hasPrevPage: searchResult.page > 1,
@@ -451,35 +667,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         searchMetrics: {
           searchTime: searchResult.searchMetrics.searchTime,
-          totalMatches: searchResult.searchMetrics.totalMatches,
+          totalMatches: filteredResults.length,
           queryAnalysis: searchResult.searchMetrics.queryAnalysis,
           averageRelevanceScore: searchResult.searchMetrics.relevanceScores.length > 0 
             ? (searchResult.searchMetrics.relevanceScores.reduce((a, b) => a + b, 0) / searchResult.searchMetrics.relevanceScores.length).toFixed(1)
-            : 0
+            : 0,
+          filteringApplied: true
         }
       });
+
+      // Track search analytics
+      await searchAnalytics.trackSearch({
+        query: searchQuery.query,
+        category: searchQuery.category,
+        district: searchQuery.district,
+        filters: {
+          minRating: searchQuery.minRating,
+          maxPrice: searchQuery.maxPrice,
+          hasPhone: searchQuery.hasPhone,
+          hasWebsite: searchQuery.hasWebsite,
+          hasEmail: searchQuery.hasEmail,
+          openNow: searchQuery.openNow
+        },
+        resultsCount: filteredResults.length,
+        searchTime: searchResult.searchMetrics.searchTime,
+        userAgent: req.headers['user-agent'],
+        ip: req.ip,
+        sessionId: req.sessionID || req.headers['x-session-id'],
+        userId: userId
+      });
+
+      // Update personalization profiles
+      searchPersonalization.updateUserProfile(userId, {
+        query: searchQuery.query,
+        category: searchQuery.category,
+        district: searchQuery.district,
+        filters: {
+          minRating: searchQuery.minRating,
+          maxPrice: searchQuery.maxPrice,
+          hasPhone: searchQuery.hasPhone,
+          hasWebsite: searchQuery.hasWebsite,
+          hasEmail: searchQuery.hasEmail,
+          openNow: searchQuery.openNow
+        },
+        resultsCount: filteredResults.length
+      });
+      
+      searchPersonalization.updateSessionProfile(sessionId, {
+        query: searchQuery.query,
+        category: searchQuery.category,
+        district: searchQuery.district,
+        resultsCount: filteredResults.length
+      });
+
     } catch (error) {
       console.error('❌ Enhanced search error:', error);
+      
+      // Track failed search
+      await searchAnalytics.trackSearch({
+        query: searchQuery.query,
+        category: searchQuery.category,
+        district: searchQuery.district,
+        filters: {},
+        resultsCount: 0,
+        searchTime: 0,
+        userAgent: req.headers['user-agent'],
+        ip: req.ip,
+        sessionId: req.sessionID || req.headers['x-session-id']
+      });
+      
       res.status(500).json({ message: "Error en la búsqueda" });
     }
   });
 
-  // Search suggestions endpoint
+  // Analytics endpoints
+  app.get("/api/search/analytics", async (req, res) => {
+    try {
+      const { timeframe = '24h' } = req.query;
+      const analytics = searchAnalytics.getAnalyticsSummary(timeframe as string);
+      res.json(analytics);
+    } catch (error) {
+      console.error('❌ Analytics error:', error);
+      res.status(500).json({ message: "Error retrieving analytics" });
+    }
+  });
+
+  app.get("/api/search/analytics/performance", async (req, res) => {
+    try {
+      const performance = searchAnalytics.getPerformanceMetrics();
+      res.json(performance);
+    } catch (error) {
+      console.error('❌ Performance analytics error:', error);
+      res.status(500).json({ message: "Error retrieving performance data" });
+    }
+  });
+
+  app.get("/api/search/analytics/popular", async (req, res) => {
+    try {
+      const { limit = 10 } = req.query;
+      const popular = searchAnalytics.getPopularCategories(parseInt(limit as string));
+      res.json(popular);
+    } catch (error) {
+      console.error('❌ Popular analytics error:', error);
+      res.status(500).json({ message: "Error retrieving popular data" });
+    }
+  });
+
+  // Enhanced search suggestions endpoint with analytics
   app.get("/api/search/suggestions", async (req, res) => {
     try {
       const { q, limit = '5' } = req.query;
       
       if (!q || (q as string).length < 2) {
-        return res.json([]);
+        // Return trending searches if no query
+        const trending = searchAnalytics.getTrendingSearches(parseInt(limit as string));
+        return res.json(trending.map(item => ({
+          value: item.query.toLowerCase(),
+          label: item.query,
+          type: 'trending',
+          count: item.count
+        })));
       }
 
+      // Get analytics-based suggestions
+      const analyticsSuggestions = searchAnalytics.getSearchSuggestions(
+        q as string,
+        parseInt(limit as string)
+      );
+
+      // Get database-based suggestions
       const { enhancedSearchEngine } = await import('./enhanced-search-engine');
-      const suggestions = await enhancedSearchEngine.getSearchSuggestions(
+      const dbSuggestions = await enhancedSearchEngine.getSearchSuggestions(
         q as string, 
         parseInt(limit as string)
       );
 
-      res.json(suggestions);
+      // Combine and prioritize suggestions
+      const combinedSuggestions = [
+        ...analyticsSuggestions,
+        ...dbSuggestions
+      ];
+
+      // Remove duplicates and limit results
+      const uniqueSuggestions = combinedSuggestions
+        .filter((suggestion, index, self) => 
+          index === self.findIndex(s => s.value === suggestion.value)
+        )
+        .slice(0, parseInt(limit as string));
+
+      res.json(uniqueSuggestions);
     } catch (error) {
       console.error('❌ Search suggestions error:', error);
       res.status(500).json({ message: "Error obteniendo sugerencias" });
@@ -516,16 +852,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get category counts
-  app.get("/api/categories/counts", async (req, res) => {
-    try {
-      const categoryCounts = await storage.getCategoryCounts();
-      res.json(categoryCounts);
-    } catch (error) {
-      console.error('❌ Error getting category counts:', error);
-      res.status(500).json({ message: "Error obteniendo conteos de categorías" });
-    }
-  });
+  // Remove dynamic categories endpoint - reverted to hardcoded
+
+  // Remove dynamic category counts endpoint - reverted to hardcoded
 
   // Test API endpoints to verify services are working
   app.get("/api/test-apis", async (req, res) => {

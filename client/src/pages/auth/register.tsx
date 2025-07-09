@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/contexts/auth-context";
 import { authApi, type RegisterData } from "@/lib/auth";
-import { BUSINESS_CATEGORIES, PERUVIAN_CITIES } from "@/lib/constants";
+import { PERUVIAN_CITIES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 
 const userSchema = z.object({
@@ -50,6 +50,16 @@ export default function Register() {
   const [currentStep, setCurrentStep] = useState("user");
   const [userData, setUserData] = useState<RegisterData | null>(null);
   const { login } = useAuth();
+
+  // Fetch categories dynamically
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const response = await fetch('/api/categories');
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
 
   const userForm = useForm<UserForm>({
     resolver: zodResolver(userSchema),
@@ -366,7 +376,7 @@ export default function Register() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {BUSINESS_CATEGORIES.map((category) => (
+                                {categories.map((category) => (
                                   <SelectItem key={category.id} value={category.id}>
                                     {category.name}
                                   </SelectItem>

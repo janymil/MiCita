@@ -15,7 +15,10 @@
       "Bash(dmesg:*)",
       "Bash(npx tsx:*)",
       "Bash(rm:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(true)",
+      "Bash(ss:*)",
+      "Bash(kill:*)"
     ],
     "deny": []
   }

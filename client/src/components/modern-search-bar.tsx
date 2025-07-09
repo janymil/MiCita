@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from 'framer-motion';
 import { PERUVIAN_CITIES, CITY_DISTRICTS } from "@/lib/constants";
+import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
+import SearchSuggestions from "./search-suggestions";
 
 interface ModernSearchBarProps {
   value: string;
@@ -52,7 +54,16 @@ export default function ModernSearchBar({
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  
+  // Search suggestions hook
+  const { suggestions, isLoading: suggestionsLoading, clearSuggestions } = useSearchSuggestions({
+    query,
+    limit: 5,
+    minLength: 2,
+    debounceMs: 300
+  });
   
   // Get available districts for selected city
   const availableDistricts = selectedCity && CITY_DISTRICTS[selectedCity] ? CITY_DISTRICTS[selectedCity] : [];
@@ -236,6 +247,41 @@ export default function ModernSearchBar({
                   exit={{ opacity: 0, y: -10 }}
                   className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
                 >
+                  {/* Real-time Search Suggestions */}
+                  {query.length >= 2 && suggestions.length > 0 && (
+                    <div className="p-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-gray-700 flex items-center">
+                          <Search className="w-4 h-4 mr-2" />
+                          Sugerencias
+                        </h4>
+                        {suggestionsLoading && (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {suggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              setQuery(suggestion.value);
+                              handleSearch(suggestion.value);
+                            }}
+                            className="flex items-center justify-between w-full text-left p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <Search className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm text-gray-700">{suggestion.label}</span>
+                            </div>
+                            {suggestion.count && (
+                              <span className="text-xs text-gray-500">{suggestion.count} resultados</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Recent Searches */}
                   {recentSearches.length > 0 && (
                     <div className="p-4 border-b border-gray-100">

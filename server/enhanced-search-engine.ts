@@ -1,7 +1,8 @@
-import { eq, and, or, sql, ilike, desc, asc, gte, lte, ne, isNotNull, count } from "drizzle-orm";
+import { eq, and, or, sql, ilike, desc, asc, gte, lte, ne, isNotNull, count, not } from "drizzle-orm";
 import { db } from "./db";
 import { apifyBusinesses } from "@shared/schema";
 import type { ApifyBusiness } from "@shared/schema";
+import { FuzzySearch } from "./fuzzy-search.js";
 
 /**
  * Enhanced Search Engine for Apify Business Data
@@ -29,6 +30,12 @@ interface SearchQuery {
   sortBy?: 'relevance' | 'rating' | 'reviews' | 'distance' | 'name';
   page?: number;
   limit?: number;
+  bounds?: {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  };
 }
 
 interface SearchResult {
@@ -246,11 +253,17 @@ export class EnhancedSearchEngine {
       hasEmail = false,
       sortBy = 'relevance',
       page = 1,
-      limit = this.DEFAULT_LIMIT
+      limit = this.DEFAULT_LIMIT,
+      bounds
     } = searchQuery;
 
     const queryAnalysis = this.analyzeQuery(query);
-    const whereConditions = this.buildWhereConditions(searchQuery);
+    
+    // Process query with fuzzy search for enhanced matching
+    const fuzzyQueryData = FuzzySearch.processQuery(query);
+    console.log('🔍 Fuzzy search analysis:', fuzzyQueryData);
+    
+    const whereConditions = this.buildWhereConditions(searchQuery, fuzzyQueryData);
 
     // Build the main query
     let queryBuilder = db.select().from(apifyBusinesses);
@@ -342,23 +355,33 @@ export class EnhancedSearchEngine {
   }
 
   /**
-   * Build WHERE conditions for the database query
+   * Build WHERE conditions for the database query with fuzzy search support
    */
-  private buildWhereConditions(searchQuery: SearchQuery): any[] {
+  private buildWhereConditions(searchQuery: SearchQuery, fuzzyQueryData?: any): any[] {
     const conditions: any[] = [];
 
-    // Text search with multiple strategies
+    // Enhanced text search with fuzzy matching
     if (searchQuery.query && searchQuery.query.trim()) {
-      const query = searchQuery.query.trim().toLowerCase();
-
-      // Full-text search on search_terms
-      conditions.push(
+      const originalQuery = searchQuery.query.trim().toLowerCase();
+      
+      // Build search conditions using expanded terms from fuzzy search
+      const searchTerms = fuzzyQueryData?.expandedTerms || [originalQuery];
+      
+      const searchConditions = searchTerms.map(term => 
         or(
-          ilike(apifyBusinesses.searchTerms, `%${query}%`),
-          ilike(apifyBusinesses.name, `%${query}%`),
-          ilike(apifyBusinesses.address, `%${query}%`)
+          ilike(apifyBusinesses.searchTerms, `%${term}%`),
+          ilike(apifyBusinesses.name, `%${term}%`),
+          ilike(apifyBusinesses.address, `%${term}%`),
+          ilike(apifyBusinesses.category, `%${term}%`)
         )
       );
+      
+      // Combine all search conditions with OR logic
+      if (searchConditions.length > 0) {
+        conditions.push(or(...searchConditions));
+      }
+      
+      console.log(`🔍 Enhanced search using ${searchTerms.length} terms:`, searchTerms);
     }
 
     // Category filter
@@ -371,9 +394,29 @@ export class EnhancedSearchEngine {
       conditions.push(eq(apifyBusinesses.subcategory, searchQuery.subcategory));
     }
 
-    // Location filters
+    // Location filters - enhanced district matching
     if (searchQuery.district && searchQuery.district !== 'all') {
-      conditions.push(ilike(apifyBusinesses.address, `%${searchQuery.district}%`));
+      const districtLower = searchQuery.district.toLowerCase();
+      
+      // Special handling for Miraflores to exclude San Juan de Miraflores
+      if (districtLower === 'miraflores') {
+        conditions.push(
+          and(
+            ilike(apifyBusinesses.address, `%miraflores%`),
+            not(ilike(apifyBusinesses.address, `%san juan%`))
+          )
+        );
+      } else if (districtLower === 'san juan de miraflores') {
+        conditions.push(
+          or(
+            ilike(apifyBusinesses.address, `%san juan de miraflores%`),
+            ilike(apifyBusinesses.address, `%sjm%`)
+          )
+        );
+      } else {
+        // For other districts, use word boundary-like matching
+        conditions.push(ilike(apifyBusinesses.address, `%${searchQuery.district}%`));
+      }
     }
 
     // Quality filters
@@ -410,6 +453,19 @@ export class EnhancedSearchEngine {
     // Operating hours filter
     if (searchQuery.openNow) {
       conditions.push(eq(apifyBusinesses.openNow, true));
+    }
+
+    // Geographic bounds filtering
+    if (searchQuery.bounds) {
+      const { north, south, east, west } = searchQuery.bounds;
+      conditions.push(
+        and(
+          gte(apifyBusinesses.latitude, south),
+          lte(apifyBusinesses.latitude, north),
+          gte(apifyBusinesses.longitude, west),
+          lte(apifyBusinesses.longitude, east)
+        )
+      );
     }
 
     return conditions;

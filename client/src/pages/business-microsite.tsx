@@ -19,7 +19,7 @@ export default function BusinessMicrosite() {
 
   const { data: micrositeData, isLoading, error } = useQuery({
     queryKey: [`/api/micrositio/${slug}`],
-    enabled: !!slug,
+    enabled: Boolean(slug),
   });
 
   console.log("BusinessMicrosite: micrositeData =", micrositeData);

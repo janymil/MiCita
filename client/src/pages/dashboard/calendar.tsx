@@ -30,7 +30,7 @@ function CalendarContent() {
   // Fetch current business
   const { data: businesses } = useQuery({
     queryKey: ["/api/dashboard/businesses"],
-    enabled: !!user,
+    enabled: Boolean(user),
   });
 
   const currentBusiness = businesses?.[0];
@@ -38,19 +38,19 @@ function CalendarContent() {
   // Fetch appointments
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/appointments`],
-    enabled: !!currentBusiness?.id,
+    enabled: Boolean(currentBusiness?.id),
   });
 
   // Fetch services
   const { data: services = [] } = useQuery({
     queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/services`],
-    enabled: !!currentBusiness?.id,
+    enabled: Boolean(currentBusiness?.id),
   });
 
   // Fetch clients
   const { data: clients = [] } = useQuery({
     queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/clients`],
-    enabled: !!currentBusiness?.id,
+    enabled: Boolean(currentBusiness?.id),
   });
 
 

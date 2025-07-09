@@ -15,9 +15,8 @@ export default function Home() {
   const [searchLocation, setSearchLocation] = useState("Lima, Perú");
   const [isSearching, setIsSearching] = useState(false);
 
-  const { data: categories } = useQuery({
-    queryKey: ["/api/categories"],
-  });
+  // Use hardcoded categories instead of dynamic API
+  const categories = BUSINESS_CATEGORIES;
 
   const { data: featuredBusinesses } = useQuery({
     queryKey: ["/api/featured"],
@@ -131,7 +130,7 @@ export default function Home() {
           </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-            {BUSINESS_CATEGORIES.map((category, index) => (
+            {(categories || []).map((category, index) => (
               <div
                 key={category.id}
                 className="animate-scale-in"

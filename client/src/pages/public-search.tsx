@@ -23,22 +23,21 @@ export default function PublicSearchPage() {
       subcategory: selectedSubcategory, 
       city: selectedCity 
     }],
-    enabled: searchQuery.length > 0 || selectedCategory.length > 0,
+    enabled: Boolean(searchQuery.length > 0 || selectedCategory.length > 0),
   });
 
   // Get subcategories for the selected category
   const { data: subcategories } = useQuery({
     queryKey: ["/api/subcategories", selectedCategory],
-    enabled: !!selectedCategory && selectedCategory !== 'all',
+    enabled: Boolean(selectedCategory && selectedCategory !== 'all'),
   });
 
   const { data: featuredBusinesses } = useQuery({
     queryKey: ["/api/featured"],
   });
 
-  const { data: categories } = useQuery({
-    queryKey: ["/api/categories"],
-  });
+  // Use hardcoded categories
+  const categories = BUSINESS_CATEGORIES;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +49,7 @@ export default function PublicSearchPage() {
     setSelectedSubcategory("");
   }, [selectedCategory]);
 
-  const popularCategories = BUSINESS_CATEGORIES.slice(0, 8);
+  const popularCategories = (categories || []).slice(0, 8);
   const topCities = ["Lima", "Arequipa", "Trujillo", "Chiclayo", "Piura", "Iquitos"];
 
   return (

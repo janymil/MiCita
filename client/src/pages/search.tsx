@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -41,18 +41,13 @@ export default function SearchPage() {
       if (!response.ok) return [];
       return response.json();
     },
-    enabled: selectedCategory && selectedCategory !== "all",
+    enabled: Boolean(selectedCategory && selectedCategory !== "all"),
   });
 
-  // Fetch category counts
-  const { data: categoryCounts = {} } = useQuery({
-    queryKey: ["/api/categories/counts"],
-    queryFn: async () => {
-      const response = await fetch('/api/categories/counts');
-      if (!response.ok) return {};
-      return response.json();
-    },
-  });
+  // Use hardcoded categories
+  const categories = BUSINESS_CATEGORIES;
+
+  // Remove dynamic category counts
   
   // Reset district when city changes
   useEffect(() => {
@@ -98,6 +93,8 @@ export default function SearchPage() {
     hasNextPage: false,
     hasPrevPage: false
   });
+
+  // Clean pagination - no infinite scroll
 
   // Parse URL parameters and force re-render
   useEffect(() => {
@@ -162,7 +159,7 @@ export default function SearchPage() {
       if (sortBy !== "relevance") params.append("sort", sortBy);
       params.append("page", currentPage.toString());
       // Use higher limit for map view to show all businesses on map
-      params.append("limit", viewMode === "map" ? "500" : resultsPerPage.toString());
+      params.append("limit", viewMode === "map" ? "2000" : resultsPerPage.toString());
       
       // Add map bounds if map filter is enabled and we have debounced bounds
       if (mapFilterEnabled && debouncedMapBounds) {
@@ -192,7 +189,7 @@ export default function SearchPage() {
       // Use server-side pagination data directly
       return data; // Return the complete response with pagination info
     },
-    enabled: !mapFilterEnabled || !!debouncedMapBounds,
+    enabled: Boolean(!mapFilterEnabled || !!debouncedMapBounds),
     staleTime: 5000,
     cacheTime: 60000,
     refetchOnWindowFocus: false,
@@ -435,6 +432,9 @@ export default function SearchPage() {
     setCurrentPage(1);
   }, [searchQuery, selectedCategory, selectedSubcategory, selectedCity, selectedDistrict, minRating, openNow, sortBy, mapFilterEnabled]);
 
+  // Simple pagination - no infinite scroll
+  const displayResults = searchResults?.results || [];
+
   const handleBusinessView = (customUrl: string) => {
     setLocation(`/${customUrl}`);
   };
@@ -456,7 +456,7 @@ export default function SearchPage() {
   };
 
   // Use server-side pagination data directly
-  const allBusinesses = searchResults?.results || [];
+  const allBusinesses = displayResults;
   const registeredBusinesses = allBusinesses.filter((b: any) => b.type === "registered") || [];
   const publicBusinesses = allBusinesses.filter((b: any) => b.type === "public") || [];
   const googlePlacesResults = allBusinesses.filter((b: any) => b.type === "google") || [];
@@ -514,7 +514,7 @@ export default function SearchPage() {
 
               {selectedCategory && (
                 <Badge variant="secondary" className="px-3 py-1">
-                  {BUSINESS_CATEGORIES.find(c => c.id === selectedCategory)?.name}
+                  {categories.find(c => c.id === selectedCategory)?.name || selectedCategory}
                   <button
                     onClick={() => setSelectedCategory("")}
                     className="ml-2 text-gray-500 hover:text-gray-700"
@@ -645,9 +645,9 @@ export default function SearchPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todas las categorías</SelectItem>
-                          {BUSINESS_CATEGORIES.map((category) => (
+                          {categories.map((category) => (
                             <SelectItem key={category.id} value={category.id}>
-                              {category.name} {categoryCounts[category.id] ? `(${categoryCounts[category.id]})` : ''}
+                              {category.name} ({category.count})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -892,9 +892,11 @@ export default function SearchPage() {
             {/* Business List Sidebar */}
             <div className="order-1 lg:order-1 overflow-y-auto">
               <div className="space-y-4">
-                <h3 className="font-semibold text-lg">
-                  {filteredResults.length} negocios encontrados
-                </h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-lg">
+                    {filteredResults.length} negocios encontrados
+                  </h3>
+                </div>
                 
                 {filteredResults.length > 0 ? (
                   <div className="space-y-4 max-h-[550px] overflow-y-auto pr-2">
@@ -934,6 +936,14 @@ export default function SearchPage() {
                     <MapPin className="mx-auto h-12 w-12 text-gray-300 mb-4" />
                     <h3 className="text-lg font-medium">No hay resultados en esta área</h3>
                     <p className="mt-2">Intenta mover o hacer zoom en el mapa</p>
+                  </div>
+                )}
+                
+                {/* Infinite scroll loading indicator */}
+                {isInfiniteScrollMode && (isFetching || isLoading) && (
+                  <div className="text-center py-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
+                    <p className="text-sm text-gray-500 mt-2">Cargando más resultados...</p>
                   </div>
                 )}
               </div>

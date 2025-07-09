@@ -161,14 +161,17 @@ export default function OpenStreetMap({
 
       mapInstanceRef.current = map;
 
-      // Initialize marker cluster group
+      // Initialize marker cluster group with optimized settings for large datasets
       if (window.L.markerClusterGroup) {
         markerClusterRef.current = window.L.markerClusterGroup({
-          maxClusterRadius: 50,
+          maxClusterRadius: 60,
           spiderfyOnMaxZoom: true,
           showCoverageOnHover: false,
           zoomToBoundsOnClick: true,
-          disableClusteringAtZoom: 15,
+          disableClusteringAtZoom: 16,
+          removeOutsideVisibleBounds: true,
+          animate: true,
+          animateAddingMarkers: false,
           iconCreateFunction: (cluster: any) => {
             const count = cluster.getChildCount();
             let className = 'marker-cluster-';

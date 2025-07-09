@@ -24,7 +24,9 @@ interface BusinessCardProps {
 }
 
 export default function BusinessCard({ business, onBookClick, onViewClick }: BusinessCardProps) {
-  const category = BUSINESS_CATEGORIES.find(c => c.id === business.category);
+  // Find category info from BUSINESS_CATEGORIES
+  const categoryInfo = BUSINESS_CATEGORIES.find(cat => cat.id === business.category);
+  const categoryName = categoryInfo?.name || business.category || "Servicio";
   const rating = parseFloat(business.rating || "0");
 
   return (
@@ -41,21 +43,12 @@ export default function BusinessCard({ business, onBookClick, onViewClick }: Bus
       <div className="p-6">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            {category && (
-              <Badge variant="secondary" className={cn(
-                "text-xs font-medium",
-                category.color.includes("belleza") && "bg-pink-100 text-pink-800",
-                category.color.includes("salud") && "bg-green-100 text-green-800",
-                category.color.includes("fitness") && "bg-blue-100 text-blue-800",
-                category.color.includes("restaurante") && "bg-orange-100 text-orange-800",
-                category.color.includes("cafeteria") && "bg-yellow-100 text-yellow-800",
-                category.color.includes("automotriz") && "bg-red-100 text-red-800",
-                category.color.includes("educacion") && "bg-purple-100 text-purple-800",
-                category.color.includes("hogar") && "bg-yellow-100 text-yellow-800"
-              )}>
-                {category.name}
-              </Badge>
-            )}
+            <Badge variant="secondary" className={cn(
+              "text-xs font-medium",
+              categoryInfo?.color || "bg-gray-100 text-gray-800"
+            )}>
+              {categoryName}
+            </Badge>
             {business.subcategory && (
               <Badge variant="outline" className="text-xs font-medium">
                 {business.subcategory}

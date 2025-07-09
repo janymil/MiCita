@@ -209,6 +209,7 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   openNow: boolean("open_now"),
   hours: jsonb("hours").$type<string[]>(),
   searchTerms: text("search_terms"),
+  district: text("district"), // Auto-detected district from address/coordinates
   isRegistered: boolean("is_registered").default(false),
   lastUpdated: timestamp("last_updated").defaultNow(),
   

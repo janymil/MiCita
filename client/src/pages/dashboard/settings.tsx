@@ -50,7 +50,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/dashboard-layout";
-import { BUSINESS_CATEGORIES, DEFAULT_BUSINESS_HOURS, PERUVIAN_CITIES } from "@/lib/constants";
+import { DEFAULT_BUSINESS_HOURS, PERUVIAN_CITIES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -194,7 +194,7 @@ export default function SettingsPage() {
 
   const { data: businessSettings } = useQuery({
     queryKey: ["/api/dashboard/businesses/1/settings"],
-    enabled: !!businesses && businesses.length > 0,
+    enabled: Boolean(businesses && businesses.length > 0),
   });
 
   const currentBusiness = businesses?.[0];
@@ -245,9 +245,19 @@ export default function SettingsPage() {
 
   const { data: currentBusinessSettings } = useQuery({
     queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`],
-    enabled: !!currentBusiness?.id,
+    enabled: Boolean(currentBusiness?.id),
     staleTime: 0, // Always fetch fresh data
     refetchOnMount: true,
+  });
+
+  // Fetch categories dynamically
+  const { data: categories = [] } = useQuery({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const response = await fetch('/api/categories');
+      if (!response.ok) return [];
+      return response.json();
+    },
   });
 
   const micrositeForm = useForm<MicrositeForm>({
@@ -662,7 +672,7 @@ export default function SettingsPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {BUSINESS_CATEGORIES.map((category) => (
+                                {categories.map((category) => (
                                   <SelectItem key={category.id} value={category.id}>
                                     {category.name}
                                   </SelectItem>
@@ -1715,7 +1725,7 @@ export default function SettingsPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {BUSINESS_CATEGORIES.map((category) => (
+                            {categories.map((category) => (
                               <SelectItem key={category.id} value={category.id}>
                                 {category.name}
                               </SelectItem>

@@ -26,19 +26,19 @@ export default function Dashboard() {
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["/api/dashboard/businesses/1/analytics"],
-    enabled: !!businesses && businesses.length > 0,
+    enabled: Boolean(businesses && businesses.length > 0),
   });
 
   const { data: recentAppointments, isLoading: appointmentsLoading } = useQuery({
     queryKey: ["/api/dashboard/businesses/1/appointments"],
-    enabled: !!businesses && businesses.length > 0,
+    enabled: Boolean(businesses && businesses.length > 0),
   });
 
   const currentBusiness = businesses?.[0];
 
   const { data: businessSettings } = useQuery({
     queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"],
-    enabled: !!currentBusiness?.id,
+    enabled: Boolean(currentBusiness?.id),
   });
 
   if (businessesLoading) {

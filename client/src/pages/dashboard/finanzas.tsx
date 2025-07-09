@@ -36,12 +36,12 @@ export default function Finanzas() {
 
   const { data: financialData, isLoading: financialLoading } = useQuery({
     queryKey: ["/api/dashboard/businesses/1/financials", selectedPeriod],
-    enabled: !!businesses && businesses.length > 0,
+    enabled: Boolean(businesses && businesses.length > 0),
   });
 
   const { data: analytics } = useQuery({
     queryKey: ["/api/dashboard/businesses/1/analytics"],
-    enabled: !!businesses && businesses.length > 0,
+    enabled: Boolean(businesses && businesses.length > 0),
   });
 
   const currentBusiness = businesses?.[0];

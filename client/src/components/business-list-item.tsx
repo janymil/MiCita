@@ -40,7 +40,9 @@ export default function BusinessListItem({
   onSaveClick 
 }: BusinessListItemProps) {
   const [isSaved, setIsSaved] = useState(false);
-  const category = BUSINESS_CATEGORIES.find(c => c.id === business.category);
+  // Find category info from BUSINESS_CATEGORIES
+  const categoryInfo = BUSINESS_CATEGORIES.find(cat => cat.id === business.category);
+  const categoryName = categoryInfo?.name || business.category || "Servicio";
   const rating = parseFloat(String(business.rating || "0"));
   const primaryImage = business.photos?.[0] || business.coverImage || business.photoUrl || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&h=300";
   
@@ -87,20 +89,15 @@ export default function BusinessListItem({
             <div className="flex-1">
               {/* Category & Name */}
               <div className="flex items-center space-x-2 mb-1">
-                {category && (
-                  <Badge 
-                    variant="secondary" 
-                    className={cn(
-                      "text-xs font-medium",
-                      category.color.includes("belleza") && "bg-pink-100 text-pink-800",
-                      category.color.includes("salud") && "bg-green-100 text-green-800",
-                      category.color.includes("fitness") && "bg-blue-100 text-blue-800",
-                      category.color.includes("restaurante") && "bg-orange-100 text-orange-800"
-                    )}
-                  >
-                    {category.name}
-                  </Badge>
-                )}
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "text-xs font-medium",
+                    categoryInfo?.color || "bg-gray-100 text-gray-800"
+                  )}
+                >
+                  {categoryName}
+                </Badge>
                 {business.currentPopularity !== undefined && (
                   <div className="flex items-center space-x-1 text-xs">
                     <Users className={cn("w-3 h-3", getBusyStatusColor(business.currentPopularity))} />

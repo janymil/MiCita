@@ -44,7 +44,9 @@ export default function EnhancedBusinessCard({
   const [isHovered, setIsHovered] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   
-  const category = BUSINESS_CATEGORIES.find(c => c.id === business.category);
+  // Find category info from BUSINESS_CATEGORIES
+  const categoryInfo = BUSINESS_CATEGORIES.find(cat => cat.id === business.category);
+  const categoryName = categoryInfo?.name || business.category || "Servicio";
   const rating = parseFloat(String(business.rating || "0"));
   const images = business.photos?.length ? business.photos : [business.coverImage || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&h=300"];
   
@@ -158,20 +160,15 @@ export default function EnhancedBusinessCard({
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            {category && (
-              <Badge 
-                variant="secondary" 
-                className={cn(
-                  "text-xs font-medium mb-2 inline-block",
-                  category.color.includes("belleza") && "bg-pink-100 text-pink-800",
-                  category.color.includes("salud") && "bg-green-100 text-green-800",
-                  category.color.includes("fitness") && "bg-blue-100 text-blue-800",
-                  category.color.includes("restaurante") && "bg-orange-100 text-orange-800"
-                )}
-              >
-                {category.name}
-              </Badge>
-            )}
+            <Badge 
+              variant="secondary" 
+              className={cn(
+                "text-xs font-medium mb-2 inline-block",
+                categoryInfo?.color || "bg-gray-100 text-gray-800"
+              )}
+            >
+              {categoryName}
+            </Badge>
             <h3 className="font-semibold text-gray-900 line-clamp-1 text-lg">
               {business.name}
             </h3>

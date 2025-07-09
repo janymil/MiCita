@@ -308,7 +308,7 @@ export class DBStorage implements IStorage {
       .from(apifyBusinesses)
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(apifyBusinesses.rating))
-      .limit(100);
+      .limit(2000);
 
     console.log(`🔍 Apify Search: query="${query}", category="${category}", subcategory="${subcategory}", conditions=${whereConditions.length}, results=${result.length}`);
     return result;
@@ -370,18 +370,7 @@ export class DBStorage implements IStorage {
     }));
   }
 
-  async getCategoryCounts(): Promise<Array<{category: string, count: number}>> {
-    const result = await db.select({ 
-      category: apifyBusinesses.category,
-      count: count()
-    })
-      .from(apifyBusinesses)
-      .where(sql`${apifyBusinesses.category} IS NOT NULL`)
-      .groupBy(apifyBusinesses.category)
-      .orderBy(apifyBusinesses.category);
-
-    return result.map(r => ({ category: r.category!, count: r.count }));
-  }
+  // Remove getCategoryCounts method - reverted to hardcoded categories
 
   async addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness> {
     const result = await db.insert(apifyBusinesses)
