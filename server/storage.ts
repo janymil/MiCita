@@ -1,4 +1,3 @@
-
 import { 
   users, 
   businesses, 
@@ -176,6 +175,9 @@ export interface IStorage {
   createEventAttendee(attendee: InsertEventAttendee & { businessId: number }): Promise<EventAttendee>;
   updateAttendeeStatus(eventId: number, businessId: number, status: string): Promise<EventAttendee>;
   deleteEventAttendee(eventId: number, businessId: number): Promise<void>;
+
+  getAllActiveBusinesses(): Promise<Business[]>;
+  getAllPublicBusinesses(): Promise<Business[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -674,6 +676,15 @@ export class MemStorage implements IStorage {
       this.businessSettings.set(newSettings.id, newSettings);
       return newSettings;
     }
+  }
+
+  async getAllActiveBusinesses(): Promise<Business[]> {
+    return Array.from(this.businesses.values()).filter(business => business.isActive);
+  }
+
+  async getAllPublicBusinesses(): Promise<Business[]> {
+    // This is a placeholder - in a real implementation, this would return all public businesses
+    return [];
   }
 
   // Apify Businesses - Memory implementation (for fallback)

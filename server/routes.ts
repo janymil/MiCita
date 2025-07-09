@@ -355,7 +355,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bounds: bounds ? JSON.parse(bounds as string) : undefined
       };
 
-      const searchResult = await enhancedSearchEngine.search(searchQuery);
+      // When no search query and no category filter, get more results
+      const enhancedLimit = (!searchQuery.query && (!searchQuery.category || searchQuery.category === 'all')) 
+        ? Math.max(parseInt(limit as string), 2000) 
+        : parseInt(limit as string);
+      
+      const searchResult = await enhancedSearchEngine.search({
+        ...searchQuery,
+        limit: enhancedLimit
+      });
       
       console.log('📊 Enhanced search results:', {
         totalMatches: searchResult.totalCount,
@@ -401,10 +409,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let publicBusinesses = [];
       
       try {
-        [businesses, publicBusinesses] = await Promise.all([
-          storage.searchBusinesses(searchQuery.query, searchQuery.category, searchQuery.city),
-          storage.searchPublicBusinesses(searchQuery.query, searchQuery.category)
-        ]);
+        // When no filters, get all active businesses
+        if (!searchQuery.query && (!searchQuery.category || searchQuery.category === 'all') && !searchQuery.city) {
+          [businesses, publicBusinesses] = await Promise.all([
+            storage.getAllActiveBusinesses(), // Get all active businesses
+            storage.getAllPublicBusinesses()  // Get all public businesses
+          ]);
+        } else {
+          [businesses, publicBusinesses] = await Promise.all([
+            storage.searchBusinesses(searchQuery.query, searchQuery.category, searchQuery.city),
+            storage.searchPublicBusinesses(searchQuery.query, searchQuery.category)
+          ]);
+        }
 
         console.log('🏢 Database search results:', {
           query: searchQuery.query,

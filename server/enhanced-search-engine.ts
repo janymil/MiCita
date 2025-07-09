@@ -384,6 +384,9 @@ export class EnhancedSearchEngine {
       console.log(`🔍 Enhanced search using ${searchTerms.length} terms:`, searchTerms);
     }
 
+    // If no query and no category filter, don't add text search conditions
+    // This allows returning all businesses when no filters are applied
+
     // Category filter
     if (searchQuery.category && searchQuery.category !== 'all') {
       conditions.push(eq(apifyBusinesses.category, searchQuery.category));

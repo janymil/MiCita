@@ -95,6 +95,22 @@ export class DBStorage implements IStorage {
       .orderBy(desc(businesses.rating), desc(businesses.createdAt));
   }
 
+  async getAllActiveBusinesses(): Promise<Business[]> {
+    return await db.select().from(businesses)
+      .where(eq(businesses.isActive, true))
+      .orderBy(desc(businesses.rating), desc(businesses.createdAt));
+  }
+
+  async getAllPublicBusinesses(): Promise<Business[]> {
+    try {
+      return await db.select().from(publicBusinesses)
+        .orderBy(desc(publicBusinesses.createdAt));
+    } catch (error) {
+      console.error('Error fetching all public businesses:', error);
+      return [];
+    }
+  }
+
   async getFeaturedBusinesses(): Promise<Business[]> {
     return await db.select().from(businesses)
       .where(and(eq(businesses.isActive, true), eq(businesses.isPremium, true)))
