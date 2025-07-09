@@ -112,7 +112,8 @@ export default function SearchPage() {
       hasEmail,
       sortBy,
       mapFilterEnabled ? debouncedMapBounds?.toString() : null,
-      currentPage
+      currentPage,
+      resultsPerPage
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -127,6 +128,7 @@ export default function SearchPage() {
       if (hasEmail) params.append("hasEmail", "true");
       if (sortBy !== "relevance") params.append("sort", sortBy);
       params.append("page", currentPage.toString());
+      params.append("limit", resultsPerPage.toString());
       
       // Add map bounds if map filter is enabled and we have debounced bounds
       if (mapFilterEnabled && debouncedMapBounds) {
@@ -151,10 +153,10 @@ export default function SearchPage() {
       // Store pagination info for the component
       if (data.pagination) {
         setPaginationInfo(data.pagination);
-        // Don't sync back - this would create a loop
       }
       
-      return data.results || data; // Handle both old and new response formats
+      // Use server-side pagination data directly
+      return data; // Return the complete response with pagination info
     },
     enabled: !mapFilterEnabled || !!debouncedMapBounds,
     staleTime: 5000,
@@ -277,12 +279,12 @@ export default function SearchPage() {
 
   // Client-side filtering and sorting
   useEffect(() => {
-    if (!searchResults) {
+    if (!searchResults || !searchResults.results) {
       setFilteredResults([]);
       return;
     }
     
-    let filtered = [...searchResults];
+    let filtered = [...searchResults.results];
     
     // Apply map bounds filter if enabled
     if (mapFilterEnabled && mapBounds) {
@@ -410,25 +412,17 @@ export default function SearchPage() {
     console.log('Saved business:', businessId);
   };
 
-  // Separate filtered results by type for better organization
-  const allRegisteredBusinesses = filteredResults.filter((b: any) => b.type === "registered") || [];
-  const allPublicBusinesses = filteredResults.filter((b: any) => b.type === "public") || [];
-  const allGoogleBusinesses = filteredResults.filter((b: any) => b.type === "google") || [];
+  // Use server-side pagination data directly
+  const allBusinesses = searchResults?.results || [];
+  const registeredBusinesses = allBusinesses.filter((b: any) => b.type === "registered") || [];
+  const publicBusinesses = allBusinesses.filter((b: any) => b.type === "public") || [];
+  const googlePlacesResults = allBusinesses.filter((b: any) => b.type === "google") || [];
   
-  // Calculate pagination for client-side results
-  const totalResults = allRegisteredBusinesses.length + allPublicBusinesses.length + allGoogleBusinesses.length;
-  const totalPages = Math.ceil(totalResults / resultsPerPage);
-  const startIndex = (currentPage - 1) * resultsPerPage;
-  const endIndex = startIndex + resultsPerPage;
-  
-  // Combine all results for pagination
-  const combinedResults = [...allRegisteredBusinesses, ...allPublicBusinesses, ...allGoogleBusinesses];
-  const paginatedResults = combinedResults.slice(startIndex, endIndex);
-  
-  // Separate paginated results by type
-  const registeredBusinesses = paginatedResults.filter((b: any) => b.type === "registered") || [];
-  const publicBusinesses = paginatedResults.filter((b: any) => b.type === "public") || [];
-  const googlePlacesResults = paginatedResults.filter((b: any) => b.type === "google") || [];
+  // Use server-side pagination information
+  const totalResults = paginationInfo.totalResults || 0;
+  const totalPages = paginationInfo.totalPages || 1;
+  const startIndex = ((paginationInfo.currentPage || 1) - 1) * (paginationInfo.resultsPerPage || resultsPerPage);
+  const endIndex = startIndex + (paginationInfo.resultsPerPage || resultsPerPage);
   
   console.log('Search results data:', {
     registered: registeredBusinesses.length,
@@ -1135,7 +1129,7 @@ export default function SearchPage() {
             )}
 
             {/* No Results */}
-            {searchResults && searchResults.length === 0 && (
+            {searchResults && searchResults.results && searchResults.results.length === 0 && (
               <div className="text-center py-12">
                 <Search className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">

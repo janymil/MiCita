@@ -314,6 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasEmail = 'false',
         sort = 'relevance',
         page = '1',
+        limit = '20',
         bounds 
       } = req.query;
 
@@ -344,7 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         hasEmail: hasEmail === 'true',
         sortBy: sort as any,
         page: parseInt(page as string),
-        limit: 20
+        limit: parseInt(limit as string)
       };
 
       const searchResult = await enhancedSearchEngine.search(searchQuery);
@@ -439,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalPages: searchResult.totalPages,
           totalResults: searchResult.totalCount,
           actualResults: searchResult.totalCount,
-          resultsPerPage: 20,
+          resultsPerPage: parseInt(limit as string),
           hasNextPage: searchResult.hasMore,
           hasPrevPage: searchResult.page > 1,
           mightHaveMore: searchResult.hasMore
