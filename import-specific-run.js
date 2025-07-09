@@ -48,8 +48,8 @@ function convertToApifyBusiness(place) {
     socialMedia: place.socialMedias || null,
     searchTerms: `${businessName} ${categoryName} ${address}`.toLowerCase(),
     isRegistered: false,
-    createdAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString()
+    createdAt: new Date(),
+    lastUpdated: new Date()
   };
 }
 
@@ -58,7 +58,7 @@ async function importFromSpecificRun(runId) {
   
   try {
     // Get the specific run
-    const run = await client.actor('compass/crawler-google-places').run(runId).get();
+    const run = await client.run(runId).get();
     console.log(`📊 Run details:`);
     console.log(`   Status: ${run.status}`);
     console.log(`   Started: ${new Date(run.startedAt).toLocaleString()}`);
