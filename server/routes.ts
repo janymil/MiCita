@@ -301,22 +301,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public search routes
   app.get("/api/search", async (req, res) => {
     try {
-      const { q, category, city, bounds, page = '1' } = req.query;
-      const query = (q as string) || "";
-      const currentPage = parseInt(page as string);
-      const resultsPerPage = 20;
+      const { 
+        q, 
+        category, 
+        city, 
+        district,
+        minRating = '0',
+        maxPrice = '5',
+        openNow = 'false',
+        hasPhone = 'false',
+        hasWebsite = 'false',
+        hasEmail = 'false',
+        sort = 'relevance',
+        page = '1',
+        bounds 
+      } = req.query;
 
-      console.log('Search request:', { query, category, city, bounds: !!bounds, page: currentPage });
+      console.log('🔍 Enhanced search request:', { 
+        query: q, 
+        category, 
+        city, 
+        district,
+        minRating: parseFloat(minRating as string),
+        filters: { openNow, hasPhone, hasWebsite, hasEmail },
+        sort,
+        page: parseInt(page as string)
+      });
+
+      // Use enhanced search engine
+      const { enhancedSearchEngine } = await import('./enhanced-search-engine');
       
-      let googlePlaces = [];
+      const searchQuery = {
+        query: (q as string) || "",
+        category: category as string,
+        city: city as string,
+        district: district as string,
+        minRating: parseFloat(minRating as string),
+        maxPrice: parseFloat(maxPrice as string),
+        openNow: openNow === 'true',
+        hasPhone: hasPhone === 'true',
+        hasWebsite: hasWebsite === 'true',
+        hasEmail: hasEmail === 'true',
+        sortBy: sort as any,
+        page: parseInt(page as string),
+        limit: 20
+      };
+
+      const searchResult = await enhancedSearchEngine.search(searchQuery);
       
-      // Search Apify businesses only
-      console.log('🔍 Searching Apify businesses');
-      const apifyBusinesses = await storage.searchApifyBusinesses(query, category as string);
-      console.log(`📁 Found ${apifyBusinesses.length} businesses from Apify`);
-      
-      // Convert to expected format
-      googlePlaces = apifyBusinesses.map(business => ({
+      console.log('📊 Enhanced search results:', {
+        totalMatches: searchResult.totalCount,
+        currentPage: searchResult.page,
+        searchTime: searchResult.searchMetrics.searchTime + 'ms',
+        avgRelevanceScore: searchResult.searchMetrics.relevanceScores.length > 0 
+          ? (searchResult.searchMetrics.relevanceScores.reduce((a, b) => a + b, 0) / searchResult.searchMetrics.relevanceScores.length).toFixed(1)
+          : 0,
+        queryAnalysis: searchResult.searchMetrics.queryAnalysis
+      });
+
+      // Convert Apify businesses to expected frontend format
+      const formattedResults = searchResult.businesses.map(business => ({
         id: business.placeId,
         name: business.name,
         address: business.address,
@@ -326,6 +370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         priceLevel: business.priceLevel || 0,
         phone: business.phone || undefined,
         website: business.website || undefined,
+        email: business.email || undefined,
         photoUrl: business.photoUrl || undefined,
         location: {
           lat: parseFloat(business.latitude || '0'),
@@ -336,17 +381,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isRegistered: business.isRegistered || false,
         type: "apify"
       }));
-      
+
+      // Add registered businesses (if any)
       const [businesses, publicBusinesses] = await Promise.all([
-        storage.searchBusinesses(query, category as string, city as string),
-        storage.searchPublicBusinesses(query, category as string)
+        storage.searchBusinesses(searchQuery.query, searchQuery.category, searchQuery.city),
+        storage.searchPublicBusinesses(searchQuery.query, searchQuery.category)
       ]);
-      
-      console.log('Search results before pagination:', { 
-        businesses: businesses.length, 
-        publicBusinesses: publicBusinesses.length, 
-        googlePlaces: googlePlaces.length 
-      });
 
       // For registered businesses, get their customUrl and coverImage from settings
       const businessesWithCustomUrl = await Promise.all(
@@ -361,55 +401,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      // Combine all results first
+      // Combine all results with enhanced results first (higher relevance)
       const combinedResults = [
         ...businessesWithCustomUrl,
         ...publicBusinesses.map(p => ({ ...p, type: "public" })),
-        ...googlePlaces.map(p => ({ ...p, type: "google" }))
+        ...formattedResults
       ];
 
-      // Apply server-side pagination with smart total estimation
-      const totalResults = combinedResults.length;
-      const googlePlacesCount = googlePlaces.length;
-      
-      // If we have exactly multiples of 20 Google Places results, there might be more available
-      const mightHaveMore = googlePlacesCount >= 60 && googlePlacesCount % 20 === 0;
-      
-      // Estimate total available results - Google Places can have hundreds of results
-      const estimatedTotalResults = mightHaveMore ? Math.max(totalResults, 200) : totalResults;
-      const totalPages = Math.ceil(estimatedTotalResults / resultsPerPage);
-      
-      const startIndex = (currentPage - 1) * resultsPerPage;
-      const endIndex = startIndex + resultsPerPage;
-      const paginatedResults = combinedResults.slice(startIndex, endIndex);
-
-      console.log('Pagination applied:', { 
-        actualResults: totalResults,
-        estimatedTotalResults, 
-        totalPages, 
-        currentPage, 
-        startIndex, 
-        endIndex,
-        paginatedResults: paginatedResults.length,
-        mightHaveMore 
-      });
-
       res.json({
-        results: paginatedResults,
+        results: combinedResults,
         pagination: {
-          currentPage,
-          totalPages,
-          totalResults: estimatedTotalResults, // Use estimated total for frontend
-          actualResults: totalResults, // Keep track of actual fetched results
-          resultsPerPage,
-          hasNextPage: currentPage < totalPages,
-          hasPrevPage: currentPage > 1,
-          mightHaveMore
+          currentPage: searchResult.page,
+          totalPages: searchResult.totalPages,
+          totalResults: searchResult.totalCount,
+          actualResults: searchResult.totalCount,
+          resultsPerPage: 20,
+          hasNextPage: searchResult.hasMore,
+          hasPrevPage: searchResult.page > 1,
+          mightHaveMore: searchResult.hasMore
+        },
+        searchMetrics: {
+          searchTime: searchResult.searchMetrics.searchTime,
+          totalMatches: searchResult.searchMetrics.totalMatches,
+          queryAnalysis: searchResult.searchMetrics.queryAnalysis,
+          averageRelevanceScore: searchResult.searchMetrics.relevanceScores.length > 0 
+            ? (searchResult.searchMetrics.relevanceScores.reduce((a, b) => a + b, 0) / searchResult.searchMetrics.relevanceScores.length).toFixed(1)
+            : 0
         }
       });
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('❌ Enhanced search error:', error);
       res.status(500).json({ message: "Error en la búsqueda" });
+    }
+  });
+
+  // Search suggestions endpoint
+  app.get("/api/search/suggestions", async (req, res) => {
+    try {
+      const { q, limit = '5' } = req.query;
+      
+      if (!q || (q as string).length < 2) {
+        return res.json([]);
+      }
+
+      const { enhancedSearchEngine } = await import('./enhanced-search-engine');
+      const suggestions = await enhancedSearchEngine.getSearchSuggestions(
+        q as string, 
+        parseInt(limit as string)
+      );
+
+      res.json(suggestions);
+    } catch (error) {
+      console.error('❌ Search suggestions error:', error);
+      res.status(500).json({ message: "Error obteniendo sugerencias" });
     }
   });
 

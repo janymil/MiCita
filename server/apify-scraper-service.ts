@@ -71,7 +71,7 @@ export class ApifyScraper {
 
   // Convert Apify place to our business format
   private convertToCache(place: ApifyPlace): InsertApifyBusiness {
-    return {
+    const businessData = {
       placeId: place.placeId || `apify_${Date.now()}_${Math.random()}`,
       name: place.title,
       address: place.address || 'Lima, Peru',
@@ -87,10 +87,15 @@ export class ApifyScraper {
       longitude: place.longitude || -77.05,
       openNow: null,
       hours: place.openingHours || null,
-      searchTerms: `${place.title} ${place.address} ${place.categoryName || ''}`.toLowerCase(),
       lastUpdated: new Date(),
       source: 'apify'
     };
+
+    // Generate enhanced search terms using the new search engine
+    const { EnhancedSearchEngine } = require('./enhanced-search-engine');
+    businessData.searchTerms = EnhancedSearchEngine.generateSearchTerms(businessData);
+
+    return businessData;
   }
 
   // Scrape businesses for a specific category and location

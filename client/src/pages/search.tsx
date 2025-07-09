@@ -39,6 +39,9 @@ export default function SearchPage() {
   const [minRating, setMinRating] = useState(0);
   const [maxPrice, setMaxPrice] = useState(4);
   const [openNow, setOpenNow] = useState(false);
+  const [hasPhone, setHasPhone] = useState(false);
+  const [hasWebsite, setHasWebsite] = useState(false);
+  const [hasEmail, setHasEmail] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
@@ -70,6 +73,9 @@ export default function SearchPage() {
     const newDistrict = urlParams.get("district") || "all";
     const newMinRating = parseInt(urlParams.get("minRating") || "0");
     const newSortBy = urlParams.get("sort") || "relevance";
+    const newHasPhone = urlParams.get("hasPhone") === "true";
+    const newHasWebsite = urlParams.get("hasWebsite") === "true";
+    const newHasEmail = urlParams.get("hasEmail") === "true";
     
     console.log('URL params changed:', { query: newQuery, category: newCategory, city: newCity, district: newDistrict });
     
@@ -79,6 +85,9 @@ export default function SearchPage() {
     setSelectedDistrict(newDistrict);
     setMinRating(newMinRating);
     setSortBy(newSortBy);
+    setHasPhone(newHasPhone);
+    setHasWebsite(newHasWebsite);
+    setHasEmail(newHasEmail);
     setCurrentPage(1); // Reset pagination when filters change
   }, [location]);
 
@@ -91,6 +100,9 @@ export default function SearchPage() {
       selectedDistrict,
       minRating,
       openNow,
+      hasPhone,
+      hasWebsite,
+      hasEmail,
       sortBy,
       mapFilterEnabled ? debouncedMapBounds?.toString() : null,
       currentPage
@@ -103,6 +115,9 @@ export default function SearchPage() {
       if (selectedDistrict) params.append("district", selectedDistrict);
       if (minRating > 0) params.append("minRating", minRating.toString());
       if (openNow) params.append("openNow", "true");
+      if (hasPhone) params.append("hasPhone", "true");
+      if (hasWebsite) params.append("hasWebsite", "true");
+      if (hasEmail) params.append("hasEmail", "true");
       if (sortBy !== "relevance") params.append("sort", sortBy);
       params.append("page", currentPage.toString());
       
@@ -659,6 +674,46 @@ export default function SearchPage() {
                         <label htmlFor="openNow" className="text-sm font-medium">
                           Abierto ahora
                         </label>
+                      </div>
+                    </div>
+
+                    {/* Enhanced Contact Information Filters */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <Phone className="w-4 h-4 inline mr-1" />
+                        Información de Contacto
+                      </label>
+                      <div className="space-y-2 mt-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="hasPhone"
+                            checked={hasPhone}
+                            onCheckedChange={setHasPhone}
+                          />
+                          <label htmlFor="hasPhone" className="text-sm font-medium">
+                            Tiene teléfono
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="hasWebsite"
+                            checked={hasWebsite}
+                            onCheckedChange={setHasWebsite}
+                          />
+                          <label htmlFor="hasWebsite" className="text-sm font-medium">
+                            Tiene sitio web
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="hasEmail"
+                            checked={hasEmail}
+                            onCheckedChange={setHasEmail}
+                          />
+                          <label htmlFor="hasEmail" className="text-sm font-medium">
+                            Tiene email
+                          </label>
+                        </div>
                       </div>
                     </div>
 
