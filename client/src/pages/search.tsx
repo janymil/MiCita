@@ -190,10 +190,17 @@ export default function SearchPage() {
     
     const timeout = setTimeout(() => {
       setDebouncedMapBounds(mapBounds);
-    }, 1500); // 1.5 second delay after map stops moving
+    }, 800); // 0.8 second delay after map stops moving
 
     return () => clearTimeout(timeout);
   }, [mapBounds, mapFilterEnabled]);
+
+  // Clear search indicator when search completes
+  useEffect(() => {
+    if (!isLoading && isMapSearching) {
+      setIsMapSearching(false);
+    }
+  }, [isLoading, isMapSearching]);
 
   const handleSearch = () => {
     // Save search to history for recommendations
@@ -879,6 +886,8 @@ export default function SearchPage() {
                 onBusinessClick={(business) => setSelectedBusiness(business)}
                 selectedBusiness={selectedBusiness}
                 className="h-full w-full"
+                showPriceCards={true}
+                isSearching={isMapSearching}
               />
               
               {/* Map Search Indicator */}
