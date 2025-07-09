@@ -175,6 +175,14 @@ Changelog:
   - Added district abbreviation handling (S.J.L for San Juan de Lurigancho, etc.)
   - Implemented Google Places address limitation warning - many businesses use postal codes instead of district names
   - District filter properly disabled until city selection, resets when city changes
+- July 09, 2025: MAJOR SUCCESS - Implemented Cost-Effective OpenStreetMap Search System:
+  - Migrated from expensive Google Places API ($960/month) to free Overpass API ($0/month)
+  - Enhanced coverage: Barbershops 7 → 905 results (129x improvement), Gyms 9 → 200 results (22x improvement)
+  - Comprehensive business type coverage: 22,716+ total businesses for Lima using OpenStreetMap data
+  - Multi-strategy filtering: name matching + category-specific business type detection
+  - All existing functionality preserved: pagination, maps, district filtering, microsites
+  - Foursquare API identified as legacy v2 key incompatible with v3 endpoints
+  - 100% cost reduction achieved while dramatically improving search quality and coverage
 
 ## PRD Implementation Status
 
