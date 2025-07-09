@@ -11,8 +11,7 @@ import { AppointmentData } from "./email-templates";
 import { googlePlacesService } from "./google-places-service.js";
 import { GooglePlacesCacheService } from "./google-places-cache-service-simple.js";
 import { DBStorage } from "./db-storage.js";
-import { overpassApiService } from "./overpass-api-service.js";
-import { foursquareApiService } from "./foursquare-api-service.js";
+
 
 // Helper function to send email notifications for status changes
 async function sendStatusChangeEmail(appointment: any, previousAppointment: any, businessId: number) {
@@ -313,48 +312,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let googlePlaces = [];
       
-      // If bounds are provided, do a fresh map-based search
-      if (bounds && typeof bounds === 'string') {
-        console.log('🗺️ Map-based search with bounds');
-        try {
-          const boundsData = JSON.parse(bounds);
-          
-          // Use Overpass API for bounds-based search
-          const overpassResults = await overpassApiService.searchBusinesses(
-            query,
-            category as string,
-            boundsData
-          );
-          
-          // Enrich top results with Foursquare data
-          googlePlaces = await foursquareApiService.enrichBusinesses(overpassResults);
-          
-          console.log(`🎯 Found ${googlePlaces.length} businesses in map bounds`);
-        } catch (error) {
-          console.error('Error parsing bounds or searching map area:', error);
-          // Fallback to cached search
-          googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
-        }
-      } else {
-        // For Lima searches without bounds, use comprehensive search
-        const location = city as string || 'Lima, Peru';
-        
-        if (location === 'Lima, Peru' || location.toLowerCase().includes('lima')) {
-          console.log('🌆 COMPREHENSIVE SYSTEM: Using enhanced OpenStreetMap data for complete Lima coverage');
-          
-          // Get comprehensive results from enhanced Overpass API with ALL business types
-          googlePlaces = await overpassApiService.searchLimaComprehensive(query, category as string);
-          console.log(`🗺️ Enhanced Overpass API found ${googlePlaces.length} businesses from OpenStreetMap`);
-          
-          // Skip Foursquare enrichment for now due to API authentication issues
-          console.log(`✅ COMPREHENSIVE SYSTEM: Found ${googlePlaces.length} total businesses using cost-free OpenStreetMap data`);
-        } else {
-          // For other cities, use Overpass API + Foursquare enrichment
-          console.log('🔍 Using Overpass + Foursquare search for location:', location);
-          const overpassResults = await overpassApiService.searchBusinesses(query, category as string);
-          googlePlaces = await foursquareApiService.enrichBusinesses(overpassResults);
-        }
-      }
+      // Use cached data from Apify scraping only
+      console.log('🔍 Searching cached businesses from Apify data');
+      googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
       
       const [businesses, publicBusinesses] = await Promise.all([
         storage.searchBusinesses(query, category as string, city as string),
@@ -436,41 +396,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/test-apis", async (req, res) => {
     try {
       const results = {
-        overpass: { status: 'unknown', message: '', count: 0 },
-        foursquare: { status: 'unknown', message: '', count: 0 },
+        cached: { status: 'unknown', message: '', count: 0 },
         apify: { status: 'unknown', message: '', count: 0 }
       };
 
-      // Test Overpass API
+      // Test cached data availability
       try {
-        console.log('🧪 Testing Overpass API...');
-        const overpassResults = await overpassApiService.searchBusinesses('barberia', 'belleza');
-        results.overpass = {
+        console.log('🧪 Testing cached business data...');
+        const cachedResults = await cacheService.searchBusinesses('barberia', 'belleza', 'Lima, Peru');
+        results.cached = {
           status: 'working',
-          message: `Found ${overpassResults.length} businesses from OpenStreetMap`,
-          count: overpassResults.length
+          message: `Found ${cachedResults.length} businesses from cached data`,
+          count: cachedResults.length
         };
       } catch (error) {
-        results.overpass = {
+        results.cached = {
           status: 'error',
-          message: `Overpass API error: ${error.message}`,
-          count: 0
-        };
-      }
-
-      // Test Foursquare API
-      try {
-        console.log('🧪 Testing Foursquare API...');
-        const foursquareResults = await foursquareApiService.searchBusinesses('barberia', 'belleza', 'Lima, Peru', 5);
-        results.foursquare = {
-          status: 'working',
-          message: `Found ${foursquareResults.length} businesses from Foursquare`,
-          count: foursquareResults.length
-        };
-      } catch (error) {
-        results.foursquare = {
-          status: 'error',
-          message: `Foursquare API error: ${error.message}`,
+          message: `Cached data error: ${error.message}`,
           count: 0
         };
       }
@@ -593,77 +535,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Business details endpoint (supports multiple ID formats)
+  // Business details endpoint (cached data only)
   app.get("/api/places/:placeId", async (req, res) => {
     try {
       const { placeId } = req.params;
       
-      // Handle different ID formats
-      if (placeId.startsWith('fsq_')) {
-        // Foursquare ID
-        const fsqId = placeId.replace('fsq_', '');
-        const details = await foursquareApiService.getBusinessDetails(fsqId);
-        
-        if (!details) {
-          return res.status(404).json({ message: "Negocio no encontrado" });
-        }
-        
-        res.json(details);
-      } else if (placeId.startsWith('osm_')) {
-        // OpenStreetMap ID - return basic info since OSM doesn't have detail API
-        return res.status(404).json({ message: "Detalles no disponibles para negocios de OpenStreetMap" });
-      } else {
-        // Legacy Google Places ID
-        const details = await googlePlacesService.getBusinessDetails(placeId);
-        
-        if (!details) {
-          return res.status(404).json({ message: "Negocio no encontrado" });
-        }
-
-        res.json(details);
+      // Check cached businesses first
+      const cachedBusiness = await storage.getCachedGoogleBusiness(placeId);
+      
+      if (cachedBusiness) {
+        res.json({
+          name: cachedBusiness.name,
+          address: cachedBusiness.address,
+          phone: cachedBusiness.phone,
+          website: cachedBusiness.website,
+          rating: cachedBusiness.rating,
+          reviewCount: cachedBusiness.reviewCount,
+          photoUrl: cachedBusiness.photoUrl,
+          hours: cachedBusiness.hours,
+          category: cachedBusiness.category,
+          latitude: cachedBusiness.latitude,
+          longitude: cachedBusiness.longitude
+        });
+        return;
       }
+      
+      return res.status(404).json({ message: "Negocio no encontrado en los datos almacenados" });
     } catch (error) {
       console.error("Error fetching place details:", error);
       res.status(500).json({ message: "Error obteniendo detalles del negocio" });
     }
   });
 
-  // Test endpoint for new APIs
-  app.get("/api/test-apis", async (req, res) => {
-    try {
-      console.log('🧪 Testing new API integrations...');
-      
-      // Test Overpass API
-      const overpassResults = await overpassApiService.searchBusinesses('restaurant', 'gastronomia');
-      console.log(`Overpass API: ${overpassResults.length} results`);
-      
-      // Test Foursquare API (if configured)
-      let foursquareResults = [];
-      try {
-        foursquareResults = await foursquareApiService.searchBusinesses('restaurant', 'gastronomia', 'Lima, Peru', 5);
-        console.log(`Foursquare API: ${foursquareResults.length} results`);
-      } catch (error) {
-        console.log('Foursquare API error:', error.message);
-      }
-      
-      res.json({
-        overpass: {
-          working: overpassResults.length > 0,
-          count: overpassResults.length,
-          sample: overpassResults.slice(0, 2)
-        },
-        foursquare: {
-          working: foursquareResults.length > 0,
-          count: foursquareResults.length,
-          sample: foursquareResults.slice(0, 2),
-          apiKeyConfigured: !!process.env.FOURSQUARE_API_KEY
-        }
-      });
-    } catch (error) {
-      console.error('API test error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
+
 
   // Cache management endpoint
   app.post("/api/cache/clean", async (req, res) => {
