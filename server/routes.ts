@@ -437,7 +437,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const results = {
         overpass: { status: 'unknown', message: '', count: 0 },
-        foursquare: { status: 'unknown', message: '', count: 0 }
+        foursquare: { status: 'unknown', message: '', count: 0 },
+        apify: { status: 'unknown', message: '', count: 0 }
       };
 
       // Test Overpass API
