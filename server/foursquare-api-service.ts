@@ -1,3 +1,4 @@
+
 import { BusinessFromPlaces } from './google-places-service.js';
 
 interface FoursquarePhoto {
@@ -45,6 +46,12 @@ interface FoursquareVenue {
   photos?: FoursquarePhoto[];
   popularity?: number;
   verified?: boolean;
+  geocodes: {
+    main: {
+      latitude: number;
+      longitude: number;
+    };
+  };
 }
 
 interface FoursquareSearchResponse {
@@ -53,11 +60,9 @@ interface FoursquareSearchResponse {
 
 export class FoursquareApiService {
   private apiKey: string;
-  private clientId: string;
-  private clientSecret: string;
   private baseUrl = 'https://api.foursquare.com/v3/places';
   
-  // Category mappings to Foursquare category IDs
+  // Category mappings to Foursquare category IDs (v3 format)
   private categoryToFoursquare: { [key: string]: number[] } = {
     'gastronomia': [13065, 13032, 13003], // Restaurant, Cafe, Bar
     'belleza': [11134, 11133], // Beauty Salon, Hair Salon
@@ -73,13 +78,11 @@ export class FoursquareApiService {
 
   constructor() {
     this.apiKey = process.env.FOURSQUARE_API_KEY || '';
-    this.clientId = this.apiKey.substring(0, 24);
-    this.clientSecret = this.apiKey.substring(24);
     
     if (!this.apiKey) {
       console.warn('⚠️ Foursquare API key not configured - using OSM data only');
     } else {
-      console.log(`🔑 Foursquare API key detected: ${this.apiKey.substring(0, 10)}... (${this.apiKey.length} chars)`);
+      console.log(`🔑 Foursquare API key configured: ${this.apiKey.substring(0, 10)}...`);
     }
   }
 
@@ -113,14 +116,14 @@ export class FoursquareApiService {
   }
 
   // Convert Foursquare v3 venue to our business format
-  private convertToBusiness(venue: any): BusinessFromPlaces {
+  private convertToBusiness(venue: FoursquareVenue): BusinessFromPlaces {
     return {
       id: `fsq_${venue.fsq_id}`,
       name: venue.name,
       address: venue.location?.formatted_address || 'Lima, Peru',
       category: this.mapToOurCategory(venue.categories),
       rating: venue.rating || 0,
-      reviewCount: venue.stats?.total_ratings || 0,
+      reviewCount: 0, // v3 API doesn't include review count in basic search
       priceLevel: venue.price || 0,
       phone: venue.tel,
       website: venue.website,
@@ -135,21 +138,7 @@ export class FoursquareApiService {
     };
   }
 
-  // Map v2 categories to our categories
-  private mapV2ToOurCategory(categories: any[]): string {
-    if (!categories || categories.length === 0) return 'servicios';
-    
-    const categoryName = categories[0].name?.toLowerCase() || '';
-    
-    if (categoryName.includes('restaurant') || categoryName.includes('food')) return 'gastronomia';
-    if (categoryName.includes('salon') || categoryName.includes('beauty') || categoryName.includes('barber')) return 'belleza';
-    if (categoryName.includes('gym') || categoryName.includes('fitness')) return 'fitness';
-    if (categoryName.includes('health') || categoryName.includes('medical')) return 'salud';
-    
-    return 'servicios';
-  }
-
-  // Search businesses using Foursquare API
+  // Search businesses using Foursquare Places API v3
   async searchBusinesses(
     query?: string,
     category?: string,
@@ -164,24 +153,40 @@ export class FoursquareApiService {
     try {
       console.log('🔍 Foursquare API search:', { query, category, location });
       
-      // Use v3 API format with Authorization header
+      // Build search parameters
       const params = new URLSearchParams({
-        limit: limit.toString()
+        limit: Math.min(limit, 50).toString() // Foursquare v3 has max 50 limit
       });
       
-      // Add location - use ll (latitude,longitude) format
+      // Add location - convert to lat,lng if needed
       if (location.includes(',')) {
+        // Already in lat,lng format
         params.append('ll', location);
       } else {
-        params.append('ll', '-12.05,-77.05'); // Lima center coordinates
+        // Default to Lima center coordinates
+        params.append('ll', '-12.05,-77.05');
       }
       
-      // Add query
+      // Add query parameter
       if (query) {
         params.append('query', query);
       }
       
+      // Add category filter if specified
+      const categoryFilter = this.getCategoryFilter(category);
+      if (categoryFilter) {
+        params.append('categories', categoryFilter);
+      }
+      
+      // Add search radius (in meters)
+      params.append('radius', '10000'); // 10km radius
+      
+      // Add fields to include additional data
+      params.append('fields', 'name,location,categories,tel,website,hours,rating,price,photos,geocodes');
+      
       const url = `${this.baseUrl}/search?${params}`;
+      
+      console.log('🌐 Foursquare API URL:', url);
       
       const response = await fetch(url, {
         headers: {
@@ -191,15 +196,21 @@ export class FoursquareApiService {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Foursquare API error: ${response.status} - ${errorText}`);
         throw new Error(`Foursquare API error: ${response.status}`);
       }
       
       const data: FoursquareSearchResponse = await response.json();
       console.log(`📍 Foursquare v3 returned ${data.results?.length || 0} venues`);
       
-      // v3 API structure
-      const venues = data.results || [];
-      const businesses = venues.map((venue: any) => this.convertToBusiness(venue));
+      if (!data.results || data.results.length === 0) {
+        console.log('🔍 No results from Foursquare');
+        return [];
+      }
+      
+      // Convert venues to our business format
+      const businesses = data.results.map((venue: FoursquareVenue) => this.convertToBusiness(venue));
       
       console.log(`✅ Foursquare found ${businesses.length} businesses`);
       return businesses;
@@ -219,7 +230,12 @@ export class FoursquareApiService {
     try {
       const url = `${this.baseUrl}/${fsqId}`;
       
-      const response = await fetch(url, {
+      // Add fields parameter to get all available data
+      const params = new URLSearchParams({
+        fields: 'name,location,categories,tel,website,hours,rating,price,photos,geocodes,hours_popular,stats,verified'
+      });
+      
+      const response = await fetch(`${url}?${params}`, {
         headers: {
           'Accept': 'application/json',
           'Authorization': this.apiKey
@@ -227,12 +243,14 @@ export class FoursquareApiService {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Foursquare Details API error: ${response.status} - ${errorText}`);
         throw new Error(`Foursquare API error: ${response.status}`);
       }
       
       const venue = await response.json();
       
-      // Return detailed venue data including coordinates
+      // Return detailed venue data with proper coordinates
       return {
         ...venue,
         location: {
@@ -255,13 +273,13 @@ export class FoursquareApiService {
       return businesses;
     }
 
-    console.log(`🔄 Attempting Foursquare enrichment for ${Math.min(businesses.length, 10)} businesses (testing updated key)`);
+    console.log(`🔄 Attempting Foursquare enrichment for ${Math.min(businesses.length, 10)} businesses`);
     
-    // Limit enrichment to avoid rate limits and improve performance (testing with 3 businesses)
-    const businessesToEnrich = businesses.slice(0, 3);
+    // Limit enrichment to avoid rate limits and improve performance
+    const businessesToEnrich = businesses.slice(0, 5);
     
-    // Process in smaller batches to avoid overwhelming the API
-    const batchSize = 5;
+    // Process in smaller batches
+    const batchSize = 3;
     const enrichedBusinesses: BusinessFromPlaces[] = [];
     
     for (let i = 0; i < businessesToEnrich.length; i += batchSize) {
@@ -274,7 +292,7 @@ export class FoursquareApiService {
             business.name,
             business.category,
             `${business.location.lat},${business.location.lng}`,
-            3
+            5
           );
           
           // Find the best match by name similarity
@@ -316,14 +334,14 @@ export class FoursquareApiService {
       
       // Small delay between batches to be respectful to the API
       if (i + batchSize < businessesToEnrich.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
     
     // Return enriched businesses plus the rest unenriched
     return [
       ...enrichedBusinesses,
-      ...businesses.slice(20)
+      ...businesses.slice(businessesToEnrich.length)
     ];
   }
   
