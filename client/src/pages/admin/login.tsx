@@ -98,24 +98,6 @@ export default function AdminLogin() {
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Security Notice</span>
-              </div>
-            </div>
-            
-            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-md p-3">
-              <div className="text-sm text-yellow-800">
-                <p className="font-medium">For Development:</p>
-                <p className="mt-1">Default password: <code className="bg-yellow-100 px-1 rounded">admin123</code></p>
-                <p className="mt-1 text-xs">Change ADMIN_PASSWORD environment variable in production</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

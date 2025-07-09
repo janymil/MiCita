@@ -11,16 +11,16 @@ const adminAuth = (req: any, res: any, next: any) => {
   // Simple admin check - in production, use proper JWT/session auth
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
   const authHeader = req.headers.authorization;
-
+  
   if (!authHeader) {
     return res.status(401).json({ error: 'No authorization header' });
   }
-
+  
   const token = authHeader.split(' ')[1]; // Bearer token
   if (token !== adminPassword) {
     return res.status(401).json({ error: 'Invalid admin token' });
   }
-
+  
   next();
 };
 
@@ -33,7 +33,7 @@ router.get('/stats', async (req, res) => {
     // Total businesses
     const totalResult = await db.select({ count: count() }).from(apifyBusinesses);
     const totalBusinesses = totalResult[0]?.count || 0;
-
+    
     // Businesses by category
     const categoryStats = await db
       .select({
@@ -42,7 +42,7 @@ router.get('/stats', async (req, res) => {
       })
       .from(apifyBusinesses)
       .groupBy(apifyBusinesses.category);
-
+    
     // Businesses by verification status
     const verificationStats = await db
       .select({
@@ -51,7 +51,7 @@ router.get('/stats', async (req, res) => {
       })
       .from(apifyBusinesses)
       .groupBy(apifyBusinesses.verifiedStatus);
-
+    
     // Quality score distribution
     const qualityStats = await db
       .select({
@@ -60,13 +60,13 @@ router.get('/stats', async (req, res) => {
         maxQuality: sql<number>`MAX(${apifyBusinesses.qualityScore})`
       })
       .from(apifyBusinesses);
-
+    
     // Recent businesses (last 7 days)
     const recentCount = await db
       .select({ count: count() })
       .from(apifyBusinesses)
       .where(sql`${apifyBusinesses.createdAt} >= NOW() - INTERVAL '7 days'`);
-
+    
     res.json({
       totalBusinesses,
       categoryStats,
@@ -91,33 +91,37 @@ router.get('/businesses', async (req, res) => {
     const status = req.query.status as string;
     const sortBy = (req.query.sortBy as string) || 'createdAt';
     const sortOrder = (req.query.sortOrder as string) || 'desc';
-
+    
+    console.log('🔍 Admin businesses filter params:', {
+      page, limit, search, category, subcategory, status, sortBy, sortOrder
+    });
+    
     const offset = (page - 1) * limit;
-
+    
     // Build query conditions
     const conditions = [];
-
+    
     if (search) {
       conditions.push(
         sql`(${apifyBusinesses.name} ILIKE ${'%' + search + '%'} OR ${apifyBusinesses.address} ILIKE ${'%' + search + '%'})`
       );
     }
-
+    
     if (category) {
       conditions.push(eq(apifyBusinesses.category, category));
     }
-
+    
     if (subcategory) {
       conditions.push(eq(apifyBusinesses.subcategory, subcategory));
     }
-
+    
     if (status) {
       conditions.push(eq(apifyBusinesses.verifiedStatus, status));
     }
-
+    
     // Build WHERE clause
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
-
+    
     // Determine sort column
     const sortColumn = sortBy === 'createdAt' ? apifyBusinesses.createdAt :
                       sortBy === 'name' ? apifyBusinesses.name :
@@ -126,20 +130,20 @@ router.get('/businesses', async (req, res) => {
                       sortBy === 'qualityScore' ? apifyBusinesses.qualityScore :
                       sortBy === 'verifiedStatus' ? apifyBusinesses.verifiedStatus :
                       apifyBusinesses.createdAt;
-
+    
     // Main query
     let businessQuery = db.select().from(apifyBusinesses);
-
+    
     if (whereCondition) {
       businessQuery = businessQuery.where(whereCondition);
     }
-
+    
     businessQuery = sortOrder === 'asc' 
       ? businessQuery.orderBy(asc(sortColumn))
       : businessQuery.orderBy(desc(sortColumn));
-
+    
     const businesses = await businessQuery.limit(limit).offset(offset);
-
+    
     // Count query
     let countQuery = db.select({ count: count() }).from(apifyBusinesses);
     if (whereCondition) {
@@ -147,7 +151,7 @@ router.get('/businesses', async (req, res) => {
     }
     const totalResult = await countQuery;
     const total = totalResult[0]?.count || 0;
-
+    
     res.json({
       businesses,
       pagination: {
@@ -170,17 +174,17 @@ router.get('/businesses/:id', async (req, res) => {
   try {
     const db = storage.getDb();
     const id = parseInt(req.params.id);
-
+    
     const business = await db
       .select()
       .from(apifyBusinesses)
       .where(eq(apifyBusinesses.id, id))
       .limit(1);
-
+    
     if (business.length === 0) {
       return res.status(404).json({ error: 'Business not found' });
     }
-
+    
     res.json(business[0]);
   } catch (error) {
     console.error('Admin business fetch error:', error);
@@ -193,12 +197,12 @@ router.post('/businesses', async (req, res) => {
   try {
     const db = storage.getDb();
     const businessData = req.body;
-
+    
     // Validate required fields
     if (!businessData.name || !businessData.address || !businessData.category) {
       return res.status(400).json({ error: 'Name, address, and category are required' });
     }
-
+    
     // Set defaults
     const newBusiness = {
       ...businessData,
@@ -218,9 +222,9 @@ router.post('/businesses', async (req, res) => {
       scrapingSource: 'admin',
       searchTerms: `${businessData.name} ${businessData.address} ${businessData.category}`.toLowerCase()
     };
-
+    
     const result = await db.insert(apifyBusinesses).values(newBusiness).returning();
-
+    
     res.status(201).json(result[0]);
   } catch (error) {
     console.error('Admin business create error:', error);
@@ -234,11 +238,11 @@ router.put('/businesses/:id', async (req, res) => {
     const db = storage.getDb();
     const id = parseInt(req.params.id);
     const updateData = req.body;
-
+    
     // Remove fields that shouldn't be updated
     delete updateData.id;
     delete updateData.createdAt;
-
+    
     // Update search terms if name, address, or category changed
     if (updateData.name || updateData.address || updateData.category) {
       const existing = await db
@@ -246,26 +250,26 @@ router.put('/businesses/:id', async (req, res) => {
         .from(apifyBusinesses)
         .where(eq(apifyBusinesses.id, id))
         .limit(1);
-
+      
       if (existing.length > 0) {
         const business = existing[0];
         updateData.searchTerms = `${updateData.name || business.name} ${updateData.address || business.address} ${updateData.category || business.category}`.toLowerCase();
       }
     }
-
+    
     // Set last updated
     updateData.lastUpdated = new Date();
-
+    
     const result = await db
       .update(apifyBusinesses)
       .set(updateData)
       .where(eq(apifyBusinesses.id, id))
       .returning();
-
+    
     if (result.length === 0) {
       return res.status(404).json({ error: 'Business not found' });
     }
-
+    
     res.json(result[0]);
   } catch (error) {
     console.error('Admin business update error:', error);
@@ -278,16 +282,16 @@ router.delete('/businesses/:id', async (req, res) => {
   try {
     const db = storage.getDb();
     const id = parseInt(req.params.id);
-
+    
     const result = await db
       .delete(apifyBusinesses)
       .where(eq(apifyBusinesses.id, id))
       .returning();
-
+    
     if (result.length === 0) {
       return res.status(404).json({ error: 'Business not found' });
     }
-
+    
     res.json({ message: 'Business deleted successfully', business: result[0] });
   } catch (error) {
     console.error('Admin business delete error:', error);
@@ -300,16 +304,16 @@ router.post('/businesses/bulk-update', async (req, res) => {
   try {
     const db = storage.getDb();
     const { ids, updateData } = req.body;
-
+    
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'IDs array is required' });
     }
-
+    
     // Remove fields that shouldn't be updated
     delete updateData.id;
     delete updateData.createdAt;
     updateData.lastUpdated = new Date();
-
+    
     const results = [];
     for (const id of ids) {
       try {
@@ -318,7 +322,7 @@ router.post('/businesses/bulk-update', async (req, res) => {
           .set(updateData)
           .where(eq(apifyBusinesses.id, parseInt(id)))
           .returning();
-
+        
         if (result.length > 0) {
           results.push(result[0]);
         }
@@ -326,7 +330,7 @@ router.post('/businesses/bulk-update', async (req, res) => {
         console.error(`Error updating business ${id}:`, error);
       }
     }
-
+    
     res.json({ message: `Updated ${results.length} businesses`, businesses: results });
   } catch (error) {
     console.error('Admin bulk update error:', error);
@@ -338,11 +342,11 @@ router.delete('/businesses/bulk-delete', async (req, res) => {
   try {
     const db = storage.getDb();
     const { ids } = req.body;
-
+    
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'IDs array is required' });
     }
-
+    
     const results = [];
     for (const id of ids) {
       try {
@@ -350,7 +354,7 @@ router.delete('/businesses/bulk-delete', async (req, res) => {
           .delete(apifyBusinesses)
           .where(eq(apifyBusinesses.id, parseInt(id)))
           .returning();
-
+        
         if (result.length > 0) {
           results.push(result[0]);
         }
@@ -358,7 +362,7 @@ router.delete('/businesses/bulk-delete', async (req, res) => {
         console.error(`Error deleting business ${id}:`, error);
       }
     }
-
+    
     res.json({ message: `Deleted ${results.length} businesses`, businesses: results });
   } catch (error) {
     console.error('Admin bulk delete error:', error);
@@ -371,9 +375,9 @@ router.get('/businesses/export', async (req, res) => {
   try {
     const db = storage.getDb();
     const format = req.query.format as string || 'json';
-
+    
     const businesses = await db.select().from(apifyBusinesses);
-
+    
     if (format === 'csv') {
       // Convert to CSV
       const csvHeader = Object.keys(businesses[0] || {}).join(',');
@@ -383,7 +387,7 @@ router.get('/businesses/export', async (req, res) => {
         ).join(',')
       );
       const csv = [csvHeader, ...csvRows].join('\n');
-
+      
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', 'attachment; filename=businesses.csv');
       res.send(csv);
@@ -405,11 +409,11 @@ router.get('/businesses/search', async (req, res) => {
     const db = storage.getDb();
     const query = req.query.q as string;
     const limit = parseInt(req.query.limit as string) || 10;
-
+    
     if (!query) {
       return res.status(400).json({ error: 'Search query is required' });
     }
-
+    
     const businesses = await db
       .select()
       .from(apifyBusinesses)
@@ -419,7 +423,7 @@ router.get('/businesses/search', async (req, res) => {
          ${apifyBusinesses.searchTerms.name} ILIKE '%${query}%'`
       )
       .limit(limit);
-
+    
     res.json(businesses);
   } catch (error) {
     console.error('Admin search error:', error);
@@ -431,19 +435,19 @@ router.get('/businesses/search', async (req, res) => {
 router.get('/filter-options', async (req, res) => {
   try {
     const db = storage.getDb();
-
+    
     const categories = await db
       .selectDistinct({ category: apifyBusinesses.category })
       .from(apifyBusinesses);
-
+    
     const statuses = await db
       .selectDistinct({ status: apifyBusinesses.verifiedStatus })
       .from(apifyBusinesses);
-
+    
     const sources = await db
       .selectDistinct({ source: apifyBusinesses.scrapingSource })
       .from(apifyBusinesses);
-
+    
     res.json({
       categories: categories.map(c => c.category),
       statuses: statuses.map(s => s.status),
