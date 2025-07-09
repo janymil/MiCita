@@ -8,8 +8,6 @@ import fs from "fs";
 import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
 import { emailService } from "./email-service.js";
 import { AppointmentData } from "./email-templates";
-import { googlePlacesService } from "./google-places-service.js";
-import { GooglePlacesCacheService } from "./google-places-cache-service-simple.js";
 import { DBStorage } from "./db-storage.js";
 
 
@@ -265,8 +263,6 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Initialize cache service
-  const cacheService = new GooglePlacesCacheService(storage as DBStorage, googlePlacesService);
   
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
@@ -312,9 +308,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let googlePlaces = [];
       
-      // Use cached data from Apify scraping only
-      console.log('🔍 Searching cached businesses from Apify data');
-      googlePlaces = await cacheService.searchBusinesses(query, category as string, city as string || 'Lima, Peru');
+      // Search cached businesses from Apify scraping only
+      console.log('🔍 Searching Apify cached businesses');
+      const cachedBusinesses = await storage.searchCachedGoogleBusinesses(query, category as string);
+      console.log(`📁 Found ${cachedBusinesses.length} cached businesses from Apify`);
+      
+      // Convert to expected format
+      googlePlaces = cachedBusinesses.map(cached => ({
+        id: cached.placeId,
+        name: cached.name,
+        address: cached.address,
+        category: cached.category,
+        rating: parseFloat(cached.rating || '0'),
+        reviewCount: cached.reviewCount || 0,
+        priceLevel: cached.priceLevel || 0,
+        phone: cached.phone || undefined,
+        website: cached.website || undefined,
+        photoUrl: cached.photoUrl || undefined,
+        location: {
+          lat: parseFloat(cached.latitude),
+          lng: parseFloat(cached.longitude),
+        },
+        openNow: cached.openNow || undefined,
+        hours: cached.hours || undefined,
+        isRegistered: cached.isRegistered || false,
+        type: "apify"
+      }));
       
       const [businesses, publicBusinesses] = await Promise.all([
         storage.searchBusinesses(query, category as string, city as string),
@@ -403,10 +422,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Test cached data availability
       try {
         console.log('🧪 Testing cached business data...');
-        const cachedResults = await cacheService.searchBusinesses('barberia', 'belleza', 'Lima, Peru');
+        const cachedResults = await storage.searchCachedGoogleBusinesses('barberia', 'belleza');
         results.cached = {
           status: 'working',
-          message: `Found ${cachedResults.length} businesses from cached data`,
+          message: `Found ${cachedResults.length} businesses from Apify cache`,
           count: cachedResults.length
         };
       } catch (error) {
@@ -572,7 +591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cache management endpoint
   app.post("/api/cache/clean", async (req, res) => {
     try {
-      await cacheService.cleanExpiredCache();
+      await storage.cleanExpiredCache();
       res.json({ message: "Cache limpiado exitosamente" });
     } catch (error) {
       console.error("Error cleaning cache:", error);
