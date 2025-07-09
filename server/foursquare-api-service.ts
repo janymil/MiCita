@@ -72,7 +72,9 @@ export class FoursquareApiService {
   constructor() {
     this.apiKey = process.env.FOURSQUARE_API_KEY || '';
     if (!this.apiKey) {
-      console.warn('⚠️ Foursquare API key not configured - detail enrichment disabled');
+      console.warn('⚠️ Foursquare API key not configured - using OSM data only');
+    } else {
+      console.log(`🔑 Foursquare API key detected: ${this.apiKey.substring(0, 10)}...`);
     }
   }
 
@@ -135,6 +137,9 @@ export class FoursquareApiService {
     location: string = 'Lima, Peru',
     limit: number = 50
   ): Promise<BusinessFromPlaces[]> {
+    console.log('🚫 Foursquare API disabled due to authentication issues - using comprehensive OSM search');
+    return []; // Return empty until API credentials are fixed
+
     if (!this.apiKey) {
       console.log('⚠️ Foursquare API not configured');
       return [];
@@ -234,13 +239,13 @@ export class FoursquareApiService {
 
   // Enrich businesses with Foursquare data
   async enrichBusinesses(businesses: BusinessFromPlaces[]): Promise<BusinessFromPlaces[]> {
+    console.log('🚫 Foursquare enrichment disabled - using pure OpenStreetMap data');
+    return businesses; // Return businesses as-is
+
     if (!this.apiKey) {
       console.log('⚠️ Foursquare API key not configured - returning businesses without enrichment');
       return businesses;
     }
-
-    console.log('ℹ️ Foursquare API temporarily disabled due to endpoint deprecation - using OSM data only');
-    return businesses; // Return businesses as-is for now
 
     console.log(`🔄 Enriching ${Math.min(businesses.length, 20)} businesses with Foursquare data`);
     

@@ -95,27 +95,82 @@ export class OverpassApiService {
         }
       });
     } else if (searchTerm) {
-      // General search - look for common business types
-      const businessTypes = [
-        'amenity', 'shop', 'tourism', 'leisure', 'office', 'craft'
+      // ENHANCED SEARCH: Get ALL businesses first, then filter by name in code
+      // This ensures we get comprehensive results instead of limited regex matches
+      const allBusinessTypes = [
+        // Food & Dining
+        'amenity=restaurant', 'amenity=cafe', 'amenity=fast_food', 'amenity=bar', 'amenity=pub',
+        // Shopping
+        'shop=*',
+        // Services
+        'office=*', 'craft=*',
+        // Beauty & Personal Care
+        'shop=beauty', 'shop=hairdresser', 'shop=cosmetics', 'amenity=spa',
+        // Health & Medical
+        'amenity=hospital', 'amenity=clinic', 'amenity=pharmacy', 'amenity=doctors', 'amenity=dentist',
+        // Fitness & Sports
+        'leisure=fitness_centre', 'leisure=sports_centre', 'sport=fitness',
+        // Education
+        'amenity=school', 'amenity=university', 'amenity=college',
+        // Tourism & Entertainment
+        'tourism=*', 'amenity=theatre', 'amenity=cinema',
+        // Professional Services
+        'office=lawyer', 'office=accountant', 'office=insurance', 'office=real_estate',
+        // Automotive
+        'shop=car_repair', 'shop=car', 'amenity=car_wash', 'amenity=fuel',
+        // Technology
+        'shop=electronics', 'shop=computer', 'shop=mobile_phone'
       ];
-      businessTypes.forEach(type => {
-        query += `  node["${type}"]["name"~"${searchTerm}",i]${areaFilter};\n`;
-        query += `  way["${type}"]["name"~"${searchTerm}",i]${areaFilter};\n`;
-      });
-    } else {
-      // Default: get all businesses
-      const defaultTypes = [
-        'amenity=restaurant', 'amenity=cafe', 'shop=*', 'office=*'
-      ];
-      defaultTypes.forEach(filter => {
+      
+      allBusinessTypes.forEach(filter => {
         const [key, value] = filter.split('=');
         if (value === '*') {
           query += `  node["${key}"]${areaFilter};\n`;
           query += `  way["${key}"]${areaFilter};\n`;
+          query += `  relation["${key}"]${areaFilter};\n`;
         } else {
           query += `  node["${key}"="${value}"]${areaFilter};\n`;
           query += `  way["${key}"="${value}"]${areaFilter};\n`;
+          query += `  relation["${key}"="${value}"]${areaFilter};\n`;
+        }
+      });
+    } else {
+      // COMPREHENSIVE: get ALL business types for maximum coverage
+      const allBusinessTypes = [
+        // Food & Dining
+        'amenity=restaurant', 'amenity=cafe', 'amenity=fast_food', 'amenity=bar', 'amenity=pub',
+        // Shopping
+        'shop=*',
+        // Services
+        'office=*', 'craft=*',
+        // Beauty & Personal Care
+        'shop=beauty', 'shop=hairdresser', 'shop=cosmetics', 'amenity=spa',
+        // Health & Medical
+        'amenity=hospital', 'amenity=clinic', 'amenity=pharmacy', 'amenity=doctors', 'amenity=dentist',
+        // Fitness & Sports
+        'leisure=fitness_centre', 'leisure=sports_centre', 'sport=fitness',
+        // Education
+        'amenity=school', 'amenity=university', 'amenity=college',
+        // Tourism & Entertainment
+        'tourism=*', 'amenity=theatre', 'amenity=cinema',
+        // Professional Services
+        'office=lawyer', 'office=accountant', 'office=insurance', 'office=real_estate',
+        // Automotive
+        'shop=car_repair', 'shop=car', 'amenity=car_wash', 'amenity=fuel',
+        // Technology
+        'shop=electronics', 'shop=computer', 'shop=mobile_phone'
+      ];
+      
+      allBusinessTypes.forEach(filter => {
+        const [key, value] = filter.split('=');
+        if (value === '*') {
+          query += `  node["${key}"]${areaFilter};\n`;
+          query += `  way["${key}"]${areaFilter};\n`;
+          query += `  relation["${key}"]${areaFilter};\n`; // Include relations for complete coverage
+        } else {
+          query += `  node["${key}"="${value}"]${areaFilter};\n`;
+          query += `  way["${key}"="${value}"]${areaFilter};\n`;
+          query += `  relation["${key}"="${value}"]${areaFilter};\n`;
         }
       });
     }
@@ -237,14 +292,42 @@ export class OverpassApiService {
         .map(element => this.convertToBusiness(element))
         .filter((business): business is BusinessFromPlaces => business !== null);
       
-      // Filter by search term if provided
+      // ENHANCED FILTERING: Multiple strategies for comprehensive search results
       let filteredBusinesses = businesses;
       if (query && query.trim()) {
         const searchLower = query.toLowerCase();
-        filteredBusinesses = businesses.filter(business => 
-          business.name.toLowerCase().includes(searchLower) ||
-          business.address.toLowerCase().includes(searchLower)
-        );
+        filteredBusinesses = businesses.filter(business => {
+          const businessName = business.name.toLowerCase();
+          const businessAddress = business.address.toLowerCase();
+          
+          // Strategy 1: Direct name match
+          if (businessName.includes(searchLower)) return true;
+          
+          // Strategy 2: Address match
+          if (businessAddress.includes(searchLower)) return true;
+          
+          // Strategy 3: Category-specific business type matching
+          const queryTerms = searchLower.split(' ');
+          for (const term of queryTerms) {
+            // Beauty/barbershop terms
+            if (['barberia', 'salon', 'belleza', 'peluqueria'].includes(term) && 
+                business.category === 'belleza') return true;
+            
+            // Fitness terms
+            if (['gimnasio', 'gym', 'fitness', 'deporte'].includes(term) && 
+                business.category === 'fitness') return true;
+            
+            // Food terms
+            if (['restaurante', 'comida', 'food', 'restaurant'].includes(term) && 
+                business.category === 'gastronomia') return true;
+            
+            // Health terms
+            if (['clinica', 'hospital', 'medico', 'salud'].includes(term) && 
+                business.category === 'salud') return true;
+          }
+          
+          return false;
+        });
       }
       
       console.log(`✅ Overpass found ${filteredBusinesses.length} businesses`);

@@ -340,17 +340,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const location = city as string || 'Lima, Peru';
         
         if (location === 'Lima, Peru' || location.toLowerCase().includes('lima')) {
-          console.log('🌆 NEW SYSTEM: Using Overpass + Foursquare for Lima search');
+          console.log('🌆 COMPREHENSIVE SYSTEM: Using enhanced OpenStreetMap data for complete Lima coverage');
           
-          // Use the new Overpass API + Foursquare system directly
-          const overpassResults = await overpassApiService.searchLimaComprehensive(query, category as string);
-          console.log(`🗺️ Overpass API found ${overpassResults.length} businesses in Lima`);
+          // Get comprehensive results from enhanced Overpass API with ALL business types
+          googlePlaces = await overpassApiService.searchLimaComprehensive(query, category as string);
+          console.log(`🗺️ Enhanced Overpass API found ${googlePlaces.length} businesses from OpenStreetMap`);
           
-          // Enrich top results with Foursquare data (photos, ratings, contact info)
-          googlePlaces = await foursquareApiService.enrichBusinesses(overpassResults);
-          console.log(`🌟 Foursquare enriched ${googlePlaces.length} businesses with additional data`);
-          
-          console.log(`✅ NEW SYSTEM: Found ${googlePlaces.length} total businesses (was using expensive Google Places)`);
+          // Skip Foursquare enrichment for now due to API authentication issues
+          console.log(`✅ COMPREHENSIVE SYSTEM: Found ${googlePlaces.length} total businesses using cost-free OpenStreetMap data`);
         } else {
           // For other cities, use Overpass API + Foursquare enrichment
           console.log('🔍 Using Overpass + Foursquare search for location:', location);
