@@ -210,6 +210,18 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   searchTerms: text("search_terms"),
   isRegistered: boolean("is_registered").default(false),
   lastUpdated: timestamp("last_updated").defaultNow(),
+  
+  // Enhanced data for modern UI
+  streetViewUrl: text("street_view_url"),
+  photos: jsonb("photos").$type<string[]>(), // Array of photo URLs
+  popularTimes: jsonb("popular_times").$type<{
+    [day: string]: {
+      hours: { hour: number; percentage: number }[];
+      busyText?: string;
+    }
+  }>(), // Busy hours data
+  currentPopularity: integer("current_popularity"), // Current busy percentage
+  livePopularityStatus: text("live_popularity_status"), // "Not busy", "A little busy", etc.
   createdAt: timestamp("created_at").defaultNow(),
   
   // Enhanced fields

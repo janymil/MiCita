@@ -81,15 +81,23 @@ export class ApifyScraper {
       priceLevel: place.priceLevel || 0,
       phone: place.phone || null,
       website: place.website || null,
-      email: null,
+      email: place.email || null, // From contacts enrichment
       photoUrl: place.imageUrls?.[0] || null,
       latitude: place.latitude || -12.05,
       longitude: place.longitude || -77.05,
-      openNow: null,
+      openNow: place.isOpenNow || null,
       hours: place.openingHours || null,
       lastUpdated: new Date(),
       source: 'apify',
-      searchTerms: null
+      searchTerms: null,
+      
+      // Enhanced data for modern UI
+      streetViewUrl: place.streetViewUrl || null,
+      photos: place.imageUrls || [],
+      popularTimes: place.popularTimes || null,
+      currentPopularity: place.currentPopularity || null,
+      livePopularityStatus: place.livePopularityStatus || null,
+      description: place.description || null
     };
 
     return businessData;
@@ -134,6 +142,12 @@ export class ApifyScraper {
       includeBusinessHours: true,
       includePhotos: true,
       includeReviews: true,
+      
+      // Enhanced data for modern UI
+      scrapePopularTimes: true, // Get busy hours graph data
+      scrapeStreetView: true,   // Get Street View image URL
+      scrapeMoreImages: true,   // Get additional photos for carousel
+      maxImages: 10,            // Get up to 10 images per business
       
       // Legacy options for compatibility
       scrapePlaceDetailPage: true, // Get detailed information

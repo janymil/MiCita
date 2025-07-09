@@ -14,7 +14,8 @@
       "Bash(journalctl:*)",
       "Bash(dmesg:*)",
       "Bash(npx tsx:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm install:*)"
     ],
     "deny": []
   }

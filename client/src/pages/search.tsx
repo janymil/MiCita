@@ -12,8 +12,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List, Phone, Globe, Mail } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
+import EnhancedBusinessCard from "@/components/enhanced-business-card";
+import BusinessCardSkeleton from "@/components/business-card-skeleton";
+import BusinessListItem from "@/components/business-list-item";
+import ModernSearchBar from "@/components/modern-search-bar";
+import PersonalizedRecommendations from "@/components/personalized-recommendations";
 import OpenStreetMap from "@/components/openstreet-map";
 import { BUSINESS_CATEGORIES, PERUVIAN_CITIES, CITY_DISTRICTS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 export default function SearchPage() {
   const [location, setLocation] = useLocation();
@@ -44,7 +50,8 @@ export default function SearchPage() {
   const [hasEmail, setHasEmail] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [viewMode, setViewMode] = useState<"grid" | "list" | "map">("grid");
+  const [resultsPerPage, setResultsPerPage] = useState(12);
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
   const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [mapBounds, setMapBounds] = useState<any | null>(null);
@@ -187,6 +194,21 @@ export default function SearchPage() {
   }, [mapBounds, mapFilterEnabled]);
 
   const handleSearch = () => {
+    // Save search to history for recommendations
+    if (searchQuery || selectedCategory !== "all") {
+      const searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+      const searchTerm = {
+        query: searchQuery,
+        category: selectedCategory,
+        city: selectedCity,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Keep only last 10 searches
+      const updatedHistory = [searchTerm, ...searchHistory.slice(0, 9)];
+      localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
+    }
+    
     // Update URL without reloading page
     const params = new URLSearchParams();
     if (searchQuery) params.append("q", searchQuery);
@@ -372,10 +394,41 @@ export default function SearchPage() {
     setLocation(`/${customUrl}`);
   };
 
+  const handleBusinessBook = (businessId: string | number) => {
+    // Navigate to booking page or open booking modal
+    console.log('Book business:', businessId);
+    // TODO: Implement booking flow
+  };
+
+  const handleBusinessSave = (businessId: string | number) => {
+    // Save to user's favorites
+    const saved = JSON.parse(localStorage.getItem('savedBusinesses') || '[]');
+    if (!saved.includes(businessId)) {
+      saved.push(businessId);
+      localStorage.setItem('savedBusinesses', JSON.stringify(saved));
+    }
+    console.log('Saved business:', businessId);
+  };
+
   // Separate filtered results by type for better organization
-  const registeredBusinesses = filteredResults.filter((b: any) => b.type === "registered") || [];
-  const publicBusinesses = filteredResults.filter((b: any) => b.type === "public") || [];
-  const googlePlacesResults = filteredResults.filter((b: any) => b.type === "google") || [];
+  const allRegisteredBusinesses = filteredResults.filter((b: any) => b.type === "registered") || [];
+  const allPublicBusinesses = filteredResults.filter((b: any) => b.type === "public") || [];
+  const allGoogleBusinesses = filteredResults.filter((b: any) => b.type === "google") || [];
+  
+  // Calculate pagination for client-side results
+  const totalResults = allRegisteredBusinesses.length + allPublicBusinesses.length + allGoogleBusinesses.length;
+  const totalPages = Math.ceil(totalResults / resultsPerPage);
+  const startIndex = (currentPage - 1) * resultsPerPage;
+  const endIndex = startIndex + resultsPerPage;
+  
+  // Combine all results for pagination
+  const combinedResults = [...allRegisteredBusinesses, ...allPublicBusinesses, ...allGoogleBusinesses];
+  const paginatedResults = combinedResults.slice(startIndex, endIndex);
+  
+  // Separate paginated results by type
+  const registeredBusinesses = paginatedResults.filter((b: any) => b.type === "registered") || [];
+  const publicBusinesses = paginatedResults.filter((b: any) => b.type === "public") || [];
+  const googlePlacesResults = paginatedResults.filter((b: any) => b.type === "google") || [];
   
   console.log('Search results data:', {
     registered: registeredBusinesses.length,
@@ -394,60 +447,18 @@ export default function SearchPage() {
       <div className="bg-white shadow-sm border-b border-gray-200 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="space-y-4">
-            {/* Main Search Bar */}
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 flex items-center bg-gray-50 rounded-lg px-4 py-3">
-                <Search className="text-gray-400 mr-3 w-5 h-5" />
-                <Input
-                  type="text"
-                  placeholder="¿Qué servicio necesitas?"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleSearch();
-                    }
-                  }}
-                />
-              </div>
-              
-              <div className="flex items-center bg-gray-50 rounded-lg px-4 py-3 lg:w-64">
-                <MapPin className="text-gray-400 mr-3 w-5 h-5" />
-                <Select value={selectedCity || "all"} onValueChange={handleCityChange}>
-                  <SelectTrigger className="border-0 bg-transparent focus:ring-0">
-                    <SelectValue placeholder="Ubicación" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas las ciudades</SelectItem>
-                    {PERUVIAN_CITIES.map((city) => (
-                      <SelectItem key={city} value={city}>
-                        {city}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <Button
-                onClick={handleSearch}
-                disabled={isLoading}
-                className="bg-red-600 hover:bg-red-700 px-8 disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Buscando...
-                  </>
-                ) : (
-                  <>
-                    <Search className="mr-2 w-4 h-4" />
-                    Buscar
-                  </>
-                )}
-              </Button>
-            </div>
+            {/* Modern Search Bar */}
+            <ModernSearchBar
+              value={searchQuery}
+              location={selectedCity || ""}
+              onSearch={(query, location) => {
+                setSearchQuery(query);
+                setSelectedCity(location);
+                handleSearch();
+              }}
+              onLocationChange={setSelectedCity}
+              isLoading={isLoading}
+            />
 
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-4">
@@ -478,26 +489,71 @@ export default function SearchPage() {
                 </Button>
               )}
               
-              {/* View Toggle */}
-              <div className="flex items-center space-x-2">
-                <Button
-                  variant={viewMode === "list" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("list")}
-                  className="flex items-center space-x-1"
-                >
-                  <List className="w-4 h-4" />
-                  <span>Lista</span>
-                </Button>
-                <Button
-                  variant={viewMode === "map" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setViewMode("map")}
-                  className="flex items-center space-x-1"
-                >
-                  <Map className="w-4 h-4" />
-                  <span>Mapa</span>
-                </Button>
+              {/* View Toggle and Results Per Page */}
+              <div className="flex items-center space-x-4">
+                {/* View Mode Toggle */}
+                <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
+                  <Button
+                    variant={viewMode === "grid" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                    className={cn(
+                      "flex items-center space-x-1 rounded",
+                      viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-gray-50"
+                    )}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                    </svg>
+                    <span>Cuadrícula</span>
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("list")}
+                    className={cn(
+                      "flex items-center space-x-1 rounded",
+                      viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-gray-50"
+                    )}
+                  >
+                    <List className="w-4 h-4" />
+                    <span>Lista</span>
+                  </Button>
+                  <Button
+                    variant={viewMode === "map" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("map")}
+                    className={cn(
+                      "flex items-center space-x-1 rounded",
+                      viewMode === "map" ? "bg-white shadow-sm" : "hover:bg-gray-50"
+                    )}
+                  >
+                    <Map className="w-4 h-4" />
+                    <span>Mapa</span>
+                  </Button>
+                </div>
+                
+                {/* Results Per Page Selector */}
+                {viewMode !== "map" && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">Mostrar:</span>
+                    <Select value={resultsPerPage.toString()} onValueChange={(value) => setResultsPerPage(parseInt(value))}>
+                      <SelectTrigger className="w-20 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="9">9</SelectItem>
+                        <SelectItem value="12">12</SelectItem>
+                        <SelectItem value="24">24</SelectItem>
+                        <SelectItem value="48">48</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="text-sm text-gray-600">por página</span>
+                  </div>
+                )}
               </div>
 
               {/* Map Filter Toggle */}
@@ -515,18 +571,19 @@ export default function SearchPage() {
               )}
 
               {/* Results count and sorting */}
-              {paginationInfo.totalResults > 0 && (
+              {totalResults > 0 && (
                 <div className="flex items-center text-sm text-gray-600">
-                  <span>{paginationInfo.totalResults} resultados encontrados</span>
+                  <span>{totalResults} resultados encontrados</span>
                   {mapFilterEnabled && debouncedMapBounds && (
                     <span className="ml-2 text-blue-600">• Filtrado por área del mapa</span>
                   )}
                   {mapFilterEnabled && !debouncedMapBounds && (
                     <span className="ml-2 text-orange-600">• Mueve el mapa para buscar en el área</span>
                   )}
-                  {paginationInfo.currentPage > 1 && (
-                    <span className="ml-2">• Página {paginationInfo.currentPage} de {paginationInfo.totalPages}</span>
+                  {totalPages > 1 && (
+                    <span className="ml-2">• Página {currentPage} de {totalPages}</span>
                   )}
+                  <span className="ml-2">• Mostrando {startIndex + 1}-{Math.min(endIndex, totalResults)} de {totalResults}</span>
                 </div>
               )}
             </div>
@@ -747,14 +804,22 @@ export default function SearchPage() {
 
       {/* Results */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Personalized Recommendations Section */}
+        {!searchQuery && currentPage === 1 && (
+          <PersonalizedRecommendations 
+            category={selectedCategory}
+          />
+        )}
+
         {isLoading ? (
-          <div className="text-center py-16">
-            <div className="relative">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-red-200 border-t-red-600 mx-auto"></div>
-              <div className="absolute inset-0 rounded-full border-4 border-red-100 animate-pulse"></div>
-            </div>
-            <p className="text-gray-600 mt-6 text-lg font-medium">Buscando negocios...</p>
-            <p className="text-gray-500 mt-2 text-sm">Explorando OpenStreetMap y enriqueciendo con Foursquare</p>
+          <div className={cn(
+            "gap-6",
+            viewMode === "grid" && "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+            viewMode === "list" && "space-y-4"
+          )}>
+            {Array.from({ length: resultsPerPage }).map((_, index) => (
+              <BusinessCardSkeleton key={index} />
+            ))}
           </div>
         ) : viewMode === "map" ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[600px]">
@@ -853,13 +918,29 @@ export default function SearchPage() {
                     Con Reservas Online
                   </Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className={cn(
+                  "gap-6",
+                  viewMode === "grid" && "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+                  viewMode === "list" && "space-y-4"
+                )}>
                   {registeredBusinesses.map((business: any) => (
-                    <BusinessCard
-                      key={`registered-${business.id}`}
-                      business={business}
-                      onViewClick={() => handleBusinessView(business.customUrl || business.slug)}
-                    />
+                    viewMode === "list" ? (
+                      <BusinessListItem
+                        key={`registered-${business.id}`}
+                        business={business}
+                        onViewClick={() => handleBusinessView(business.customUrl || business.slug)}
+                        onBookClick={() => handleBusinessBook(business.id)}
+                        onSaveClick={() => handleBusinessSave(business.id)}
+                      />
+                    ) : (
+                      <EnhancedBusinessCard
+                        key={`registered-${business.id}`}
+                        business={business}
+                        onViewClick={() => handleBusinessView(business.customUrl || business.slug)}
+                        onBookClick={() => handleBusinessBook(business.id)}
+                        onSaveClick={() => handleBusinessSave(business.id)}
+                      />
+                    )
                   ))}
                 </div>
               </div>
@@ -877,118 +958,138 @@ export default function SearchPage() {
                   </Badge>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className={cn(
+                  "gap-6",
+                  viewMode === "grid" && "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+                  viewMode === "list" && "space-y-4"
+                )}>
                   {googlePlacesResults.map((business: any) => (
-                    <div 
-                      key={`business-${business.id}`} 
-                      className="group cursor-pointer relative"
-                      onClick={() => {
-                        setSelectedBusiness(business);
-                        setShowBusinessModal(true);
-                      }}
-                    >
-                      <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                        {/* Business Image */}
-                        <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200">
-                          {business.photoUrl ? (
-                            <img 
-                              src={business.photoUrl} 
-                              alt={business.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                              }}
-                            />
-                          ) : null}
-                          
-                          {/* Fallback when no image */}
-                          <div className={`absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center ${business.photoUrl ? 'hidden' : ''}`}>
-                            <div className="text-white text-center">
-                              <div className="text-3xl font-bold mb-2">{business.name.charAt(0).toUpperCase()}</div>
-                              <div className="text-sm opacity-90 px-4 text-center line-clamp-2">{business.name}</div>
-                            </div>
-                          </div>
-                          
-                          {/* Rating Badge */}
-                          {business.rating > 0 && (
-                            <div className="absolute top-3 right-3 bg-white bg-opacity-95 backdrop-blur-sm text-gray-900 px-2 py-1 rounded-full text-sm font-medium flex items-center shadow-md">
-                              <span className="text-yellow-500 mr-1">★</span>
-                              {business.rating.toFixed(1)}
-                            </div>
-                          )}
-                          
-                          {/* Status Badge */}
-                          {business.openNow !== undefined && (
-                            <div className="absolute top-3 left-3">
-                              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                business.openNow 
-                                  ? 'bg-green-500 text-white' 
-                                  : 'bg-red-500 text-white'
-                              }`}>
-                                {business.openNow ? 'Abierto' : 'Cerrado'}
+                    viewMode === "list" ? (
+                      <BusinessListItem
+                        key={`google-${business.id}`}
+                        business={business}
+                        onViewClick={() => {
+                          setSelectedBusiness(business);
+                          setShowBusinessModal(true);
+                        }}
+                        onBookClick={() => {
+                          const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.name + ' ' + business.address)}`;
+                          window.open(googleMapsUrl, '_blank');
+                        }}
+                        onSaveClick={() => handleBusinessSave(business.id)}
+                      />
+                    ) : (
+                      <div 
+                        key={`business-${business.id}`} 
+                        className="group cursor-pointer relative"
+                        onClick={() => {
+                          setSelectedBusiness(business);
+                          setShowBusinessModal(true);
+                        }}
+                      >
+                        <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                          {/* Business Image */}
+                          <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200">
+                            {business.photoUrl ? (
+                              <img 
+                                src={business.photoUrl} 
+                                alt={business.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            
+                            {/* Fallback when no image */}
+                            <div className={`absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center ${business.photoUrl ? 'hidden' : ''}`}>
+                              <div className="text-white text-center">
+                                <div className="text-3xl font-bold mb-2">{business.name.charAt(0).toUpperCase()}</div>
+                                <div className="text-sm opacity-90 px-4 text-center line-clamp-2">{business.name}</div>
                               </div>
                             </div>
-                          )}
-                        </div>
-
-                        {/* Business Details */}
-                        <div className="p-4">
-                          <div className="mb-2">
-                            <h3 className="font-semibold text-gray-900 text-lg line-clamp-2 group-hover:text-red-600 transition-colors">
-                              {business.name}
-                            </h3>
-                          </div>
-                          
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2 leading-relaxed">
-                            {business.address}
-                          </p>
-                          
-                          {/* Rating and Reviews */}
-                          {business.rating > 0 && (
-                            <div className="flex items-center mb-3">
-                              <div className="flex items-center mr-2">
-                                {[...Array(5)].map((_, i) => (
-                                  <span key={i} className={`text-lg ${
-                                    i < Math.floor(business.rating) ? 'text-yellow-400' : 'text-gray-200'
-                                  }`}>
-                                    ★
-                                  </span>
-                                ))}
-                              </div>
-                              <span className="text-sm text-gray-600">
+                            
+                            {/* Rating Badge */}
+                            {business.rating > 0 && (
+                              <div className="absolute top-3 right-3 bg-white bg-opacity-95 backdrop-blur-sm text-gray-900 px-2 py-1 rounded-full text-sm font-medium flex items-center shadow-md">
+                                <span className="text-yellow-500 mr-1">★</span>
                                 {business.rating.toFixed(1)}
-                                {business.reviewCount && ` (${business.reviewCount})`}
-                              </span>
+                              </div>
+                            )}
+                            
+                            {/* Status Badge */}
+                            {business.openNow !== undefined && (
+                              <div className="absolute top-3 left-3">
+                                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  business.openNow 
+                                    ? 'bg-green-500 text-white' 
+                                    : 'bg-red-500 text-white'
+                                }`}>
+                                  {business.openNow ? 'Abierto' : 'Cerrado'}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Business Details */}
+                          <div className="p-4">
+                            <div className="mb-2">
+                              <h3 className="font-semibold text-gray-900 text-lg line-clamp-2 group-hover:text-red-600 transition-colors">
+                                {business.name}
+                              </h3>
                             </div>
-                          )}
-                          
-                          {/* Phone Number Display */}
-                          {business.phone && (
-                            <div className="flex items-center mb-3 text-sm text-gray-600">
-                              <Phone className="w-4 h-4 mr-2 text-green-600" />
-                              <span className="font-medium">{business.phone}</span>
+                            
+                            <p className="text-gray-600 text-sm mb-3 line-clamp-2 leading-relaxed">
+                              {business.address}
+                            </p>
+                            
+                            {/* Rating and Reviews */}
+                            {business.rating > 0 && (
+                              <div className="flex items-center mb-3">
+                                <div className="flex items-center mr-2">
+                                  {[...Array(5)].map((_, i) => (
+                                    <span key={i} className={`text-lg ${
+                                      i < Math.floor(business.rating) ? 'text-yellow-400' : 'text-gray-200'
+                                    }`}>
+                                      ★
+                                    </span>
+                                  ))}
+                                </div>
+                                <span className="text-sm text-gray-600">
+                                  {business.rating.toFixed(1)}
+                                  {business.reviewCount && ` (${business.reviewCount})`}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Phone Number Display */}
+                            {business.phone && (
+                              <div className="flex items-center mb-3 text-sm text-gray-600">
+                                <Phone className="w-4 h-4 mr-2 text-green-600" />
+                                <span className="font-medium">{business.phone}</span>
+                              </div>
+                            )}
+                            
+                            {/* Action Button */}
+                            <div className="flex items-center">
+                              <Button 
+                                size="sm" 
+                                className="w-full bg-red-600 hover:bg-red-700 text-sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Create Google Maps URL with the business location
+                                  const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.name + ' ' + business.address)}`;
+                                  window.open(googleMapsUrl, '_blank');
+                                }}
+                              >
+                                Ver más
+                              </Button>
                             </div>
-                          )}
-                          
-                          {/* Action Button */}
-                          <div className="flex items-center">
-                            <Button 
-                              size="sm" 
-                              className="w-full bg-red-600 hover:bg-red-700 text-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Create Google Maps URL with the business location
-                                const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.name + ' ' + business.address)}`;
-                                window.open(googleMapsUrl, '_blank');
-                              }}
-                            >
-                              Ver más
-                            </Button>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )
                   ))}
                 </div>
               </div>
@@ -1005,13 +1106,29 @@ export default function SearchPage() {
                     Información Básica
                   </Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className={cn(
+                  "gap-6",
+                  viewMode === "grid" && "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+                  viewMode === "list" && "space-y-4"
+                )}>
                   {publicBusinesses.map((business: any) => (
-                    <BusinessCard
-                      key={`public-${business.id}`}
-                      business={business}
-                      onViewClick={handleBusinessView}
-                    />
+                    viewMode === "list" ? (
+                      <BusinessListItem
+                        key={`public-${business.id}`}
+                        business={business}
+                        onViewClick={() => handleBusinessView(business.id)}
+                        onBookClick={() => handleBusinessBook(business.id)}
+                        onSaveClick={() => handleBusinessSave(business.id)}
+                      />
+                    ) : (
+                      <EnhancedBusinessCard
+                        key={`public-${business.id}`}
+                        business={business}
+                        onViewClick={() => handleBusinessView(business.id)}
+                        onBookClick={() => handleBusinessBook(business.id)}
+                        onSaveClick={() => handleBusinessSave(business.id)}
+                      />
+                    )
                   ))}
                 </div>
               </div>
@@ -1034,10 +1151,10 @@ export default function SearchPage() {
             )}
 
             {/* Pagination Controls */}
-            {paginationInfo.totalResults > 0 && paginationInfo.totalPages > 1 && (
+            {totalResults > 0 && totalPages > 1 && (
               <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
                 <div className="text-sm text-gray-600">
-                  Mostrando {Math.min((paginationInfo.currentPage - 1) * 20 + 1, paginationInfo.totalResults)} - {Math.min(paginationInfo.currentPage * 20, paginationInfo.totalResults)} de {paginationInfo.totalResults} resultados
+                  Mostrando {startIndex + 1} - {Math.min(endIndex, totalResults)} de {totalResults} resultados
                 </div>
                 
                 <div className="flex items-center space-x-2">
@@ -1045,34 +1162,33 @@ export default function SearchPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      console.log('Clicking previous page');
-                      setCurrentPage(Math.max(1, paginationInfo.currentPage - 1));
+                      setCurrentPage(Math.max(1, currentPage - 1));
                     }}
-                    disabled={paginationInfo.currentPage === 1}
+                    disabled={currentPage === 1}
                   >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
                     Anterior
                   </Button>
                   
                   <div className="flex items-center space-x-1">
-                    {Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                       let pageNum;
-                      if (paginationInfo.totalPages <= 5) {
+                      if (totalPages <= 5) {
                         pageNum = i + 1;
-                      } else if (paginationInfo.currentPage <= 3) {
+                      } else if (currentPage <= 3) {
                         pageNum = i + 1;
-                      } else if (paginationInfo.currentPage >= paginationInfo.totalPages - 2) {
-                        pageNum = paginationInfo.totalPages - 4 + i;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
                       } else {
-                        pageNum = paginationInfo.currentPage - 2 + i;
+                        pageNum = currentPage - 2 + i;
                       }
                       
                       return (
                         <Button
                           key={pageNum}
-                          variant={paginationInfo.currentPage === pageNum ? "default" : "outline"}
+                          variant={currentPage === pageNum ? "default" : "outline"}
                           size="sm"
                           onClick={() => {
-                            console.log('Clicking page:', pageNum);
                             setCurrentPage(pageNum);
                           }}
                           className="w-8 h-8 p-0"
@@ -1087,12 +1203,12 @@ export default function SearchPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      console.log('Clicking next page');
-                      setCurrentPage(Math.min(paginationInfo.totalPages, paginationInfo.currentPage + 1));
+                      setCurrentPage(Math.min(totalPages, currentPage + 1));
                     }}
-                    disabled={paginationInfo.currentPage === paginationInfo.totalPages}
+                    disabled={currentPage === totalPages}
                   >
                     Siguiente
+                    <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                 </div>
               </div>
