@@ -81,19 +81,16 @@ export class ApifyScraper {
       priceLevel: place.priceLevel || 0,
       phone: place.phone || null,
       website: place.website || null,
-      email: place.email || place.companyEmail || null,  // Company email from contacts enrichment
+      email: null,
       photoUrl: place.imageUrls?.[0] || null,
       latitude: place.latitude || -12.05,
       longitude: place.longitude || -77.05,
       openNow: null,
       hours: place.openingHours || null,
       lastUpdated: new Date(),
-      source: 'apify'
+      source: 'apify',
+      searchTerms: null
     };
-
-    // Generate enhanced search terms using the new search engine
-    const { EnhancedSearchEngine } = require('./enhanced-search-engine');
-    businessData.searchTerms = EnhancedSearchEngine.generateSearchTerms(businessData);
 
     return businessData;
   }
