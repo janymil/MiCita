@@ -1,4 +1,4 @@
-import { eq, and, or, sql, ilike, desc, asc } from "drizzle-orm";
+import { eq, and, or, sql, ilike, desc, asc, gte, lte, ne, isNotNull, count } from "drizzle-orm";
 import { db } from "./db";
 import { apifyBusinesses } from "@shared/schema";
 import type { ApifyBusiness } from "@shared/schema";
@@ -370,25 +370,34 @@ export class EnhancedSearchEngine {
     }
     
     // Quality filters
-    if (searchQuery.minRating > 0) {
-      conditions.push(sql`${apifyBusinesses.rating} >= ${searchQuery.minRating}`);
+    if (searchQuery.minRating && searchQuery.minRating > 0) {
+      conditions.push(gte(apifyBusinesses.rating, searchQuery.minRating.toString()));
     }
     
-    if (searchQuery.maxPrice < 5) {
-      conditions.push(sql`${apifyBusinesses.priceLevel} <= ${searchQuery.maxPrice}`);
+    if (searchQuery.maxPrice && searchQuery.maxPrice < 5) {
+      conditions.push(lte(apifyBusinesses.priceLevel, searchQuery.maxPrice));
     }
     
     // Contact information filters
     if (searchQuery.hasPhone) {
-      conditions.push(sql`${apifyBusinesses.phone} IS NOT NULL AND ${apifyBusinesses.phone} != ''`);
+      conditions.push(and(
+        isNotNull(apifyBusinesses.phone),
+        ne(apifyBusinesses.phone, '')
+      ));
     }
     
     if (searchQuery.hasWebsite) {
-      conditions.push(sql`${apifyBusinesses.website} IS NOT NULL AND ${apifyBusinesses.website} != ''`);
+      conditions.push(and(
+        isNotNull(apifyBusinesses.website),
+        ne(apifyBusinesses.website, '')
+      ));
     }
     
     if (searchQuery.hasEmail) {
-      conditions.push(sql`${apifyBusinesses.email} IS NOT NULL AND ${apifyBusinesses.email} != ''`);
+      conditions.push(and(
+        isNotNull(apifyBusinesses.email),
+        ne(apifyBusinesses.email, '')
+      ));
     }
     
     // Operating hours filter
@@ -415,21 +424,8 @@ export class EnhancedSearchEngine {
       
       case 'relevance':
       default:
-        // For relevance, we'll use a combination of rating and review count
-        // with some boost for exact name matches
-        if (query) {
-          return queryBuilder.orderBy(
-            // Exact name match gets highest priority
-            sql`CASE WHEN LOWER(${apifyBusinesses.name}) = LOWER(${query}) THEN 1 ELSE 0 END DESC`,
-            // Then partial name matches
-            sql`CASE WHEN LOWER(${apifyBusinesses.name}) LIKE LOWER('%${query}%') THEN 1 ELSE 0 END DESC`,
-            // Finally by rating and review count
-            desc(apifyBusinesses.rating),
-            desc(apifyBusinesses.reviewCount)
-          );
-        } else {
-          return queryBuilder.orderBy(desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount));
-        }
+        // For relevance, use rating and review count
+        return queryBuilder.orderBy(desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount));
     }
   }
   
