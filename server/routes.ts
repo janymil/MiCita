@@ -475,9 +475,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       }
 
+      // Test Apify API
+      try {
+        console.log('🧪 Testing Apify scraping...');
+        const { apifyScraper } = await import('./apify-scraper-service');
+        const testResult = await apifyScraper.testScraping();
+        
+        if (testResult.success) {
+          results.apify = {
+            status: 'working',
+            message: `Successfully scraped ${testResult.sampleData.scraped} businesses`,
+            count: testResult.sampleData.scraped
+          };
+        } else {
+          results.apify = {
+            status: 'error',
+            message: testResult.error || 'Unknown Apify error',
+            count: 0
+          };
+        }
+      } catch (error) {
+        results.apify = {
+          status: 'error',
+          message: `Apify API error: ${error.message}`,
+          count: 0
+        };
+      }
+
       res.json(results);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Apify scraping endpoints
+  app.post("/api/scrape/test", async (req, res) => {
+    try {
+      console.log('🧪 Running Apify test scraping...');
+      const { apifyScraper } = await import('./apify-scraper-service');
+      const result = await apifyScraper.testScraping();
+      
+      res.json({
+        success: result.success,
+        message: result.success ? 'Test scraping completed successfully' : 'Test scraping failed',
+        data: result.sampleData,
+        error: result.error
+      });
+    } catch (error) {
+      console.error('Test scraping error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Test scraping failed', 
+        error: error.message 
+      });
+    }
+  });
+
+  app.post("/api/scrape/category", async (req, res) => {
+    try {
+      const { category, location = 'Lima, Peru', maxPlaces = 50 } = req.body;
+      
+      if (!category) {
+        return res.status(400).json({ message: 'Category is required' });
+      }
+
+      console.log(`🔍 Scraping ${category} businesses...`);
+      const { apifyScraper } = await import('./apify-scraper-service');
+      const businesses = await apifyScraper.scrapeCategoryBusinesses(category, location, maxPlaces);
+      
+      res.json({
+        success: true,
+        message: `Successfully scraped ${businesses.length} businesses`,
+        data: {
+          category,
+          location,
+          scraped: businesses.length,
+          businesses: businesses.slice(0, 5) // Return first 5 as sample
+        }
+      });
+    } catch (error) {
+      console.error('Category scraping error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Category scraping failed', 
+        error: error.message 
+      });
+    }
+  });
+
+  app.post("/api/scrape/lima-comprehensive", async (req, res) => {
+    try {
+      console.log('🚀 Starting comprehensive Lima business scraping...');
+      const { apifyScraper } = await import('./apify-scraper-service');
+      
+      // Start scraping in background and return immediately
+      res.json({
+        success: true,
+        message: 'Comprehensive Lima scraping started',
+        status: 'running',
+        note: 'This process will run in background. Check logs for progress.'
+      });
+
+      // Run scraping in background
+      apifyScraper.scrapeLimaBusinesses().then(result => {
+        console.log('🎉 Comprehensive scraping completed:', result);
+      }).catch(error => {
+        console.error('❌ Comprehensive scraping failed:', error);
+      });
+
+    } catch (error) {
+      console.error('Comprehensive scraping error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to start comprehensive scraping', 
+        error: error.message 
+      });
     }
   });
 
