@@ -25,11 +25,24 @@ export default function SearchPage() {
   const [location, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedSubcategory, setSelectedSubcategory] = useState("all");
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("all");
   
   // Get available districts for selected city
   const availableDistricts = selectedCity && CITY_DISTRICTS[selectedCity] ? CITY_DISTRICTS[selectedCity] : [];
+  
+  // Fetch subcategories for selected category
+  const { data: subcategories = [] } = useQuery({
+    queryKey: ["/api/subcategories", selectedCategory],
+    queryFn: async () => {
+      if (!selectedCategory || selectedCategory === "all") return [];
+      const response = await fetch(`/api/subcategories/${selectedCategory}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: selectedCategory && selectedCategory !== "all",
+  });
   
   // Reset district when city changes
   useEffect(() => {
@@ -42,6 +55,11 @@ export default function SearchPage() {
       }
     }
   }, [selectedCity, selectedDistrict]);
+  
+  // Reset subcategory when category changes
+  useEffect(() => {
+    setSelectedSubcategory("all");
+  }, [selectedCategory]);
   const [minRating, setMinRating] = useState(0);
   const [maxPrice, setMaxPrice] = useState(4);
   const [openNow, setOpenNow] = useState(false);
@@ -76,6 +94,7 @@ export default function SearchPage() {
     const urlParams = new URLSearchParams(window.location.search);
     const newQuery = urlParams.get("q") || "";
     const newCategory = urlParams.get("category") || "";
+    const newSubcategory = urlParams.get("subcategory") || "all";
     const newCity = urlParams.get("location") || urlParams.get("city") || "";
     const newDistrict = urlParams.get("district") || "all";
     const newMinRating = parseInt(urlParams.get("minRating") || "0");
@@ -88,6 +107,7 @@ export default function SearchPage() {
     
     setSearchQuery(newQuery);
     setSelectedCategory(newCategory || "all");
+    setSelectedSubcategory(newSubcategory);
     setSelectedCity(newCity);
     setSelectedDistrict(newDistrict);
     setMinRating(newMinRating);
@@ -103,6 +123,7 @@ export default function SearchPage() {
       "/api/search", 
       searchQuery,
       selectedCategory,
+      selectedSubcategory,
       selectedCity,
       selectedDistrict,
       minRating,
@@ -120,6 +141,7 @@ export default function SearchPage() {
       const params = new URLSearchParams();
       if (searchQuery) params.append("q", searchQuery);
       if (selectedCategory) params.append("category", selectedCategory);
+      if (selectedSubcategory && selectedSubcategory !== "all") params.append("subcategory", selectedSubcategory);
       if (selectedCity) params.append("city", selectedCity);
       if (selectedDistrict) params.append("district", selectedDistrict);
       if (minRating > 0) params.append("minRating", minRating.toString());
@@ -224,6 +246,7 @@ export default function SearchPage() {
     const params = new URLSearchParams();
     if (searchQuery) params.append("q", searchQuery);
     if (selectedCategory && selectedCategory !== "all") params.append("category", selectedCategory);
+    if (selectedSubcategory && selectedSubcategory !== "all") params.append("subcategory", selectedSubcategory);
     if (selectedCity) params.append("city", selectedCity);
     if (selectedDistrict && selectedDistrict !== "all") params.append("district", selectedDistrict);
     if (minRating > 0) params.append("minRating", minRating.toString());
@@ -239,6 +262,7 @@ export default function SearchPage() {
   
   const clearFilters = () => {
     setSelectedCategory("all");
+    setSelectedSubcategory("all");
     setSelectedDistrict("all");
     setMinRating(0);
     setMaxPrice(4);
@@ -399,7 +423,7 @@ export default function SearchPage() {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, selectedCity, selectedDistrict, minRating, openNow, sortBy, mapFilterEnabled]);
+  }, [searchQuery, selectedCategory, selectedSubcategory, selectedCity, selectedDistrict, minRating, openNow, sortBy, mapFilterEnabled]);
 
   const handleBusinessView = (customUrl: string) => {
     setLocation(`/${customUrl}`);
@@ -490,7 +514,7 @@ export default function SearchPage() {
                 </Badge>
               )}
 
-              {(searchQuery || (selectedCategory && selectedCategory !== "all") || selectedCity || (selectedDistrict && selectedDistrict !== "all") || minRating > 0 || openNow || sortBy !== "relevance") && (
+              {(searchQuery || (selectedCategory && selectedCategory !== "all") || (selectedSubcategory && selectedSubcategory !== "all") || selectedCity || (selectedDistrict && selectedDistrict !== "all") || minRating > 0 || openNow || sortBy !== "relevance") && (
                 <Button variant="ghost" onClick={clearFilters} size="sm">
                   Limpiar filtros
                 </Button>
@@ -614,6 +638,36 @@ export default function SearchPage() {
                           {BUSINESS_CATEGORIES.map((category) => (
                             <SelectItem key={category.id} value={category.id}>
                               {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Subcategory Filter */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Subcategoría
+                      </label>
+                      <Select 
+                        value={selectedSubcategory} 
+                        onValueChange={setSelectedSubcategory}
+                        disabled={!selectedCategory || selectedCategory === "all" || subcategories.length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={
+                            !selectedCategory || selectedCategory === "all"
+                              ? "Selecciona una categoría primero" 
+                              : subcategories.length === 0 
+                                ? "No hay subcategorías disponibles"
+                                : "Todas las subcategorías"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas las subcategorías</SelectItem>
+                          {subcategories.map((subcategory: string) => (
+                            <SelectItem key={subcategory} value={subcategory}>
+                              {subcategory}
                             </SelectItem>
                           ))}
                         </SelectContent>

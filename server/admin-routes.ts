@@ -87,6 +87,7 @@ router.get('/businesses', async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const search = req.query.search as string;
     const category = req.query.category as string;
+    const subcategory = req.query.subcategory as string;
     const status = req.query.status as string;
     const sortBy = (req.query.sortBy as string) || 'createdAt';
     const sortOrder = (req.query.sortOrder as string) || 'desc';
@@ -104,6 +105,10 @@ router.get('/businesses', async (req, res) => {
     
     if (category) {
       conditions.push(eq(apifyBusinesses.category, category));
+    }
+    
+    if (subcategory) {
+      conditions.push(eq(apifyBusinesses.subcategory, subcategory));
     }
     
     if (status) {

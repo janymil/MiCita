@@ -338,7 +338,7 @@ export default function AdminBusinesses() {
             </form>
 
             {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
@@ -348,6 +348,20 @@ export default function AdminBusinesses() {
                   {filterOptions.categories.map(category => (
                     <option key={category} value={category} className="capitalize">
                       {category}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={selectedSubcategory}
+                  onChange={(e) => setSelectedSubcategory(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-3 py-2"
+                  disabled={!selectedCategory || subcategories.length === 0}
+                >
+                  <option value="">All Subcategories</option>
+                  {subcategories.map(subcategory => (
+                    <option key={subcategory} value={subcategory} className="capitalize">
+                      {subcategory}
                     </option>
                   ))}
                 </select>
@@ -438,6 +452,9 @@ export default function AdminBusinesses() {
                     Category
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Subcategory
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Contact
                   </th>
                   <th 
@@ -466,13 +483,13 @@ export default function AdminBusinesses() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center">
+                    <td colSpan={9} className="px-6 py-12 text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                     </td>
                   </tr>
                 ) : businesses.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                       No businesses found
                     </td>
                   </tr>
@@ -502,6 +519,13 @@ export default function AdminBusinesses() {
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
                           {business.category}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {business.subcategory && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+                            {business.subcategory}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="space-y-1">
