@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List, Phone, Globe } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
@@ -42,6 +43,7 @@ export default function SearchPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [selectedBusiness, setSelectedBusiness] = useState<any>(null);
+  const [showBusinessModal, setShowBusinessModal] = useState(false);
   const [mapBounds, setMapBounds] = useState<any | null>(null);
   const [debouncedMapBounds, setDebouncedMapBounds] = useState<any | null>(null);
   const [mapFilterEnabled, setMapFilterEnabled] = useState(false);
@@ -825,152 +827,12 @@ export default function SearchPage() {
                     <div 
                       key={`business-${business.id}`} 
                       className="group cursor-pointer relative"
+                      onClick={() => {
+                        setSelectedBusiness(business);
+                        setShowBusinessModal(true);
+                      }}
                     >
                       <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                        
-                        {/* Enhanced Hover Business Card */}
-                        <div className="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out group-hover:delay-200 transform scale-95 group-hover:scale-100 -top-4 left-full ml-6 pointer-events-none">
-                          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden w-80 max-w-sm">
-                            {/* Card Header with Image */}
-                            <div className="relative h-32 bg-gradient-to-br from-red-500 to-red-600">
-                              {business.photoUrl ? (
-                                <img 
-                                  src={business.photoUrl} 
-                                  alt={business.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex items-center justify-center h-full">
-                                  <div className="text-white text-2xl font-bold">
-                                    {business.name.charAt(0).toUpperCase()}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Overlay gradient */}
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-                              
-                              {/* Rating badge */}
-                              {business.rating > 0 && (
-                                <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm text-gray-900 px-2 py-1 rounded-full text-xs font-medium flex items-center">
-                                  <span className="text-yellow-500 mr-1">★</span>
-                                  {business.rating.toFixed(1)}
-                                </div>
-                              )}
-                              
-                              {/* Arrow pointer */}
-                              <div className="absolute left-0 top-8 w-0 h-0 border-r-8 border-r-white border-t-6 border-t-transparent border-b-6 border-b-transparent -ml-2"></div>
-                            </div>
-                            
-                            {/* Card Content */}
-                            <div className="p-4 space-y-3">
-                              {/* Business Name & Category */}
-                              <div>
-                                <h3 className="font-bold text-lg text-gray-900 leading-tight mb-1">
-                                  {business.name}
-                                </h3>
-                                <div className="flex items-center">
-                                  <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
-                                    {business.category.charAt(0).toUpperCase() + business.category.slice(1)}
-                                  </span>
-                                </div>
-                              </div>
-                              
-                              {/* Rating & Reviews */}
-                              {business.rating > 0 && (
-                                <div className="flex items-center space-x-2">
-                                  <div className="flex items-center">
-                                    {[...Array(5)].map((_, i) => (
-                                      <span key={i} className={`text-sm ${
-                                        i < Math.floor(business.rating) ? 'text-yellow-400' : 'text-gray-200'
-                                      }`}>
-                                        ★
-                                      </span>
-                                    ))}
-                                  </div>
-                                  <span className="text-sm text-gray-600">
-                                    {business.rating.toFixed(1)} 
-                                    {business.reviewCount && ` (${business.reviewCount} reseñas)`}
-                                  </span>
-                                </div>
-                              )}
-                              
-                              {/* Address */}
-                              <div className="flex items-start space-x-2">
-                                <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-sm text-gray-600 leading-relaxed">{business.address}</p>
-                              </div>
-                              
-                              {/* Contact Information */}
-                              <div className="space-y-2">
-                                {business.phone && (
-                                  <div className="flex items-center space-x-2">
-                                    <Phone className="w-4 h-4 text-green-600 flex-shrink-0" />
-                                    <span className="text-sm font-medium text-gray-900">{business.phone}</span>
-                                  </div>
-                                )}
-                                
-                                {business.website && (
-                                  <div className="flex items-center space-x-2">
-                                    <Globe className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                                    <a 
-                                      href={business.website} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-sm text-blue-600 hover:underline truncate"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {business.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                              
-                              {/* Business Hours */}
-                              {business.hours && business.hours.length > 0 && (
-                                <div className="border-t border-gray-100 pt-3">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <Clock className="w-4 h-4 text-gray-400" />
-                                    <span className="text-sm font-medium text-gray-700">Horarios</span>
-                                  </div>
-                                  <div className="space-y-1 ml-6">
-                                    {business.hours.slice(0, 3).map((hour: any, i: number) => (
-                                      <p key={i} className="text-xs text-gray-600">
-                                        {typeof hour === 'string' ? hour : `${hour.day}: ${hour.hours}`}
-                                      </p>
-                                    ))}
-                                    {business.hours.length > 3 && (
-                                      <p className="text-xs text-gray-500 italic">+{business.hours.length - 3} más...</p>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Quick Actions */}
-                              <div className="border-t border-gray-100 pt-3 flex space-x-2">
-                                {business.phone && (
-                                  <a
-                                    href={`tel:${business.phone}`}
-                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs py-2 px-3 rounded-lg text-center font-medium transition-colors"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    Llamar
-                                  </a>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.name + ' ' + business.address)}`;
-                                    window.open(googleMapsUrl, '_blank');
-                                  }}
-                                  className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs py-2 px-3 rounded-lg text-center font-medium transition-colors"
-                                >
-                                  Ver en Maps
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
                         {/* Business Image */}
                         <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200">
                           {business.photoUrl ? (
@@ -1059,7 +921,8 @@ export default function SearchPage() {
                             <Button 
                               size="sm" 
                               className="w-full bg-red-600 hover:bg-red-700 text-sm"
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 // Create Google Maps URL with the business location
                                 const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.name + ' ' + business.address)}`;
                                 window.open(googleMapsUrl, '_blank');
@@ -1182,6 +1045,174 @@ export default function SearchPage() {
           </div>
         )}
       </div>
+
+      {/* Enhanced Business Details Modal */}
+      <Dialog open={showBusinessModal} onOpenChange={setShowBusinessModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedBusiness && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold">{selectedBusiness.name}</DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Business Header with Image */}
+                <div className="relative h-48 bg-gradient-to-br from-red-500 to-red-600 rounded-xl overflow-hidden">
+                  {selectedBusiness.photoUrl ? (
+                    <img 
+                      src={selectedBusiness.photoUrl} 
+                      alt={selectedBusiness.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-white text-4xl font-bold">
+                        {selectedBusiness.name.charAt(0).toUpperCase()}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Overlay gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+                  
+                  {/* Rating badge */}
+                  {selectedBusiness.rating > 0 && (
+                    <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm text-gray-900 px-3 py-2 rounded-full font-medium flex items-center shadow-lg">
+                      <span className="text-yellow-500 mr-2">★</span>
+                      <span className="text-lg font-bold">{selectedBusiness.rating.toFixed(1)}</span>
+                      {selectedBusiness.reviewCount && (
+                        <span className="text-sm text-gray-600 ml-1">({selectedBusiness.reviewCount})</span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Category badge */}
+                  <div className="absolute bottom-4 left-4">
+                    <span className="px-3 py-1 bg-red-600 text-white rounded-full text-sm font-medium">
+                      {selectedBusiness.category.charAt(0).toUpperCase() + selectedBusiness.category.slice(1)}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Rating and Reviews */}
+                {selectedBusiness.rating > 0 && (
+                  <div className="flex items-center space-x-3 py-4 border-b border-gray-100">
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className={`text-xl ${
+                          i < Math.floor(selectedBusiness.rating) ? 'text-yellow-400' : 'text-gray-200'
+                        }`}>
+                          ★
+                        </span>
+                      ))}
+                    </div>
+                    <div className="text-lg font-semibold text-gray-900">
+                      {selectedBusiness.rating.toFixed(1)}
+                    </div>
+                    {selectedBusiness.reviewCount && (
+                      <div className="text-gray-600">
+                        basado en {selectedBusiness.reviewCount} reseñas
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Contact Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-gray-900">Información de Contacto</h3>
+                    
+                    {/* Address */}
+                    <div className="flex items-start space-x-3">
+                      <MapPin className="w-5 h-5 text-gray-400 mt-1 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-gray-900">Dirección</p>
+                        <p className="text-gray-600 leading-relaxed">{selectedBusiness.address}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Phone */}
+                    {selectedBusiness.phone && (
+                      <div className="flex items-start space-x-3">
+                        <Phone className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-gray-900">Teléfono</p>
+                          <a 
+                            href={`tel:${selectedBusiness.phone}`}
+                            className="text-green-600 hover:underline font-medium"
+                          >
+                            {selectedBusiness.phone}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Website */}
+                    {selectedBusiness.website && (
+                      <div className="flex items-start space-x-3">
+                        <Globe className="w-5 h-5 text-blue-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-gray-900">Sitio Web</p>
+                          <a 
+                            href={selectedBusiness.website} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline break-all"
+                          >
+                            {selectedBusiness.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Business Hours */}
+                  {selectedBusiness.hours && selectedBusiness.hours.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-lg text-gray-900">Horarios de Atención</h3>
+                      <div className="space-y-2">
+                        {selectedBusiness.hours.map((hour: any, i: number) => (
+                          <div key={i} className="flex justify-between items-center py-1">
+                            <span className="text-gray-600 capitalize">
+                              {typeof hour === 'string' ? hour.split(':')[0] || hour : hour.day}:
+                            </span>
+                            <span className="font-medium text-gray-900">
+                              {typeof hour === 'string' ? hour.split(':').slice(1).join(':') || '' : hour.hours}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex space-x-4 pt-6 border-t border-gray-100">
+                  {selectedBusiness.phone && (
+                    <a
+                      href={`tel:${selectedBusiness.phone}`}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-lg text-center font-medium transition-colors flex items-center justify-center space-x-2"
+                    >
+                      <Phone className="w-5 h-5" />
+                      <span>Llamar Ahora</span>
+                    </a>
+                  )}
+                  <button
+                    onClick={() => {
+                      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedBusiness.name + ' ' + selectedBusiness.address)}`;
+                      window.open(googleMapsUrl, '_blank');
+                    }}
+                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg text-center font-medium transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <MapPin className="w-5 h-5" />
+                    <span>Ver en Maps</span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
