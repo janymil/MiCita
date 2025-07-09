@@ -16,6 +16,7 @@ interface BusinessListItemProps {
     rating?: string | number;
     reviewCount?: number;
     coverImage?: string;
+    photoUrl?: string;
     photos?: string[];
     phone?: string;
     email?: string;
@@ -41,7 +42,7 @@ export default function BusinessListItem({
   const [isSaved, setIsSaved] = useState(false);
   const category = BUSINESS_CATEGORIES.find(c => c.id === business.category);
   const rating = parseFloat(String(business.rating || "0"));
-  const primaryImage = business.photos?.[0] || business.coverImage || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&h=300";
+  const primaryImage = business.photos?.[0] || business.coverImage || business.photoUrl || "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&h=300";
   
   const handleSave = () => {
     setIsSaved(!isSaved);
