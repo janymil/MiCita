@@ -591,7 +591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🔄 Pulling fresh data from Apify dataset...');
       
-      const response = await fetch('https://api.apify.com/v2/datasets/jC3uI7WSuQKRTj2i1/items?token=apify_api_SThnhfb7cGOxixoqRUbdxCnjvoP6Kc33SbEq&clean=true&format=json');
+      const response = await fetch('https://api.apify.com/v2/datasets/jC3uI7WSuQKRTj2i1/items?token=apify_api_SThnhfb7cGOxixoqRUbdxCnjvoP6Kc33SbEq&clean=true&format=json&limit=2000');
       
       if (!response.ok) {
         throw new Error(`Apify API error: ${response.status}`);
@@ -602,7 +602,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let processed = 0;
       
-      for (const item of apifyData.slice(0, 100)) { // Process first 100 items
+      for (const item of apifyData) { // Process all items
         try {
           const cacheData = {
             placeId: item.placeId || `apify_${Date.now()}_${Math.random()}`,
