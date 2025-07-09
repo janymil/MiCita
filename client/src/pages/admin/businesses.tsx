@@ -89,6 +89,11 @@ export default function AdminBusinesses() {
     setSelectedSubcategory(''); // Reset subcategory when category changes
   }, [selectedCategory]);
 
+  // Reset pagination when subcategory changes
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, page: 1 }));
+  }, [selectedSubcategory]);
+
   const fetchBusinesses = async () => {
     try {
       setLoading(true);
