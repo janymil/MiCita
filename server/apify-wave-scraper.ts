@@ -269,14 +269,14 @@ export class ApifyWaveScraper {
             locationQuery: wave.cities[0] + ', Peru',
             maxPlacesPerSearch: Math.ceil(wave.maxBusinesses / searchTerms.length),
             language: 'es',
-            allPlacesNoSearchAction: 'random',
+            allPlacesNoSearchAction: '',
             maxReviews: 3,
             maxImages: 2,
             exportPlaceUrls: false,
             additionalInfo: true
           };
 
-          const run = await this.client.actor('compass/google-maps-scraper').call(input);
+          const run = await this.client.actor('compass/crawler-google-places').call(input);
           const { items } = await this.client.dataset(run.defaultDatasetId).listItems();
 
           console.log(`📊 Batch ${batchIndex + 1} found ${items.length} businesses`);
