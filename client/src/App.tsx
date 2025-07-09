@@ -27,6 +27,11 @@ import Analytics from "@/pages/dashboard/analytics";
 import Finanzas from "@/pages/dashboard/finanzas";
 import Settings from "@/pages/dashboard/settings";
 
+// Admin pages
+import AdminLogin from "@/pages/admin/login";
+import AdminDashboard from "@/pages/admin/dashboard";
+import AdminBusinesses from "@/pages/admin/businesses";
+
 function Router() {
   return (
     <Switch>
@@ -48,6 +53,12 @@ function Router() {
       <Route path="/dashboard/analytics" component={Analytics} />
       <Route path="/dashboard/finanzas" component={Finanzas} />
       <Route path="/dashboard/configuracion" component={Settings} />
+
+      {/* Admin routes */}
+      <Route path="/admin" component={AdminLogin} />
+      <Route path="/admin/login" component={AdminLogin} />
+      <Route path="/admin/dashboard" component={AdminDashboard} />
+      <Route path="/admin/businesses" component={AdminBusinesses} />
 
       {/* Business micrositio route - catch-all for business slugs */}
       <Route path="/:slug" component={BusinessMicrosite} />

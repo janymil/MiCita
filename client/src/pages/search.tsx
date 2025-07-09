@@ -816,14 +816,43 @@ export default function SearchPage() {
                     Negocios encontrados ({googlePlacesResults.length})
                   </h2>
                   <Badge className="bg-green-600 text-white">
-                    OpenStreetMap + Foursquare
+                    Datos de Apify
                   </Badge>
                 </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {googlePlacesResults.map((business: any) => (
-                    <div key={`business-${business.id}`} className="group cursor-pointer">
+                    <div 
+                      key={`business-${business.id}`} 
+                      className="group cursor-pointer relative"
+                      title={`${business.name} - ${business.address}${business.phone ? ' - Tel: ' + business.phone : ''}${business.website ? ' - ' + business.website : ''}`}
+                    >
                       <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+                        
+                        {/* Hover Tooltip */}
+                        <div className="absolute z-50 invisible group-hover:visible bg-gray-900 text-white p-4 rounded-lg shadow-xl max-w-sm -top-2 left-full ml-4 transform transition-all duration-200 group-hover:delay-500">
+                          <div className="absolute left-0 top-6 w-0 h-0 border-r-8 border-r-gray-900 border-t-4 border-t-transparent border-b-4 border-b-transparent -ml-2"></div>
+                          <h4 className="font-semibold text-sm mb-2">{business.name}</h4>
+                          <div className="space-y-1 text-xs">
+                            <p><span className="font-medium">Dirección:</span> {business.address}</p>
+                            {business.phone && <p><span className="font-medium">Teléfono:</span> {business.phone}</p>}
+                            {business.website && <p><span className="font-medium">Web:</span> {business.website}</p>}
+                            {business.rating > 0 && (
+                              <p><span className="font-medium">Rating:</span> {business.rating.toFixed(1)} ★ ({business.reviewCount} reseñas)</p>
+                            )}
+                            {business.hours && business.hours.length > 0 && (
+                              <div>
+                                <p className="font-medium">Horarios:</p>
+                                <div className="ml-2">
+                                  {business.hours.slice(0, 3).map((hour: any, i: number) => (
+                                    <p key={i} className="text-xs">{typeof hour === 'string' ? hour : `${hour.day}: ${hour.hours}`}</p>
+                                  ))}
+                                  {business.hours.length > 3 && <p className="text-xs">...</p>}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                         {/* Business Image */}
                         <div className="relative aspect-[4/3] bg-gradient-to-br from-gray-100 to-gray-200">
                           {business.photoUrl ? (
@@ -899,28 +928,23 @@ export default function SearchPage() {
                             </div>
                           )}
                           
-                          {/* Action Buttons */}
-                          <div className="flex items-center space-x-2">
-                            {business.phone && (
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="flex-1 text-sm hover:bg-red-50 hover:border-red-300 hover:text-red-600"
-                                onClick={() => window.open(`tel:${business.phone}`, '_self')}
-                              >
-                                <Phone className="w-4 h-4 mr-1" />
-                                Llamar
-                              </Button>
-                            )}
+                          {/* Phone Number Display */}
+                          {business.phone && (
+                            <div className="flex items-center mb-3 text-sm text-gray-600">
+                              <Phone className="w-4 h-4 mr-2 text-green-600" />
+                              <span className="font-medium">{business.phone}</span>
+                            </div>
+                          )}
+                          
+                          {/* Action Button */}
+                          <div className="flex items-center">
                             <Button 
                               size="sm" 
-                              className="flex-1 bg-red-600 hover:bg-red-700 text-sm"
+                              className="w-full bg-red-600 hover:bg-red-700 text-sm"
                               onClick={() => {
-                                if (business.website) {
-                                  window.open(business.website, '_blank');
-                                } else {
-                                  window.open(`https://www.openstreetmap.org/search?query=${encodeURIComponent(business.name + ' ' + business.address)}`, '_blank');
-                                }
+                                // Create Google Maps URL with the business location
+                                const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.name + ' ' + business.address)}`;
+                                window.open(googleMapsUrl, '_blank');
                               }}
                             >
                               Ver más

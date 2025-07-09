@@ -8,7 +8,13 @@
       "Bash(npm run:*)",
       "Bash(node:*)",
       "Bash(curl:*)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(pkill:*)",
+      "Bash(echo:*)",
+      "Bash(journalctl:*)",
+      "Bash(dmesg:*)",
+      "Bash(npx tsx:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

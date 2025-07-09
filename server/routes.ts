@@ -9,6 +9,8 @@ import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClie
 import { emailService } from "./email-service.js";
 import { AppointmentData } from "./email-templates";
 import { DBStorage } from "./db-storage.js";
+import { simpleAdminRoutes } from "./simple-admin-routes.js";
+import { adminRoutes } from "./admin-routes.js";
 
 
 // Helper function to send email notifications for status changes
@@ -1698,6 +1700,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Error al subir la imagen" });
     }
   });
+
+  // Admin routes
+  app.use('/api/admin', simpleAdminRoutes);
 
   // Debug endpoint to check email configuration (remove in production)
   app.get("/api/debug/email-config", (req, res) => {
