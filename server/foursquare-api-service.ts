@@ -198,7 +198,9 @@ export class FoursquareApiService {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`❌ Foursquare API error: ${response.status} - ${errorText}`);
-        throw new Error(`Foursquare API error: ${response.status}`);
+        console.error(`❌ Request URL: ${url}`);
+        console.error(`❌ API Key format: ${this.apiKey.substring(0, 10)}...`);
+        throw new Error(`Foursquare API error: ${response.status} - ${errorText}`);
       }
       
       const data: FoursquareSearchResponse = await response.json();
