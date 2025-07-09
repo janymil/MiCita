@@ -92,11 +92,7 @@ router.get('/businesses', async (req, res) => {
     const sortBy = (req.query.sortBy as string) || 'createdAt';
     const sortOrder = (req.query.sortOrder as string) || 'desc';
     
-    console.log('🔍 Admin businesses filter params:', {
-      page, limit, search, category, subcategory, status, sortBy, sortOrder
-    });
-    
-    console.log('🔍 Raw query params:', req.query);
+
     
     const offset = (page - 1) * limit;
     
@@ -109,16 +105,15 @@ router.get('/businesses', async (req, res) => {
       );
     }
     
-    if (category) {
+    if (category && category !== '' && category !== 'all') {
       conditions.push(eq(apifyBusinesses.category, category));
     }
     
-    if (subcategory) {
-      console.log('🎯 Adding subcategory filter:', subcategory);
+    if (subcategory && subcategory !== '' && subcategory !== 'all') {
       conditions.push(eq(apifyBusinesses.subcategory, subcategory));
     }
     
-    if (status) {
+    if (status && status !== '' && status !== 'all') {
       conditions.push(eq(apifyBusinesses.verifiedStatus, status));
     }
     
@@ -146,12 +141,6 @@ router.get('/businesses', async (req, res) => {
       : businessQuery.orderBy(desc(sortColumn));
     
     const businesses = await businessQuery.limit(limit).offset(offset);
-    
-    console.log('📊 Query results:', {
-      totalConditions: conditions.length,
-      resultCount: businesses.length,
-      hasSubcategoryFilter: !!subcategory
-    });
     
     // Count query
     let countQuery = db.select({ count: count() }).from(apifyBusinesses);

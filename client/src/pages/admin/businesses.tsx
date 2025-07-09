@@ -81,7 +81,7 @@ export default function AdminBusinesses() {
 
   // Fetch subcategories when category changes
   useEffect(() => {
-    if (selectedCategory) {
+    if (selectedCategory && selectedCategory !== '') {
       fetchSubcategories(selectedCategory);
     } else {
       setSubcategories([]);
@@ -100,10 +100,10 @@ export default function AdminBusinesses() {
         sortOrder
       });
 
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedCategory) params.append('category', selectedCategory);
-      if (selectedSubcategory) params.append('subcategory', selectedSubcategory);
-      if (selectedStatus) params.append('status', selectedStatus);
+      if (searchTerm && searchTerm.trim() !== '') params.append('search', searchTerm);
+      if (selectedCategory && selectedCategory !== '') params.append('category', selectedCategory);
+      if (selectedSubcategory && selectedSubcategory !== '') params.append('subcategory', selectedSubcategory);
+      if (selectedStatus && selectedStatus !== '') params.append('status', selectedStatus);
 
       const response = await fetch(`/api/admin/businesses?${params}`, {
         headers: {
