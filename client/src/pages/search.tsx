@@ -445,13 +445,17 @@ export default function SearchPage() {
             <ModernSearchBar
               value={searchQuery}
               location={selectedCity || ""}
-              onSearch={(query, location) => {
+              onSearch={(query, location, district) => {
                 setSearchQuery(query);
                 setSelectedCity(location);
+                if (district) {
+                  setSelectedDistrict(district);
+                }
                 handleSearch();
               }}
               onLocationChange={setSelectedCity}
               isLoading={isLoading}
+              showDistrictFilter={true}
             />
 
             {/* Filters */}

@@ -1,17 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, Mic, MapPin, X, Clock, TrendingUp } from 'lucide-react';
+import { Search, Mic, MapPin, X, Clock, TrendingUp, ChevronDown } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from 'framer-motion';
+import { PERUVIAN_CITIES, CITY_DISTRICTS } from "@/lib/constants";
 
 interface ModernSearchBarProps {
   value: string;
   location: string;
-  onSearch: (query: string, location: string) => void;
+  onSearch: (query: string, location: string, district?: string) => void;
   onLocationChange: (location: string) => void;
   isLoading?: boolean;
   className?: string;
+  showDistrictFilter?: boolean;
 }
 
 interface RecentSearch {
@@ -38,14 +41,46 @@ export default function ModernSearchBar({
   onSearch,
   onLocationChange,
   isLoading = false,
-  className
+  className,
+  showDistrictFilter = false
 }: ModernSearchBarProps) {
   const [query, setQuery] = useState(value);
   const [isListening, setIsListening] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const [isSticky, setIsSticky] = useState(false);
+  const [selectedCity, setSelectedCity] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  
+  // Get available districts for selected city
+  const availableDistricts = selectedCity && CITY_DISTRICTS[selectedCity] ? CITY_DISTRICTS[selectedCity] : [];
+
+  // Initialize city from location prop
+  useEffect(() => {
+    if (location) {
+      // Check if location matches any of our cities
+      const matchedCity = PERUVIAN_CITIES.find(city => 
+        location.toLowerCase().includes(city.toLowerCase())
+      );
+      if (matchedCity) {
+        setSelectedCity(matchedCity);
+      }
+    }
+  }, [location]);
+
+  // Reset district when city changes
+  useEffect(() => {
+    if (selectedCity && !CITY_DISTRICTS[selectedCity]) {
+      setSelectedDistrict("");
+    } else if (selectedDistrict && selectedCity && CITY_DISTRICTS[selectedCity]) {
+      // Check if current district is valid for selected city
+      if (!CITY_DISTRICTS[selectedCity].includes(selectedDistrict)) {
+        setSelectedDistrict("");
+      }
+    }
+  }, [selectedCity, selectedDistrict]);
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -106,21 +141,26 @@ export default function ModernSearchBar({
   const handleSearch = (searchQuery?: string) => {
     const finalQuery = searchQuery || query;
     if (finalQuery.trim()) {
+      // Construct location string
+      const locationString = selectedCity ? 
+        (selectedDistrict ? `${selectedDistrict}, ${selectedCity}` : selectedCity) : 
+        location;
+      
       // Save to recent searches
       const newSearch: RecentSearch = {
         query: finalQuery,
-        location,
+        location: locationString,
         timestamp: Date.now()
       };
       
       const updated = [newSearch, ...recentSearches.filter(
-        s => s.query !== finalQuery || s.location !== location
+        s => s.query !== finalQuery || s.location !== locationString
       )].slice(0, 5);
       
       setRecentSearches(updated);
       localStorage.setItem('recentSearches', JSON.stringify(updated));
       
-      onSearch(finalQuery, location);
+      onSearch(finalQuery, locationString, selectedDistrict);
       setShowSuggestions(false);
     }
   };
@@ -257,20 +297,58 @@ export default function ModernSearchBar({
             </AnimatePresence>
           </div>
 
-          {/* Location Selector */}
-          <div className="flex items-center bg-gray-50 rounded-full px-4 min-w-[200px]">
-            <MapPin className="text-gray-400 mr-2 w-5 h-5" />
-            <select
-              value={location}
-              onChange={(e) => onLocationChange(e.target.value)}
-              className="bg-transparent border-0 focus:outline-none text-sm"
+          {/* Enhanced Location Selector */}
+          <div className="flex items-center gap-2 bg-gray-50 rounded-full px-4 min-w-[280px]">
+            <MapPin className="text-gray-400 w-5 h-5 flex-shrink-0" />
+            
+            {/* City Selector */}
+            <Select 
+              value={selectedCity || "all"} 
+              onValueChange={(value) => {
+                const newCity = value === "all" ? "" : value;
+                setSelectedCity(newCity);
+                setSelectedDistrict(""); // Reset district when city changes
+                onLocationChange(newCity);
+              }}
             >
-              <option value="">Todas las ciudades</option>
-              <option value="Lima">Lima</option>
-              <option value="Arequipa">Arequipa</option>
-              <option value="Cusco">Cusco</option>
-              <option value="Trujillo">Trujillo</option>
-            </select>
+              <SelectTrigger className="border-0 bg-transparent focus:ring-0 focus:ring-offset-0 p-0 h-auto text-sm">
+                <SelectValue placeholder="Ciudad" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las ciudades</SelectItem>
+                {PERUVIAN_CITIES.map((city) => (
+                  <SelectItem key={city} value={city}>
+                    {city}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* District Selector - Only show if city is selected and has districts */}
+            {selectedCity && availableDistricts.length > 0 && (
+              <>
+                <span className="text-gray-300">|</span>
+                <Select 
+                  value={selectedDistrict || "all"} 
+                  onValueChange={(value) => {
+                    const newDistrict = value === "all" ? "" : value;
+                    setSelectedDistrict(newDistrict);
+                  }}
+                >
+                  <SelectTrigger className="border-0 bg-transparent focus:ring-0 focus:ring-offset-0 p-0 h-auto text-sm">
+                    <SelectValue placeholder="Distrito" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos los distritos</SelectItem>
+                    {availableDistricts.map((district) => (
+                      <SelectItem key={district} value={district}>
+                        {district}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </>
+            )}
           </div>
 
           {/* Search Button */}

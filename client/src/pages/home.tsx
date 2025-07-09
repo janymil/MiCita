@@ -1,12 +1,12 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Search, MapPin, Star, ArrowRight, Rocket, Headphones, TrendingUp } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import CategoryCard from "@/components/category-card";
 import BusinessCard from "@/components/business-card";
+import ModernSearchBar from "@/components/modern-search-bar";
 import { BUSINESS_CATEGORIES } from "@/lib/constants";
 
 export default function Home() {
@@ -14,8 +14,6 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLocation, setSearchLocation] = useState("Lima, Perú");
   const [isSearching, setIsSearching] = useState(false);
-  const searchInputRef = useRef(null);
-  const locationInputRef = useRef(null);
 
   const { data: categories } = useQuery({
     queryKey: ["/api/categories"],
@@ -25,18 +23,36 @@ export default function Home() {
     queryKey: ["/api/featured"],
   });
 
-  const handleSearch = () => {
-    if (!searchQuery.trim()) {
+  const handleSearch = (query: string, location: string, district?: string) => {
+    if (!query.trim()) {
       return;
     }
 
     setIsSearching(true);
+    setSearchQuery(query); // Update local state
+    setSearchLocation(location); // Update local state
+
+    // Save search to history for recommendations
+    const searchHistory = JSON.parse(localStorage.getItem('searchHistory') || '[]');
+    const searchTerm = {
+      query: query.trim(),
+      location: location,
+      district: district,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Keep only last 10 searches
+    const updatedHistory = [searchTerm, ...searchHistory.slice(0, 9)];
+    localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
 
     // Navigate to search results page
     const params = new URLSearchParams();
-    params.append('q', searchQuery.trim());
-    if (searchLocation && searchLocation !== 'Lima, Perú') {
-      params.append('city', searchLocation);
+    params.append('q', query.trim());
+    if (location && location !== 'Lima, Perú') {
+      params.append('city', location);
+    }
+    if (district) {
+      params.append('district', district);
     }
 
     const searchUrl = `/buscar?${params.toString()}`;
@@ -53,11 +69,8 @@ export default function Home() {
     setLocation(`/${customUrl}`);
   };
 
-  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSearch();
-    }
+  const handleLocationChange = (location: string) => {
+    setSearchLocation(location);
   };
 
   return (
@@ -76,51 +89,16 @@ export default function Home() {
             La plataforma líder en Perú para encontrar servicios locales y gestionar tu negocio
           </p>
 
-          {/* Search Bar */}
-          <div className="bg-white rounded-2xl p-2 shadow-2xl max-w-3xl mx-auto animate-slide-up">
-            <div className="flex flex-col md:flex-row gap-2">
-              <div className="flex-1 flex items-center px-4 py-3 border-r border-gray-200">
-                <Search className="text-gray-400 mr-3 w-5 h-5" />
-                <Input
-                  type="text"
-                  placeholder="¿Qué servicio necesitas?"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-0 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyDown={handleSearchKeyDown}
-                  ref={searchInputRef}
-                />
-              </div>
-              <div className="flex-1 flex items-center px-4 py-3">
-                <MapPin className="text-gray-400 mr-3 w-5 h-5" />
-                <Input
-                  type="text"
-                  placeholder="Lima, Perú"
-                  value={searchLocation}
-                  onChange={(e) => setSearchLocation(e.target.value)}
-                  className="border-0 text-lg focus-visible:ring-0 focus-visible:ring-offset-0"
-                  onKeyDown={handleSearchKeyDown}
-                  ref={locationInputRef}
-                />
-              </div>
-              <Button
-                onClick={handleSearch}
-                disabled={isSearching}
-                className="bg-red-600 text-white px-8 py-3 rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center disabled:opacity-50"
-              >
-                {isSearching ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Buscando...
-                  </>
-                ) : (
-                  <>
-                    <Search className="mr-2 w-5 h-5" />
-                    Buscar
-                  </>
-                )}
-              </Button>
-            </div>
+          {/* Modern Search Bar */}
+          <div className="max-w-4xl mx-auto animate-slide-up">
+            <ModernSearchBar
+              value={searchQuery}
+              location={searchLocation}
+              onSearch={handleSearch}
+              onLocationChange={handleLocationChange}
+              isLoading={isSearching}
+              className="bg-white rounded-2xl shadow-2xl"
+            />
           </div>
 
           {/* Quick Stats */}
