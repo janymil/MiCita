@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
-import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List, Phone } from "lucide-react";
+import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List, Phone, Globe } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
 import OpenStreetMap from "@/components/openstreet-map";
@@ -829,28 +829,147 @@ export default function SearchPage() {
                     >
                       <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                         
-                        {/* Hover Tooltip */}
-                        <div className="absolute z-50 invisible group-hover:visible bg-gray-900 text-white p-4 rounded-lg shadow-xl max-w-sm -top-2 left-full ml-4 transform transition-all duration-200 group-hover:delay-500">
-                          <div className="absolute left-0 top-6 w-0 h-0 border-r-8 border-r-gray-900 border-t-4 border-t-transparent border-b-4 border-b-transparent -ml-2"></div>
-                          <h4 className="font-semibold text-sm mb-2">{business.name}</h4>
-                          <div className="space-y-1 text-xs">
-                            <p><span className="font-medium">Dirección:</span> {business.address}</p>
-                            {business.phone && <p><span className="font-medium">Teléfono:</span> {business.phone}</p>}
-                            {business.website && <p><span className="font-medium">Web:</span> {business.website}</p>}
-                            {business.rating > 0 && (
-                              <p><span className="font-medium">Rating:</span> {business.rating.toFixed(1)} ★ ({business.reviewCount} reseñas)</p>
-                            )}
-                            {business.hours && business.hours.length > 0 && (
+                        {/* Enhanced Hover Business Card */}
+                        <div className="absolute z-50 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 ease-out group-hover:delay-500 transform scale-95 group-hover:scale-100 -top-4 left-full ml-6">
+                          <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden w-80 max-w-sm">
+                            {/* Card Header with Image */}
+                            <div className="relative h-32 bg-gradient-to-br from-red-500 to-red-600">
+                              {business.photoUrl ? (
+                                <img 
+                                  src={business.photoUrl} 
+                                  alt={business.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center h-full">
+                                  <div className="text-white text-2xl font-bold">
+                                    {business.name.charAt(0).toUpperCase()}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Overlay gradient */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
+                              
+                              {/* Rating badge */}
+                              {business.rating > 0 && (
+                                <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm text-gray-900 px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                                  <span className="text-yellow-500 mr-1">★</span>
+                                  {business.rating.toFixed(1)}
+                                </div>
+                              )}
+                              
+                              {/* Arrow pointer */}
+                              <div className="absolute left-0 top-8 w-0 h-0 border-r-8 border-r-white border-t-6 border-t-transparent border-b-6 border-b-transparent -ml-2"></div>
+                            </div>
+                            
+                            {/* Card Content */}
+                            <div className="p-4 space-y-3">
+                              {/* Business Name & Category */}
                               <div>
-                                <p className="font-medium">Horarios:</p>
-                                <div className="ml-2">
-                                  {business.hours.slice(0, 3).map((hour: any, i: number) => (
-                                    <p key={i} className="text-xs">{typeof hour === 'string' ? hour : `${hour.day}: ${hour.hours}`}</p>
-                                  ))}
-                                  {business.hours.length > 3 && <p className="text-xs">...</p>}
+                                <h3 className="font-bold text-lg text-gray-900 leading-tight mb-1">
+                                  {business.name}
+                                </h3>
+                                <div className="flex items-center">
+                                  <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded-full font-medium">
+                                    {business.category.charAt(0).toUpperCase() + business.category.slice(1)}
+                                  </span>
                                 </div>
                               </div>
-                            )}
+                              
+                              {/* Rating & Reviews */}
+                              {business.rating > 0 && (
+                                <div className="flex items-center space-x-2">
+                                  <div className="flex items-center">
+                                    {[...Array(5)].map((_, i) => (
+                                      <span key={i} className={`text-sm ${
+                                        i < Math.floor(business.rating) ? 'text-yellow-400' : 'text-gray-200'
+                                      }`}>
+                                        ★
+                                      </span>
+                                    ))}
+                                  </div>
+                                  <span className="text-sm text-gray-600">
+                                    {business.rating.toFixed(1)} 
+                                    {business.reviewCount && ` (${business.reviewCount} reseñas)`}
+                                  </span>
+                                </div>
+                              )}
+                              
+                              {/* Address */}
+                              <div className="flex items-start space-x-2">
+                                <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-sm text-gray-600 leading-relaxed">{business.address}</p>
+                              </div>
+                              
+                              {/* Contact Information */}
+                              <div className="space-y-2">
+                                {business.phone && (
+                                  <div className="flex items-center space-x-2">
+                                    <Phone className="w-4 h-4 text-green-600 flex-shrink-0" />
+                                    <span className="text-sm font-medium text-gray-900">{business.phone}</span>
+                                  </div>
+                                )}
+                                
+                                {business.website && (
+                                  <div className="flex items-center space-x-2">
+                                    <Globe className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                                    <a 
+                                      href={business.website} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-sm text-blue-600 hover:underline truncate"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {business.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Business Hours */}
+                              {business.hours && business.hours.length > 0 && (
+                                <div className="border-t border-gray-100 pt-3">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <Clock className="w-4 h-4 text-gray-400" />
+                                    <span className="text-sm font-medium text-gray-700">Horarios</span>
+                                  </div>
+                                  <div className="space-y-1 ml-6">
+                                    {business.hours.slice(0, 3).map((hour: any, i: number) => (
+                                      <p key={i} className="text-xs text-gray-600">
+                                        {typeof hour === 'string' ? hour : `${hour.day}: ${hour.hours}`}
+                                      </p>
+                                    ))}
+                                    {business.hours.length > 3 && (
+                                      <p className="text-xs text-gray-500 italic">+{business.hours.length - 3} más...</p>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Quick Actions */}
+                              <div className="border-t border-gray-100 pt-3 flex space-x-2">
+                                {business.phone && (
+                                  <a
+                                    href={`tel:${business.phone}`}
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs py-2 px-3 rounded-lg text-center font-medium transition-colors"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Llamar
+                                  </a>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.name + ' ' + business.address)}`;
+                                    window.open(googleMapsUrl, '_blank');
+                                  }}
+                                  className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs py-2 px-3 rounded-lg text-center font-medium transition-colors"
+                                >
+                                  Ver en Maps
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                         {/* Business Image */}
