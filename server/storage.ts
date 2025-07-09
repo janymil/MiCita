@@ -1,3 +1,6 @@
+Based on the provided instructions and the code change, I will now generate the complete modified code, ensuring that the `getCategoryCounts` method is added to the `IStorage` interface.
+```
+```replit_final_file
 import { 
   users, 
   businesses, 
@@ -62,7 +65,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Businesses
   getBusiness(id: number): Promise<Business | undefined>;
   getBusinessBySlug(slug: string): Promise<Business | undefined>;
@@ -72,21 +75,21 @@ export interface IStorage {
   getFeaturedBusinesses(): Promise<Business[]>;
   createBusiness(business: InsertBusiness & { userId: number }): Promise<Business>;
   updateBusiness(id: number, business: Partial<InsertBusiness>): Promise<Business>;
-  
+
   // Services
   getServicesByBusinessId(businessId: number): Promise<Service[]>;
   getService(id: number): Promise<Service | undefined>;
   createService(service: InsertService & { businessId: number }): Promise<Service>;
   updateService(id: number, service: Partial<InsertService>): Promise<Service>;
   deleteService(id: number): Promise<void>;
-  
+
   // Clients
   getClientsByBusinessId(businessId: number): Promise<Client[]>;
   getClient(id: number): Promise<Client | undefined>;
   createClient(client: InsertClient & { businessId: number }): Promise<Client>;
   updateClient(id: number, client: Partial<InsertClient>): Promise<Client>;
   deleteClient(id: number): Promise<void>;
-  
+
   // Appointments
   getAppointmentsByBusinessId(businessId: number): Promise<Appointment[]>;
   getAppointmentsByDate(businessId: number, date: string): Promise<Appointment[]>;
@@ -94,38 +97,39 @@ export interface IStorage {
   createAppointment(appointment: InsertAppointment & { businessId: number }): Promise<Appointment>;
   updateAppointment(id: number, appointment: Partial<InsertAppointment>): Promise<Appointment>;
   deleteAppointment(id: number): Promise<void>;
-  
+
   // Gallery
   getGalleryByBusinessId(businessId: number): Promise<GalleryItem[]>;
   createGalleryItem(item: InsertGalleryItem & { businessId: number }): Promise<GalleryItem>;
   deleteGalleryItem(id: number): Promise<void>;
-  
+
   // Public Businesses
   getPublicBusinesses(): Promise<PublicBusiness[]>;
   searchPublicBusinesses(query: string, category?: string): Promise<PublicBusiness[]>;
-  
+
   // Reviews
   getReviewsByBusinessId(businessId: number): Promise<Review[]>;
   createReview(review: InsertReview): Promise<Review>;
-  
+
   // Business Settings
   getBusinessSettings(businessId: number): Promise<BusinessSettings | undefined>;
   updateBusinessSettings(businessId: number, settings: InsertBusinessSettings): Promise<BusinessSettings>;
-  
+
   // Apify Businesses  
   getApifyBusiness(placeId: string): Promise<ApifyBusiness | undefined>;
   searchApifyBusinesses(query: string, category?: string, subcategory?: string): Promise<ApifyBusiness[]>;
-  addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness>;
-  getSubcategoriesByCategory(category: string): Promise<string[]>;
+  getSubcategoriesByCategory(category: string, includeCounts?: boolean): Promise<string[] | Array<{subcategory: string, count: number}>>;
   getAllSubcategories(): Promise<{ category: string; subcategories: string[] }[]>;
-  
+  getCategoryCounts(): Promise<Array<{category: string, count: number}>>;
+  addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness>;
+
   // Business Connections
   getBusinessConnections(businessId: number): Promise<BusinessConnection[]>;
   getConnectionRequests(businessId: number): Promise<BusinessConnection[]>;
   createConnectionRequest(connection: InsertBusinessConnection): Promise<BusinessConnection>;
   updateConnectionStatus(connectionId: number, status: string): Promise<BusinessConnection>;
   deleteConnection(connectionId: number): Promise<void>;
-  
+
   // Networking Posts
   getNetworkingPosts(businessId?: number, category?: string): Promise<NetworkingPost[]>;
   getNetworkingPost(id: number): Promise<NetworkingPost | undefined>;
@@ -133,42 +137,42 @@ export interface IStorage {
   updateNetworkingPost(id: number, post: Partial<InsertNetworkingPost>): Promise<NetworkingPost>;
   deleteNetworkingPost(id: number): Promise<void>;
   incrementPostViews(id: number): Promise<void>;
-  
+
   // Networking Comments
   getNetworkingComments(postId: number): Promise<NetworkingComment[]>;
   createNetworkingComment(comment: InsertNetworkingComment & { businessId: number }): Promise<NetworkingComment>;
   deleteNetworkingComment(id: number): Promise<void>;
-  
+
   // Networking Likes
   getNetworkingLikes(postId: number): Promise<NetworkingLike[]>;
   createNetworkingLike(like: InsertNetworkingLike & { businessId: number }): Promise<NetworkingLike>;
   deleteNetworkingLike(postId: number, businessId: number): Promise<void>;
-  
+
   // Collaboration Projects
   getCollaborationProjects(businessId?: number, status?: string): Promise<CollaborationProject[]>;
   getCollaborationProject(id: number): Promise<CollaborationProject | undefined>;
   createCollaborationProject(project: InsertCollaborationProject & { creatorId: number }): Promise<CollaborationProject>;
   updateCollaborationProject(id: number, project: Partial<InsertCollaborationProject>): Promise<CollaborationProject>;
   deleteCollaborationProject(id: number): Promise<void>;
-  
+
   // Collaboration Participants
   getCollaborationParticipants(projectId: number): Promise<CollaborationParticipant[]>;
   createCollaborationParticipant(participant: InsertCollaborationParticipant & { businessId: number }): Promise<CollaborationParticipant>;
   deleteCollaborationParticipant(projectId: number, businessId: number): Promise<void>;
-  
+
   // Business Referrals
   getBusinessReferrals(businessId: number): Promise<BusinessReferral[]>;
   getReceivedReferrals(businessId: number): Promise<BusinessReferral[]>;
   createBusinessReferral(referral: InsertBusinessReferral & { referrerId: number }): Promise<BusinessReferral>;
   updateReferralStatus(id: number, status: string): Promise<BusinessReferral>;
-  
+
   // Networking Events
   getNetworkingEvents(businessId?: number): Promise<NetworkingEvent[]>;
   getNetworkingEvent(id: number): Promise<NetworkingEvent | undefined>;
   createNetworkingEvent(event: InsertNetworkingEvent & { organizerId: number }): Promise<NetworkingEvent>;
   updateNetworkingEvent(id: number, event: Partial<InsertNetworkingEvent>): Promise<NetworkingEvent>;
   deleteNetworkingEvent(id: number): Promise<void>;
-  
+
   // Event Attendees
   getEventAttendees(eventId: number): Promise<EventAttendee[]>;
   createEventAttendee(attendee: InsertEventAttendee & { businessId: number }): Promise<EventAttendee>;
@@ -186,7 +190,7 @@ export class MemStorage implements IStorage {
   private publicBusinesses: Map<number, PublicBusiness> = new Map();
   private reviews: Map<number, Review> = new Map();
   private businessSettings: Map<number, BusinessSettings> = new Map();
-  
+
   private currentUserId = 1;
   private currentBusinessId = 1;
   private currentServiceId = 1;
@@ -347,7 +351,7 @@ export class MemStorage implements IStorage {
                           business.description?.toLowerCase().includes(query.toLowerCase());
       const matchesCategory = !category || business.category === category;
       const matchesCity = !city || business.city?.toLowerCase() === city.toLowerCase();
-      
+
       return matchesQuery && matchesCategory && matchesCity && business.isActive;
     });
   }
@@ -390,7 +394,7 @@ export class MemStorage implements IStorage {
   async updateBusiness(id: number, business: Partial<InsertBusiness>): Promise<Business> {
     const existing = this.businesses.get(id);
     if (!existing) throw new Error("Business not found");
-    
+
     const updated = { ...existing, ...business };
     this.businesses.set(id, updated);
     return updated;
@@ -399,21 +403,21 @@ export class MemStorage implements IStorage {
   async deleteBusiness(id: number): Promise<void> {
     const existing = this.businesses.get(id);
     if (!existing) throw new Error("Business not found");
-    
+
     // Delete related data
     const services = await this.getServicesByBusinessId(id);
     services.forEach(service => this.services.delete(service.id));
-    
+
     const clients = await this.getClientsByBusinessId(id);
     clients.forEach(client => this.clients.delete(client.id));
-    
+
     const appointments = await this.getAppointmentsByBusinessId(id);
     appointments.forEach(appointment => this.appointments.delete(appointment.id));
-    
+
     // Delete business settings
     const settings = Array.from(this.businessSettings.values()).find(s => s.businessId === id);
     if (settings) this.businessSettings.delete(settings.id);
-    
+
     // Delete the business itself
     this.businesses.delete(id);
   }
@@ -444,7 +448,7 @@ export class MemStorage implements IStorage {
   async updateService(id: number, service: Partial<InsertService>): Promise<Service> {
     const existing = this.services.get(id);
     if (!existing) throw new Error("Service not found");
-    
+
     const updated = { ...existing, ...service };
     this.services.set(id, updated);
     return updated;
@@ -479,7 +483,7 @@ export class MemStorage implements IStorage {
   async updateClient(id: number, client: Partial<InsertClient>): Promise<Client> {
     const existing = this.clients.get(id);
     if (!existing) throw new Error("Client not found");
-    
+
     const updated = { ...existing, ...client };
     this.clients.set(id, updated);
     return updated;
@@ -526,7 +530,7 @@ export class MemStorage implements IStorage {
   async updateAppointment(id: number, appointment: Partial<InsertAppointment>): Promise<Appointment> {
     const existing = this.appointments.get(id);
     if (!existing) throw new Error("Appointment not found");
-    
+
     const updated = { ...existing, ...appointment };
     this.appointments.set(id, updated);
     return updated;
@@ -592,14 +596,14 @@ export class MemStorage implements IStorage {
 
   async updateBusinessSettings(businessId: number, settings: InsertBusinessSettings): Promise<BusinessSettings> {
     const existing = Array.from(this.businessSettings.values()).find(s => s.businessId === businessId);
-    
+
     if (existing) {
       // Only update fields that have actual values to prevent overwriting with empty strings
       const updated = { 
         ...existing, 
         updatedAt: new Date()
       };
-      
+
       // Update only non-empty string fields OR explicit boolean/object updates
       Object.keys(settings).forEach(key => {
         const value = settings[key as keyof InsertBusinessSettings];
@@ -618,14 +622,14 @@ export class MemStorage implements IStorage {
           }
         }
       });
-      
+
       this.businessSettings.set(existing.id, updated);
       return updated;
     } else {
       const newSettings: BusinessSettings = {
         id: this.currentSettingsId++,
         businessId,
-        
+
         // Micrositio fields
         customUrl: settings.customUrl || null,
         professionalTitle: settings.professionalTitle || null,
@@ -658,14 +662,14 @@ export class MemStorage implements IStorage {
         },
         blockedDates: Array.isArray(settings.blockedDates) ? settings.blockedDates as { startDate: string; endDate: string; reason?: string }[] : [],
         blockedHours: Array.isArray(settings.blockedHours) ? settings.blockedHours as { date: string; startTime: string; endTime: string; reason?: string }[] : [],
-        
+
         // Existing fields
         theme: settings.theme || null,
         primaryColor: settings.primaryColor || null,
         bookingSettings: settings.bookingSettings || null,
         emailNotifications: settings.emailNotifications ?? true,
         smsNotifications: settings.smsNotifications ?? false,
-        
+
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -673,19 +677,23 @@ export class MemStorage implements IStorage {
       return newSettings;
     }
   }
-  
+
   // Apify Businesses - Memory implementation (for fallback)
   async getApifyBusiness(placeId: string): Promise<ApifyBusiness | undefined> {
     return undefined; // Memory storage doesn't store Apify data
   }
-  
+
   async searchApifyBusinesses(query: string, category?: string): Promise<ApifyBusiness[]> {
     return []; // Memory storage doesn't store Apify data
   }
-  
+
   async addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness> {
     throw new Error("Memory storage doesn't support Apify businesses");
   }
+
+    async getCategoryCounts(): Promise<Array<{ category: string; count: number; }>> {
+        return [];
+    }
 }
 
 import { DBStorage } from "./db-storage.js";

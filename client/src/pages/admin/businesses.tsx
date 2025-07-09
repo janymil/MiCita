@@ -146,7 +146,12 @@ export default function AdminBusinesses() {
       const response = await fetch(`/api/subcategories/${category}?includeCounts=true`);
       if (response.ok) {
         const data = await response.json();
-        setSubcategories(data);
+        // Handle both array of strings and array of objects with counts
+        if (data.length > 0 && typeof data[0] === 'object' && data[0].subcategory) {
+          setSubcategories(data.map((item: any) => item.subcategory));
+        } else {
+          setSubcategories(data);
+        }
       }
     } catch (error) {
       console.error('Error fetching subcategories:', error);

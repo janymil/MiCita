@@ -370,6 +370,19 @@ export class DBStorage implements IStorage {
     }));
   }
 
+  async getCategoryCounts(): Promise<Array<{category: string, count: number}>> {
+    const result = await db.select({ 
+      category: apifyBusinesses.category,
+      count: count()
+    })
+      .from(apifyBusinesses)
+      .where(sql`${apifyBusinesses.category} IS NOT NULL`)
+      .groupBy(apifyBusinesses.category)
+      .orderBy(apifyBusinesses.category);
+
+    return result.map(r => ({ category: r.category!, count: r.count }));
+  }
+
   async addApifyBusiness(business: InsertApifyBusiness): Promise<ApifyBusiness> {
     const result = await db.insert(apifyBusinesses)
       .values(business)
