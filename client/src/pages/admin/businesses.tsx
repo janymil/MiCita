@@ -50,7 +50,7 @@ export default function AdminBusinesses() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedSubcategory, setSelectedSubcategory] = useState('');
-  const [subcategories, setSubcategories] = useState<string[]>([]);
+  const [subcategories, setSubcategories] = useState<Array<{subcategory: string, count: number}>>([]);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
@@ -146,12 +146,7 @@ export default function AdminBusinesses() {
       const response = await fetch(`/api/subcategories/${category}?includeCounts=true`);
       if (response.ok) {
         const data = await response.json();
-        // Handle both array of strings and array of objects with counts
-        if (data.length > 0 && typeof data[0] === 'object' && data[0].subcategory) {
-          setSubcategories(data.map((item: any) => item.subcategory));
-        } else {
-          setSubcategories(data);
-        }
+        setSubcategories(data);
       }
     } catch (error) {
       console.error('Error fetching subcategories:', error);
@@ -364,9 +359,9 @@ export default function AdminBusinesses() {
                   disabled={!selectedCategory || subcategories.length === 0}
                 >
                   <option value="">All Subcategories</option>
-                  {subcategories.map(subcategory => (
-                    <option key={subcategory} value={subcategory} className="capitalize">
-                      {subcategory}
+                  {subcategories.map((item) => (
+                    <option key={item.subcategory} value={item.subcategory} className="capitalize">
+                      {item.subcategory} ({item.count})
                     </option>
                   ))}
                 </select>
