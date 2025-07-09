@@ -293,18 +293,27 @@ export class DBStorage implements IStorage {
   }
 
   async searchCachedGoogleBusinesses(query: string, category?: string): Promise<CachedGoogleBusiness[]> {
-    let whereClause = ilike(cachedGoogleBusinesses.searchTerms, `%${query.toLowerCase()}%`);
-    
-    if (category) {
-      whereClause = and(whereClause, eq(cachedGoogleBusinesses.category, category));
+    let whereConditions = [];
+
+    // If query is provided and not empty, search in search terms
+    if (query && query.trim() && query !== '') {
+      whereConditions.push(
+        ilike(cachedGoogleBusinesses.searchTerms, `%${query.toLowerCase().trim()}%`)
+      );
+    }
+
+    // If category is provided and not 'all', filter by category
+    if (category && category !== 'all' && category !== '') {
+      whereConditions.push(eq(cachedGoogleBusinesses.category, category));
     }
 
     const result = await db.select()
       .from(cachedGoogleBusinesses)
-      .where(whereClause)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(cachedGoogleBusinesses.rating))
-      .limit(60);
+      .limit(100);
     
+    console.log(`🔍 DB Search: query="${query}", category="${category}", conditions=${whereConditions.length}, results=${result.length}`);
     return result;
   }
 

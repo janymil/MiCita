@@ -586,7 +586,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Pull fresh data from Apify dataset
+  app.post("/api/apify/pull-fresh", async (req, res) => {
+    try {
+      console.log('🔄 Pulling fresh data from Apify dataset...');
+      
+      const response = await fetch('https://api.apify.com/v2/datasets/jC3uI7WSuQKRTj2i1/items?token=apify_api_SThnhfb7cGOxixoqRUbdxCnjvoP6Kc33SbEq&clean=true&format=json');
+      
+      if (!response.ok) {
+        throw new Error(`Apify API error: ${response.status}`);
+      }
+      
+      const apifyData = await response.json();
+      console.log(`📦 Retrieved ${apifyData.length} businesses from Apify dataset`);
+      
+      let processed = 0;
+      
+      for (const item of apifyData.slice(0, 100)) { // Process first 100 items
+        try {
+          const cacheData = {
+            placeId: item.placeId || `apify_${Date.now()}_${Math.random()}`,
+            name: item.title || 'Business',
+            address: item.address || 'Lima, Peru',
+            category: mapCategoryFromApify(item.categoryName || ''),
+            rating: (item.totalScore || item.rating || 0).toString(),
+            reviewCount: item.reviewsCount || 0,
+            priceLevel: item.priceLevel || 0,
+            phone: item.phoneUnformatted || item.phone || null,
+            website: item.website || null,
+            photoUrl: item.imageUrls?.[0] || null,
+            latitude: item.location?.lat?.toString() || '0',
+            longitude: item.location?.lng?.toString() || '0',
+            openNow: null,
+            hours: item.openingHours ? JSON.stringify(item.openingHours) : null,
+            searchTerms: `${item.title} ${item.address} ${item.categoryName}`.toLowerCase(),
+            isRegistered: false
+          };
+          
+          await storage.cacheBusiness(cacheData);
+          processed++;
+        } catch (error) {
+          console.error(`❌ Error processing business: ${error.message}`);
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Successfully processed ${processed} businesses from Apify dataset`,
+        processed,
+        total: apifyData.length
+      });
+      
+    } catch (error) {
+      console.error('❌ Error pulling fresh Apify data:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to pull fresh data',
+        error: error.message
+      });
+    }
+  });
 
+  // Map Apify categories to our system
+  function mapCategoryFromApify(categoryName: string): string {
+    const category = categoryName?.toLowerCase() || '';
+    
+    if (category.includes('barbería') || category.includes('peluquería') || 
+        category.includes('salón') || category.includes('spa') || 
+        category.includes('belleza') || category.includes('manicure')) {
+      return 'belleza';
+    }
+    if (category.includes('gimnasio') || category.includes('fitness') || 
+        category.includes('yoga') || category.includes('pilates')) {
+      return 'fitness';
+    }
+    if (category.includes('restaurante') || category.includes('comida') || 
+        category.includes('bar') || category.includes('cafetería')) {
+      return 'gastronomia';
+    }
+    if (category.includes('médico') || category.includes('dentista') || 
+        category.includes('clínica') || category.includes('farmacia')) {
+      return 'salud';
+    }
+    if (category.includes('taller') || category.includes('mecánico') || 
+        category.includes('auto') || category.includes('gasolinera')) {
+      return 'automotriz';
+    }
+    
+    return 'servicios';
+  }
 
   // Cache management endpoint
   app.post("/api/cache/clean", async (req, res) => {
