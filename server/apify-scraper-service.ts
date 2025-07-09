@@ -81,6 +81,7 @@ export class ApifyScraper {
       priceLevel: place.priceLevel || 0,
       phone: place.phone || null,
       website: place.website || null,
+      email: place.email || place.companyEmail || null,  // Company email from contacts enrichment
       photoUrl: place.imageUrls?.[0] || null,
       latitude: place.latitude || -12.05,
       longitude: place.longitude || -77.05,
@@ -109,9 +110,32 @@ export class ApifyScraper {
       placeMinimumStars: '',
       website: 'allPlaces',
       skipClosedPlaces: false,
+      
+      // Enhanced scraping options from the screenshot
+      scrapeDetailPage: true,  // "Scrape place detail page" - enabled
+      includeWebResults: true,  // "Include Web results" - enabled  
+      scrapeInsidePlaces: true,  // "Scrape inside places (e.g. malls or shopping center)" - enabled
+      
+      // Company contacts enrichment add-on - this adds email, phone, and social media
+      // This costs $0.002 per result but provides valuable contact information
+      companyContactsEnrichment: true,  // "Add-on: Company contacts enrichment" - enabled
+      
+      // Questions extraction (optional)
+      questionsPerPlace: 0,  // As shown in screenshot, set to 0 questions per place
+      
+      // Additional options to maximize data quality
+      scrapeReservationProviders: false,  // "Scrape table reservation provider data" - disabled as shown
+      maxCrawledPlaces: maxPlaces,  // Ensure we don't exceed our limits
+      
+      // Optimize for contact information scraping
+      scrapeContactInfo: true,
+      includeBusinessHours: true,
+      includePhotos: true,
+      includeReviews: true,
+      
+      // Legacy options for compatibility
       scrapePlaceDetailPage: true, // Get detailed information
       scrapeTableReservationProvider: false,
-      includeWebResults: false,
       scrapeDirectories: false,
       maxQuestions: 0,
       scrapeContacts: true, // Get contact information

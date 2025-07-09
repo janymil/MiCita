@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List, Phone, Globe } from "lucide-react";
+import { Search, MapPin, Filter, SlidersHorizontal, Star, Clock, DollarSign, ChevronLeft, ChevronRight, ArrowUpDown, Map, List, Phone, Globe, Mail } from "lucide-react";
 import PublicHeader from "@/components/public-header";
 import BusinessCard from "@/components/business-card";
 import OpenStreetMap from "@/components/openstreet-map";
@@ -1160,6 +1160,22 @@ export default function SearchPage() {
                             className="text-blue-600 hover:underline break-all"
                           >
                             {selectedBusiness.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Email */}
+                    {selectedBusiness.email && (
+                      <div className="flex items-start space-x-3">
+                        <Mail className="w-5 h-5 text-purple-600 mt-1 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-gray-900">Email</p>
+                          <a 
+                            href={`mailto:${selectedBusiness.email}`}
+                            className="text-purple-600 hover:underline break-all"
+                          >
+                            {selectedBusiness.email}
                           </a>
                         </div>
                       </div>

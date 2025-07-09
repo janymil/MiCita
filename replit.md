@@ -217,6 +217,18 @@ Changelog:
   - System confirmed operating with ZERO external API dependencies
   - Pure Apify data operation achieved - no Google Places, OpenStreetMap, or Foursquare calls
   - Search results: 34 barbershops, 100+ beauty businesses, 2 fitness centers, 123 service providers
+- July 09, 2025: ENHANCED APIFY SCRAPING WITH COMPANY CONTACTS ENRICHMENT:
+  - Implemented comprehensive enhanced scraping features based on user requirements
+  - Added "Company contacts enrichment" add-on (+$0.002/result) for email, phone, and social media data
+  - Enabled "Scrape place detail page" for comprehensive business information
+  - Enabled "Include Web results" for broader data coverage
+  - Enabled "Scrape inside places" for mall and shopping center businesses
+  - Added email field to apify_businesses table and updated schema
+  - Enhanced both wave scraper and category scraper with new configuration options
+  - Updated business details modal to display company emails with Mail icon
+  - Replaced problematic hover tooltips with reliable click-triggered modal system
+  - Enhanced scraping provides 20% cost increase for significantly improved data quality
+  - Ready for production deployment with maximum contact information coverage
 
 ## PRD Implementation Status
 

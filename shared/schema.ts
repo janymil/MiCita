@@ -201,6 +201,7 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   priceLevel: integer("price_level").default(0),
   phone: text("phone"),
   website: text("website"),
+  email: text("email"),  // Company email from contacts enrichment
   photoUrl: text("photo_url"),
   latitude: decimal("latitude", { precision: 10, scale: 7 }).notNull(),
   longitude: decimal("longitude", { precision: 10, scale: 7 }).notNull(),

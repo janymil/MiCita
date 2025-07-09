@@ -260,6 +260,7 @@ export class ApifyWaveScraper {
       priceLevel: place.priceLevel || 0,
       phone: rawPhone,
       website: place.website || null,
+      email: place.email || place.companyEmail || null,  // Company email from contacts enrichment
       photoUrl: photoUrl,
       latitude: finalLat,
       longitude: finalLng,
@@ -339,7 +340,29 @@ export class ApifyWaveScraper {
             maxReviews: 3,
             maxImages: 2,
             exportPlaceUrls: false,
-            additionalInfo: true
+            additionalInfo: true,
+            
+            // Enhanced scraping options from the screenshot
+            scrapeDetailPage: true,  // "Scrape place detail page" - enabled
+            includeWebResults: true,  // "Include Web results" - enabled
+            scrapeInsidePlaces: true,  // "Scrape inside places (e.g. malls or shopping center)" - enabled
+            
+            // Company contacts enrichment add-on - this adds email, phone, and social media
+            // This costs $0.002 per result but provides valuable contact information
+            companyContactsEnrichment: true,  // "Add-on: Company contacts enrichment" - enabled
+            
+            // Questions extraction (optional)
+            questionsPerPlace: 0,  // As shown in screenshot, set to 0 questions per place
+            
+            // Additional options to maximize data quality
+            scrapeReservationProviders: false,  // "Scrape table reservation provider data" - disabled as shown
+            maxCrawledPlaces: wave.maxBusinesses,  // Ensure we don't exceed our limits
+            
+            // Optimize for contact information scraping
+            scrapeContactInfo: true,
+            includeBusinessHours: true,
+            includePhotos: true,
+            includeReviews: true
           };
 
           const run = await this.client.actor('compass/crawler-google-places').call(input);
