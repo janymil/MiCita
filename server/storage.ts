@@ -1,6 +1,4 @@
-Based on the provided instructions and the code change, I will now generate the complete modified code, ensuring that the `getCategoryCounts` method is added to the `IStorage` interface.
-```
-```replit_final_file
+
 import { 
   users, 
   businesses, 
@@ -11,15 +9,6 @@ import {
   publicBusinesses, 
   reviews, 
   businessSettings,
-  businessConnections,
-  networkingPosts,
-  networkingComments,
-  networkingLikes,
-  collaborationProjects,
-  collaborationParticipants,
-  businessReferrals,
-  networkingEvents,
-  eventAttendees,
   type User, 
   type InsertUser,
   type Business,
@@ -39,26 +28,8 @@ import {
   type BusinessSettings,
   type InsertBusinessSettings,
   type ApifyBusiness,
-  type InsertApifyBusiness,
-  type BusinessConnection,
-  type InsertBusinessConnection,
-  type NetworkingPost,
-  type InsertNetworkingPost,
-  type NetworkingComment,
-  type InsertNetworkingComment,
-  type NetworkingLike,
-  type InsertNetworkingLike,
-  type CollaborationProject,
-  type InsertCollaborationProject,
-  type CollaborationParticipant,
-  type InsertCollaborationParticipant,
-  type BusinessReferral,
-  type InsertBusinessReferral,
-  type NetworkingEvent,
-  type InsertNetworkingEvent,
-  type EventAttendee,
-  type InsertEventAttendee
-} from "@shared/schema";
+  type InsertApifyBusiness
+} from "../shared/schema.js";
 
 export interface IStorage {
   // Users
