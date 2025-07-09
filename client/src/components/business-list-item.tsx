@@ -124,7 +124,7 @@ export default function BusinessListItem({
           )}
 
           {/* Info Row */}
-          <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
+          <div className="space-y-2 mb-3">
             {/* Rating */}
             {rating > 0 && (
               <div className="flex items-center space-x-1">
@@ -136,9 +136,31 @@ export default function BusinessListItem({
               </div>
             )}
 
+            {/* Contact Information */}
+            {business.phone && (
+              <div className="flex items-center space-x-2">
+                <Phone className="w-4 h-4 text-blue-600" />
+                <span className="text-blue-600 text-sm">{business.phone}</span>
+              </div>
+            )}
+            
+            {business.website && (
+              <div className="flex items-center space-x-2">
+                <Globe className="w-4 h-4 text-blue-600" />
+                <span className="text-blue-600 text-sm truncate">{business.website}</span>
+              </div>
+            )}
+            
+            {business.email && (
+              <div className="flex items-center space-x-2">
+                <Mail className="w-4 h-4 text-blue-600" />
+                <span className="text-blue-600 text-sm">{business.email}</span>
+              </div>
+            )}
+
             {/* Distance */}
             {business.distance && (
-              <div className="flex items-center space-x-1 text-gray-600">
+              <div className="flex items-center space-x-1 text-gray-600 text-sm">
                 <MapPin className="w-4 h-4" />
                 <span>
                   {business.distance < 1 
@@ -153,39 +175,11 @@ export default function BusinessListItem({
             {business.openNow !== undefined && (
               <div className="flex items-center space-x-1">
                 <Clock className={cn("w-4 h-4", business.openNow ? "text-green-500" : "text-red-500")} />
-                <span className={cn("font-medium", business.openNow ? "text-green-500" : "text-red-500")}>
+                <span className={cn("font-medium text-sm", business.openNow ? "text-green-500" : "text-red-500")}>
                   {business.openNow ? "Abierto" : "Cerrado"}
                 </span>
               </div>
             )}
-
-            {/* Quick Contact */}
-            <div className="flex items-center space-x-2">
-              {business.phone && (
-                <button 
-                  onClick={() => window.open(`tel:${business.phone}`)}
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  <Phone className="w-4 h-4" />
-                </button>
-              )}
-              {business.website && (
-                <button 
-                  onClick={() => window.open(business.website, '_blank')}
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  <Globe className="w-4 h-4" />
-                </button>
-              )}
-              {business.email && (
-                <button 
-                  onClick={() => window.open(`mailto:${business.email}`)}
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  <Mail className="w-4 h-4" />
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Actions */}
@@ -201,10 +195,16 @@ export default function BusinessListItem({
             </Button>
             <Button
               size="sm"
-              onClick={onBookClick}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (business.address) {
+                  const query = encodeURIComponent(`${business.name}, ${business.address}`);
+                  window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+                }
+              }}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
             >
-              Reservar cita
+              <MapPin className="w-4 h-4 mr-1" />
+              Google Maps
             </Button>
           </div>
         </div>
