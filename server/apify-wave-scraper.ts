@@ -1,6 +1,14 @@
 import { ApifyClient } from 'apify-client';
 import { storage } from './storage.js';
 import { InsertApifyBusiness } from '../shared/schema.js';
+import { 
+  PhoneNumberProcessor, 
+  CategoryMapper, 
+  CoordinateValidator, 
+  DataFreshnessCalculator, 
+  DataValidator, 
+  SocialMediaDetector 
+} from './data-enhancement-utils.js';
 
 interface WaveConfig {
   id: string;
@@ -171,55 +179,113 @@ export class ApifyWaveScraper {
     return searchTerms;
   }
 
-  // Map Apify category to our system
-  private mapToOurCategory(categoryName: string): string {
-    const category = categoryName?.toLowerCase() || '';
-    
-    if (category.includes('barbería') || category.includes('peluquería') || 
-        category.includes('salón') || category.includes('spa') || 
-        category.includes('belleza') || category.includes('manicure')) {
-      return 'belleza';
-    }
-    if (category.includes('gimnasio') || category.includes('fitness') || 
-        category.includes('yoga') || category.includes('pilates')) {
-      return 'fitness';
-    }
-    if (category.includes('restaurante') || category.includes('comida') || 
-        category.includes('bar') || category.includes('cafetería')) {
-      return 'gastronomia';
-    }
-    if (category.includes('médico') || category.includes('dentista') || 
-        category.includes('clínica') || category.includes('farmacia')) {
-      return 'salud';
-    }
-    if (category.includes('taller') || category.includes('mecánico') || 
-        category.includes('auto') || category.includes('gasolinera')) {
-      return 'automotriz';
-    }
-    
-    return 'servicios';
+  // Map Apify category to our system using enhanced category mapper
+  private mapToOurCategory(businessName: string, categoryName: string, address: string): string {
+    return CategoryMapper.mapCategory(businessName, categoryName, address);
   }
 
-  // Convert Apify result to our business format
+  // Convert Apify result to our business format with enhanced processing
   private convertToApifyBusiness(place: any): InsertApifyBusiness {
-    return {
+    const businessName = place.title || 'Business';
+    const address = place.address || 'Lima, Peru';
+    const categoryName = place.categoryName || '';
+    
+    // Enhanced phone processing
+    const rawPhone = place.phoneUnformatted || place.phone || null;
+    const phoneResult = rawPhone ? PhoneNumberProcessor.standardizePhone(rawPhone) : null;
+    
+    // Enhanced coordinate validation
+    const lat = place.location?.lat || null;
+    const lng = place.location?.lng || null;
+    let finalLat = lat;
+    let finalLng = lng;
+    let coordinatesValidated = false;
+    
+    if (lat && lng) {
+      const coordResult = CoordinateValidator.validateCoordinates(lat, lng);
+      coordinatesValidated = coordResult.isValid;
+      
+      if (!coordResult.isValid && coordResult.correctedLat && coordResult.correctedLng) {
+        finalLat = coordResult.correctedLat;
+        finalLng = coordResult.correctedLng;
+        coordinatesValidated = true;
+      }
+    }
+    
+    // Fallback to district-based coordinates if invalid
+    if (!coordinatesValidated) {
+      const defaultCoords = CoordinateValidator.getDefaultCoordinates(address);
+      finalLat = defaultCoords.lat;
+      finalLng = defaultCoords.lng;
+    }
+    
+    // Enhanced category mapping
+    const category = this.mapToOurCategory(businessName, categoryName, address);
+    
+    // Extract social media from website and description
+    const websiteText = place.website || '';
+    const descriptionText = place.description || '';
+    const socialMedia = SocialMediaDetector.extractSocialMedia(`${websiteText} ${descriptionText}`);
+    
+    // Process multiple images
+    const imageUrls = place.imageUrls || [];
+    const photoUrl = imageUrls.length > 0 ? imageUrls[0] : null;
+    
+    // Enhanced search terms
+    const searchTerms = `${businessName} ${address} ${categoryName} ${category}`.toLowerCase();
+    
+    // Calculate data freshness
+    const businessData = {
+      name: businessName,
+      phone: rawPhone,
+      website: place.website,
+      address: address,
+      rating: place.totalScore || place.rating || 0,
+      hours: place.openingHours,
+      photo_url: photoUrl,
+      createdAt: new Date(),
+      lastUpdated: new Date()
+    };
+    
+    const freshnessScore = DataFreshnessCalculator.calculateFreshness(businessData);
+    
+    // Prepare enhanced business object
+    const enhancedBusiness = {
       placeId: place.placeId || `apify_${Date.now()}_${Math.random()}`,
-      name: place.title || 'Business',
-      address: place.address || 'Lima, Peru',
-      category: this.mapToOurCategory(place.categoryName || ''),
+      name: businessName,
+      address: address,
+      category: category,
       rating: place.totalScore || place.rating || 0,
       reviewCount: place.reviewsCount || 0,
       priceLevel: place.priceLevel || 0,
-      phone: place.phoneUnformatted || place.phone || null,
+      phone: rawPhone,
       website: place.website || null,
-      photoUrl: place.imageUrls?.[0] || null,
-      latitude: place.location?.lat || -12.05,
-      longitude: place.location?.lng || -77.05,
+      photoUrl: photoUrl,
+      latitude: finalLat,
+      longitude: finalLng,
       openNow: null,
       hours: place.openingHours ? JSON.stringify(place.openingHours) : null,
-      searchTerms: `${place.title} ${place.address} ${place.categoryName || ''}`.toLowerCase(),
-      isRegistered: false
+      searchTerms: searchTerms,
+      isRegistered: false,
+      
+      // Enhanced fields
+      description: place.description || null,
+      services: place.services || null,
+      socialMedia: Object.keys(socialMedia).length > 0 ? socialMedia : null,
+      imageUrls: imageUrls.length > 0 ? imageUrls : null,
+      verifiedStatus: 'scraped',
+      dataFreshnessScore: freshnessScore,
+      phoneFormatted: phoneResult?.formatted || null,
+      phoneCountryCode: phoneResult?.countryCode || '+51',
+      coordinatesValidated: coordinatesValidated,
+      businessStatus: 'operational',
+      amenities: place.amenities || null,
+      priceRangeText: place.priceRangeText || null,
+      lastScraped: new Date(),
+      scrapingSource: 'apify'
     };
+    
+    return enhancedBusiness as InsertApifyBusiness;
   }
 
   // Execute a single wave
@@ -282,11 +348,30 @@ export class ApifyWaveScraper {
           console.log(`📊 Batch ${batchIndex + 1} found ${items.length} businesses`);
           progress.businessesFound += items.length;
 
-          // Process and store businesses
+          // Process and store businesses with validation and retry
           for (const item of items) {
             try {
               const business = this.convertToApifyBusiness(item);
-              await storage.addApifyBusiness(business);
+              
+              // Validate business data before storing
+              const validation = DataValidator.validateBusinessData(business);
+              if (!validation.isValid) {
+                progress.errors.push(`Validation failed for ${business.name}: ${validation.errors.join(', ')}`);
+                continue;
+              }
+              
+              // Log warnings if any
+              if (validation.warnings.length > 0) {
+                console.warn(`⚠️ Warnings for ${business.name}: ${validation.warnings.join(', ')}`);
+              }
+              
+              // Store with retry logic
+              await DataValidator.validateWithRetry(
+                () => storage.addApifyBusiness(business),
+                3, // max retries
+                1000 // initial delay
+              );
+              
               progress.businessesProcessed++;
               totalBusinesses++;
             } catch (error) {

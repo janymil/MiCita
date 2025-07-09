@@ -189,7 +189,7 @@ export const businessSettings = pgTable("business_settings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Apify Businesses - Businesses scraped from Apify
+// Apify Businesses - Enhanced businesses scraped from Apify
 export const apifyBusinesses = pgTable("apify_businesses", {
   id: serial("id").primaryKey(),
   placeId: text("place_id").unique().notNull(),
@@ -210,6 +210,23 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   isRegistered: boolean("is_registered").default(false),
   lastUpdated: timestamp("last_updated").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
+  
+  // Enhanced fields
+  description: text("description"),
+  services: text("services").array(),
+  socialMedia: jsonb("social_media").$type<{[key: string]: string}>(),
+  imageUrls: text("image_urls").array(),
+  verifiedStatus: text("verified_status").default("unverified"),
+  dataFreshnessScore: integer("data_freshness_score").default(0),
+  phoneFormatted: text("phone_formatted"),
+  phoneCountryCode: text("phone_country_code").default("+51"),
+  coordinatesValidated: boolean("coordinates_validated").default(false),
+  businessStatus: text("business_status").default("unknown"),
+  amenities: jsonb("amenities").$type<{[key: string]: boolean}>(),
+  priceRangeText: text("price_range_text"),
+  lastScraped: timestamp("last_scraped").defaultNow(),
+  scrapingSource: text("scraping_source").default("apify"),
+  qualityScore: integer("quality_score").default(0),
 });
 
 
