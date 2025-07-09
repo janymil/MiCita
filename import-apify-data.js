@@ -56,8 +56,8 @@ function convertToApifyBusiness(place) {
     socialMedia: place.socialMedias || null,
     searchTerms: `${businessName} ${categoryName} ${address}`.toLowerCase(),
     isRegistered: false,
-    createdAt: new Date().toISOString(),
-    lastUpdated: new Date().toISOString()
+    createdAt: new Date(),
+    lastUpdated: new Date()
   };
 }
 
@@ -65,23 +65,17 @@ async function importDataFromApifyRun() {
   console.log('📥 Importing data from completed Apify run...');
   
   try {
-    // Get the most recent run
-    const runs = await client.actor('compass/crawler-google-places').runs().list({ limit: 10 });
-    console.log(`Found ${runs.items.length} recent runs`);
+    // Use the specific run ID with 2217 businesses
+    const runId = 'iU5yczUX9UkuT30Ys';
+    const run = await client.run(runId).get();
     
-    // Find the most recent successful run
-    const successfulRun = runs.items.find(run => run.status === 'SUCCEEDED');
-    if (!successfulRun) {
-      console.error('❌ No successful runs found');
-      return;
-    }
+    console.log(`📊 Importing from run: ${run.id}`);
+    console.log(`📅 Started: ${run.startedAt}`);
+    console.log(`📅 Finished: ${run.finishedAt}`);
+    console.log(`📊 Status: ${run.status}`);
     
-    console.log(`📊 Found successful run: ${successfulRun.id}`);
-    console.log(`📅 Started: ${successfulRun.startedAt}`);
-    console.log(`📅 Finished: ${successfulRun.finishedAt}`);
-    
-    // Get the dataset from the successful run
-    const dataset = await client.dataset(successfulRun.defaultDatasetId);
+    // Get the dataset from the specific run
+    const dataset = await client.dataset(run.defaultDatasetId);
     const { items } = await dataset.listItems();
     
     console.log(`📦 Found ${items.length} businesses in dataset`);

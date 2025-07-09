@@ -338,7 +338,7 @@ export class ApifyWaveScraper {
             language: 'es',
             allPlacesNoSearchAction: '',
             maxReviews: 5,  // Increased from 3 to 5 for better insights
-            maxImages: 10,  // Increased from 2 to 10 for rich photo galleries
+            maxImages: 1,  // Single photo per business
             exportPlaceUrls: false,
             additionalInfo: true,
             
