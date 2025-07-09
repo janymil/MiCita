@@ -738,20 +738,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error('❌ Enhanced search error:', error);
-      
-      // Track failed search
-      await searchAnalytics.trackSearch({
-        query: searchQuery.query,
-        category: searchQuery.category,
-        district: searchQuery.district,
-        filters: {},
-        resultsCount: 0,
-        searchTime: 0,
-        userAgent: req.headers['user-agent'],
-        ip: req.ip,
-        sessionId: req.sessionID || req.headers['x-session-id']
-      });
-      
       res.status(500).json({ message: "Error en la búsqueda" });
     }
   });
