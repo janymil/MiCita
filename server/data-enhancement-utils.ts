@@ -353,11 +353,4 @@ export class SocialMediaDetector {
   }
 }
 
-export {
-  PhoneNumberProcessor,
-  CategoryMapper,
-  CoordinateValidator,
-  DataFreshnessCalculator,
-  DataValidator,
-  SocialMediaDetector
-};
+// Classes are already exported individually above

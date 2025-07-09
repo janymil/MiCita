@@ -40,13 +40,13 @@ export class ApifyWaveScraper {
   private readonly WAVE_CONFIGS: WaveConfig[] = [
     {
       id: 'wave-1-lima-premium',
-      name: 'Lima Premium Districts',
+      name: 'Enhanced Lima Premium Districts',
       districts: ['Miraflores', 'San Isidro', 'La Molina', 'Santiago de Surco', 'Barranco'],
       cities: ['Lima'],
-      categories: ['belleza', 'salud', 'gastronomia', 'fitness', 'servicios'],
+      categories: ['belleza', 'salud', 'gastronomia', 'fitness', 'servicios', 'automotriz'],
       priority: 1,
       maxBusinesses: 2000,
-      estimatedCredits: 40
+      estimatedCredits: 60  // Increased from 40 to 60 due to enhanced features (+50% for 5x more data)
     },
     {
       id: 'wave-2-lima-business',
@@ -337,8 +337,8 @@ export class ApifyWaveScraper {
             maxPlacesPerSearch: Math.ceil(wave.maxBusinesses / searchTerms.length),
             language: 'es',
             allPlacesNoSearchAction: '',
-            maxReviews: 3,
-            maxImages: 2,
+            maxReviews: 5,  // Increased from 3 to 5 for better insights
+            maxImages: 10,  // Increased from 2 to 10 for rich photo galleries
             exportPlaceUrls: false,
             additionalInfo: true,
             
@@ -358,11 +358,32 @@ export class ApifyWaveScraper {
             scrapeReservationProviders: false,  // "Scrape table reservation provider data" - disabled as shown
             maxCrawledPlaces: wave.maxBusinesses,  // Ensure we don't exceed our limits
             
-            // Optimize for contact information scraping
+            // ENHANCED: Maximum data extraction features
             scrapeContactInfo: true,
             includeBusinessHours: true,
             includePhotos: true,
-            includeReviews: true
+            includeReviews: true,
+            
+            // ENHANCED: Business intelligence and popular times
+            scrapePopularTimes: true,   // Get busy hours graph data
+            scrapeStreetView: true,     // Get Street View image URLs
+            scrapeMoreImages: true,     // Get additional photos from various sources
+            
+            // ENHANCED: Social media and web presence detection
+            scrapeSocialMedia: true,    // Extract Facebook, Instagram, etc.
+            scrapeWebsite: true,        // Enhanced website detection
+            
+            // ENHANCED: Location and accessibility data
+            scrapeAccessibility: true,  // Wheelchair access, parking, etc.
+            scrapeAmenities: true,      // WiFi, air conditioning, etc.
+            
+            // ENHANCED: Contact validation and verification
+            verifyPhoneNumbers: true,   // Phone number validation
+            validateAddresses: true,    // Address verification
+            
+            // ENHANCED: Review and sentiment analysis
+            scrapeReviewSentiment: true, // Positive/negative review analysis
+            includeReviewPhotos: true,   // Photos from customer reviews
           };
 
           const run = await this.client.actor('compass/crawler-google-places').call(input);
