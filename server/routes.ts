@@ -18,6 +18,7 @@ import { searchPersonalization } from "./personalization.js";
 import { db } from "./db.js";
 import { apifyBusinesses } from "@shared/schema";
 import { sql, eq, and, or, gte, lte, ne, isNotNull, desc, asc } from "drizzle-orm";
+import { performanceOptimizer, SpatialClusterer } from "./performance-optimizer";
 
 
 // Helper function to send email notifications for status changes
@@ -328,8 +329,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Public search routes
+  // Public search routes with performance optimization
   app.get("/api/search", async (req, res) => {
+    const startTime = Date.now();
+    
     try {
       const { 
         q, 
@@ -346,8 +349,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sort = 'relevance',
         page = '1',
         limit = '20',
-        bounds 
+        bounds,
+        zoom = '10'
       } = req.query;
+
+      const searchParams = {
+        query: (q as string) || "",
+        category: category as string,
+        subcategory: subcategory as string,
+        city: city as string,
+        district: district as string,
+        minRating: parseFloat(minRating as string),
+        maxPrice: parseFloat(maxPrice as string),
+        openNow: openNow === 'true',
+        hasPhone: hasPhone === 'true',
+        hasWebsite: hasWebsite === 'true',
+        hasEmail: hasEmail === 'true',
+        sortBy: sort as any,
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        bounds: bounds ? JSON.parse(bounds as string) : undefined,
+        zoom: parseInt(zoom as string)
+      };
+
+      // Check cache first for non-map views or frequently accessed data
+      const isMapView = req.query.map_view === 'true';
+      if (!isMapView) {
+        const cachedResult = performanceOptimizer.getCachedResult(searchParams);
+        if (cachedResult) {
+          console.log('🚀 Cache hit - returning cached result');
+          return res.json(cachedResult);
+        }
+      }
 
       console.log('🔍 Enhanced search request:', { 
         query: q, 
@@ -462,10 +495,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
         countQuery = countQuery.where(and(...dbConditions));
       }
       
-      // Execute queries - for map view, don't apply pagination limits
+      // Execute queries with performance optimization
       const isMapView = req.query.map_view === 'true';
+      
+      // For map view with many results, use optimized field selection
+      if (isMapView) {
+        const optimizedFields = performanceOptimizer.getOptimizedFields('map');
+        dbQuery = db.select({
+          placeId: apifyBusinesses.placeId,
+          name: apifyBusinesses.name,
+          address: apifyBusinesses.address,
+          category: apifyBusinesses.category,
+          rating: apifyBusinesses.rating,
+          reviewCount: apifyBusinesses.reviewCount,
+          district: apifyBusinesses.district,
+          latitude: apifyBusinesses.latitude,
+          longitude: apifyBusinesses.longitude,
+          phone: apifyBusinesses.phone,
+          website: apifyBusinesses.website
+        }).from(apifyBusinesses);
+        
+        // Re-apply conditions for optimized query
+        if (dbConditions.length > 0) {
+          dbQuery = dbQuery.where(and(...dbConditions));
+        }
+        
+        // Apply same sorting
+        switch (searchParams.sortBy) {
+          case 'rating':
+            dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating));
+            break;
+          case 'reviews':
+            dbQuery = dbQuery.orderBy(desc(apifyBusinesses.reviewCount));
+            break;
+          case 'name':
+            dbQuery = dbQuery.orderBy(asc(apifyBusinesses.name));
+            break;
+          default:
+            dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount));
+        }
+      }
+      
       const [apifyBusinessesList, totalCountResult] = await Promise.all([
-        isMapView ? dbQuery : dbQuery.limit(searchQuery.limit).offset((searchQuery.page - 1) * searchQuery.limit),
+        isMapView ? dbQuery : dbQuery.limit(searchParams.limit).offset((searchParams.page - 1) * searchParams.limit),
         countQuery
       ]);
       
@@ -488,8 +560,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
 
 
-      // Convert Apify businesses to expected frontend format  
-      const formattedResults = searchResult.businesses.map(business => ({
+      // Convert Apify businesses to expected frontend format with performance optimization
+      let formattedResults = searchResult.businesses.map(business => ({
         id: business.placeId,
         name: business.name,
         address: business.address,
@@ -510,6 +582,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isRegistered: business.isRegistered || false,
         type: "google"
       }));
+
+      // Apply spatial clustering for map view if many results
+      if (isMapView && formattedResults.length > 50) {
+        formattedResults = SpatialClusterer.clusterBusinesses(formattedResults, searchParams.zoom);
+        console.log(`🗺️ Applied clustering: ${searchResult.businesses.length} → ${formattedResults.length} markers`);
+      }
 
       // Add registered businesses to the beginning of results for priority
       let registeredBusinesses = [];
@@ -745,36 +823,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
         searchQuery
       );
 
+      // Calculate actual performance metrics
+      const actualSearchTime = Date.now() - startTime;
+      
       console.log('🔍 Search results summary:', {
         totalApifyBusinesses: searchResult.totalCount,
         registeredBusinesses: businessesWithCustomUrl.length,
         totalResults: totalResults,
-        currentPage: searchQuery.page,
-        returnedResults: paginatedResults.length
+        currentPage: searchParams.page,
+        returnedResults: paginatedResults.length,
+        performanceTime: `${actualSearchTime}ms`,
+        cacheUsed: false,
+        clustered: isMapView && searchResult.businesses.length > 50
       });
 
-      res.json({
+      const finalResponse = {
         results: personalizedResults,
         pagination: {
-          currentPage: searchQuery.page,
-          totalPages: Math.ceil(totalResults / searchQuery.limit),
+          currentPage: searchParams.page,
+          totalPages: Math.ceil(totalResults / searchParams.limit),
           totalResults: totalResults,
           actualResults: personalizedResults.length,
-          resultsPerPage: searchQuery.limit,
+          resultsPerPage: searchParams.limit,
           hasNextPage: endIndex < totalResults,
-          hasPrevPage: searchQuery.page > 1,
+          hasPrevPage: searchParams.page > 1,
           mightHaveMore: endIndex < totalResults
         },
         searchMetrics: {
-          searchTime: searchResult.searchMetrics.searchTime,
+          searchTime: actualSearchTime,
           totalMatches: totalResults,
-          queryAnalysis: searchResult.searchMetrics.queryAnalysis,
-          averageRelevanceScore: searchResult.searchMetrics.relevanceScores.length > 0 
-            ? (searchResult.searchMetrics.relevanceScores.reduce((a, b) => a + b, 0) / searchResult.searchMetrics.relevanceScores.length).toFixed(1)
-            : 0,
-          filteringApplied: true
+          queryAnalysis: searchResult.searchMetrics?.queryAnalysis || [],
+          averageRelevanceScore: 0,
+          filteringApplied: true,
+          cacheStats: performanceOptimizer.getCacheStats()
         }
-      });
+      };
+
+      // Cache results for non-map views with fast search times
+      if (!isMapView && actualSearchTime < 1000) {
+        performanceOptimizer.cacheResult(searchParams, finalResponse, 5 * 60 * 1000); // 5 minutes TTL
+      }
+
+      res.json(finalResponse);
 
       // Track search analytics
       await searchAnalytics.trackSearch({
