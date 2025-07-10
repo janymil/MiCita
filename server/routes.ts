@@ -355,25 +355,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bounds: bounds ? JSON.parse(bounds as string) : undefined
       };
 
-      // When no search query and no category filter, get more results
-      const enhancedLimit = (!searchQuery.query && (!searchQuery.category || searchQuery.category === 'all')) 
-        ? Math.max(parseInt(limit as string), 2000) 
-        : parseInt(limit as string);
+      // Use proper pagination limit
+      const enhancedLimit = parseInt(limit as string);
       
       const searchResult = await enhancedSearchEngine.search({
         ...searchQuery,
         limit: enhancedLimit
       });
       
-      console.log('📊 Enhanced search results:', {
-        totalMatches: searchResult.totalCount,
-        currentPage: searchResult.page,
-        searchTime: searchResult.searchMetrics.searchTime + 'ms',
-        avgRelevanceScore: searchResult.searchMetrics.relevanceScores.length > 0 
-          ? (searchResult.searchMetrics.relevanceScores.reduce((a, b) => a + b, 0) / searchResult.searchMetrics.relevanceScores.length).toFixed(1)
-          : 0,
-        queryAnalysis: searchResult.searchMetrics.queryAnalysis
-      });
+
 
       // Convert Apify businesses to expected frontend format
       const formattedResults = searchResult.businesses.map(business => ({
@@ -629,11 +619,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Apply unified filters to combined results
       const filteredResults = applyUnifiedFilters(normalizedResults, searchQuery);
       
-      // Apply personalization to results
+      // Apply pagination to filtered results
+      const totalResults = filteredResults.length;
+      const startIndex = (searchQuery.page - 1) * searchQuery.limit;
+      const endIndex = startIndex + searchQuery.limit;
+      const paginatedResults = filteredResults.slice(startIndex, endIndex);
+      
+      // Apply personalization to paginated results only
       const userId = req.headers['x-user-id'] as string || null;
       const sessionId = req.sessionID || req.headers['x-session-id'] as string || null;
       const personalizedResults = searchPersonalization.personalizeResults(
-        filteredResults, 
+        paginatedResults, 
         userId, 
         sessionId, 
         searchQuery
@@ -672,18 +668,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         results: personalizedResults,
         pagination: {
-          currentPage: searchResult.page,
-          totalPages: searchResult.totalPages,
-          totalResults: searchResult.totalCount,
+          currentPage: searchQuery.page,
+          totalPages: Math.ceil(totalResults / searchQuery.limit),
+          totalResults: totalResults,
           actualResults: personalizedResults.length,
-          resultsPerPage: parseInt(limit as string),
-          hasNextPage: searchResult.hasMore,
-          hasPrevPage: searchResult.page > 1,
-          mightHaveMore: searchResult.hasMore
+          resultsPerPage: searchQuery.limit,
+          hasNextPage: endIndex < totalResults,
+          hasPrevPage: searchQuery.page > 1,
+          mightHaveMore: endIndex < totalResults
         },
         searchMetrics: {
           searchTime: searchResult.searchMetrics.searchTime,
-          totalMatches: filteredResults.length,
+          totalMatches: totalResults,
           queryAnalysis: searchResult.searchMetrics.queryAnalysis,
           averageRelevanceScore: searchResult.searchMetrics.relevanceScores.length > 0 
             ? (searchResult.searchMetrics.relevanceScores.reduce((a, b) => a + b, 0) / searchResult.searchMetrics.relevanceScores.length).toFixed(1)
@@ -705,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           hasEmail: searchQuery.hasEmail,
           openNow: searchQuery.openNow
         },
-        resultsCount: filteredResults.length,
+        resultsCount: totalResults,
         searchTime: searchResult.searchMetrics.searchTime,
         userAgent: req.headers['user-agent'],
         ip: req.ip,
@@ -726,14 +722,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           hasEmail: searchQuery.hasEmail,
           openNow: searchQuery.openNow
         },
-        resultsCount: filteredResults.length
+        resultsCount: totalResults
       });
       
       searchPersonalization.updateSessionProfile(sessionId, {
         query: searchQuery.query,
         category: searchQuery.category,
         district: searchQuery.district,
-        resultsCount: filteredResults.length
+        resultsCount: totalResults
       });
 
     } catch (error) {

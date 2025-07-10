@@ -939,13 +939,7 @@ export default function SearchPage() {
                   </div>
                 )}
                 
-                {/* Infinite scroll loading indicator */}
-                {isInfiniteScrollMode && (isFetching || isLoading) && (
-                  <div className="text-center py-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto"></div>
-                    <p className="text-sm text-gray-500 mt-2">Cargando más resultados...</p>
-                  </div>
-                )}
+
               </div>
             </div>
             
