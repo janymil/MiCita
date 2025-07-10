@@ -249,6 +249,19 @@ Changelog:
   - CONFIRMED WORKING: "Barberia Nicolas" now appears first in search results for all unfiltered searches
   - Search ordering correctly prioritizes: Registered Businesses → Public Businesses → Apify Businesses
   - Backend logs show proper business retrieval: "registeredBusinesses: 1, registeredNames: ['Barberia Nicolas']"
+- July 10, 2025: COMPREHENSIVE MAP VIEW ENHANCEMENT AND MISSING DISTRICTS SCRAPER:
+  - FIXED: Removed artificial 2000 business limit in map view - now shows ALL 4646 businesses
+  - ENHANCED: Map view dynamically filters sidebar based on current viewport bounds
+  - ADDED: "Filtrar por área" toggle button for real-time map bounds filtering
+  - IMPROVED: Business count updates dynamically: "X negocios en el área visible" vs "X negocios encontrados"
+  - IMPLEMENTED: Compatible map bounds detection for OpenStreetMap/Leaflet format
+  - CREATED: Missing Districts Targeted Scraper for geolocation-based data collection
+  - IDENTIFIED: Current businesses concentrated in central Lima (Miraflores, San Isidro, Barranco)
+  - SOLUTION: New scraper targets 27 under-represented districts using exact coordinates
+  - COVERAGE: San Juan de Lurigancho, Villa El Salvador, Comas, Los Olivos, Ate, Callao, etc.
+  - TECHNOLOGY: Geolocation-based search with district-specific radius (2000m-8000m per district)
+  - ESTIMATED: 2000-3000 new businesses from outer districts at $15-20 cost
+  - READY: Execution script and district coverage analysis tools prepared
 
 ## PRD Implementation Status
 
