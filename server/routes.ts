@@ -914,10 +914,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Normalize category name to match database format
       const categoryMap = {
         'gastronomia': 'Gastronomía',
-        'belleza': 'Belleza',
-        'salud': 'Salud',
-        'fitness': 'Fitness',
-        'servicios': 'Servicios'
+        'belleza': 'belleza',
+        'salud': 'salud', 
+        'fitness': 'fitness',
+        'servicios': 'servicios'
       };
       
       const normalizedCategory = categoryMap[category.toLowerCase()] || category;
