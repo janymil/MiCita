@@ -344,9 +344,10 @@ export default function AdminBusinesses() {
     : [];
   
   // Helper functions
-  const formatRating = (rating: string | number) => {
+  const formatRating = (rating: string | number | null | undefined) => {
+    if (!rating && rating !== 0) return '0.0';
     const val = typeof rating === 'string' ? parseFloat(rating) : rating;
-    return isNaN(val) ? '0.0' : val.toFixed(1);
+    return isNaN(val) || val === null ? '0.0' : val.toFixed(1);
   };
   
   const getStatusBadge = (status: string) => {

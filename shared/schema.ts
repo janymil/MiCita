@@ -243,6 +243,17 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   scrapingSource: text("scraping_source").default("apify"),
   qualityScore: integer("quality_score").default(0),
   originalScrapedData: jsonb("original_scraped_data"), // Complete original scraped data
+  
+  // Badge system fields
+  publicBadge: text("public_badge").default("unverified"),
+  marketingBadge: text("marketing_badge").default("analyzing"),
+  marketingPotentialScore: integer("marketing_potential_score").default(0),
+  marketingOpportunities: jsonb("marketing_opportunities").$type<string[]>().default([]),
+  lastBadgeAnalysis: timestamp("last_badge_analysis").defaultNow(),
+  isClaimedGoogle: boolean("is_claimed_google").default(false),
+  hasWebsiteAnalysis: boolean("has_website_analysis").default(false),
+  digitalPresenceScore: integer("digital_presence_score").default(0),
+  marketingNotes: text("marketing_notes")
 });
 
 
@@ -313,6 +324,50 @@ export const insertApifyBusinessSchema = createInsertSchema(apifyBusinesses).omi
   lastUpdated: true,
   createdAt: true,
 });
+
+// OpenStreetMap businesses table for legal alternative data source
+export const openstreetBusinesses = pgTable('openstreet_businesses', {
+  id: serial('id').primaryKey(),
+  osmId: text('osm_id').unique().notNull(), // OpenStreetMap ID
+  osmType: text('osm_type'), // node, way, relation
+  name: text('name'),
+  amenity: text('amenity'), // shop, restaurant, etc.
+  shop: text('shop'), // specific shop type
+  address: text('address'),
+  houseNumber: text('house_number'),
+  street: text('street'),
+  city: text('city'),
+  district: text('district'),
+  postcode: text('postcode'),
+  phone: text('phone'),
+  website: text('website'),
+  email: text('email'),
+  openingHours: text('opening_hours'),
+  latitude: decimal('latitude', { precision: 10, scale: 8 }),
+  longitude: decimal('longitude', { precision: 11, scale: 8 }),
+  building: text('building'),
+  buildingLevels: text('building_levels'),
+  operator: text('operator'),
+  brand: text('brand'),
+  cuisine: text('cuisine'),
+  wheelchair: text('wheelchair'),
+  category: text('category').default('servicios'),
+  subcategory: text('subcategory'),
+  tags: jsonb('tags'), // All original OSM tags
+  geometry: jsonb('geometry'), // GeoJSON geometry
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
+});
+
+// Create insert and select schemas for OpenStreetMap businesses
+export const insertOpenstreetBusinessSchema = createInsertSchema(openstreetBusinesses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export type InsertOpenstreetBusiness = z.infer<typeof insertOpenstreetBusinessSchema>;
+export type SelectOpenstreetBusiness = typeof openstreetBusinesses.$inferSelect;
 
 
 
