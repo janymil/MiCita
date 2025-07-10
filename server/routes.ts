@@ -11,6 +11,7 @@ import { AppointmentData } from "./email-templates";
 import { DBStorage } from "./db-storage.js";
 import { simpleAdminRoutes } from "./simple-admin-routes.js";
 import { adminRoutes } from "./admin-routes.js";
+import { adminBusinessRoutes } from "./admin-business-routes.js";
 import networkingRoutes from "./networking-routes.js";
 import { searchAnalytics } from "./search-analytics.js";
 import { searchPersonalization } from "./personalization.js";
@@ -2241,6 +2242,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Admin routes
   app.use('/api/admin', simpleAdminRoutes);
+  app.use('/api/admin/v2', adminBusinessRoutes);
   app.use('/api/networking', networkingRoutes);
 
   // Debug endpoint to check email configuration (remove in production)

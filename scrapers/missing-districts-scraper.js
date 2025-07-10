@@ -16,7 +16,8 @@ import {
   PhoneNumberProcessor, 
   CategoryMapper, 
   CoordinateValidator, 
-  DataValidator 
+  DataValidator,
+  SocialMediaDetector
 } from '../server/data-enhancement-utils.ts';
 
 const client = new ApifyClient({ 
@@ -118,7 +119,7 @@ function generateDistrictSearchTerms(district) {
   return searchTerms;
 }
 
-function convertToApifyBusiness(place) {
+function convertToApifyBusiness(place, districtName) {
   // Phone number processing
   const phoneData = place.phone ? PhoneNumberProcessor.standardizePhone(place.phone) : null;
   
@@ -135,6 +136,61 @@ function convertToApifyBusiness(place) {
     place.longitude || 0
   );
   
+  // Extract services from additionalInfo or description
+  const services = [];
+  if (place.additionalInfo?.Services) {
+    Object.entries(place.additionalInfo.Services).forEach(([service, available]) => {
+      if (available) services.push(service);
+    });
+  }
+  
+  // Extract amenities
+  const amenities = {};
+  if (place.additionalInfo?.Amenities) {
+    Object.entries(place.additionalInfo.Amenities).forEach(([amenity, available]) => {
+      amenities[amenity] = Boolean(available);
+    });
+  }
+  
+  // Extract payment options
+  const paymentOptions = [];
+  if (place.additionalInfo?.['Payment options']) {
+    Object.entries(place.additionalInfo['Payment options']).forEach(([method, accepted]) => {
+      if (accepted) paymentOptions.push(method);
+    });
+  }
+  
+  // Extract accessibility options
+  const accessibilityOptions = [];
+  if (place.additionalInfo?.Accessibility) {
+    Object.entries(place.additionalInfo.Accessibility).forEach(([option, available]) => {
+      if (available) accessibilityOptions.push(option);
+    });
+  }
+  
+  // Extract social media from web results or description
+  let socialMedia = {};
+  if (place.webResults) {
+    socialMedia = SocialMediaDetector.extractSocialMedia(JSON.stringify(place.webResults));
+  }
+  
+  // Process opening hours properly
+  let hours = null;
+  if (place.openingHours) {
+    if (Array.isArray(place.openingHours)) {
+      hours = place.openingHours;
+    } else if (typeof place.openingHours === 'object') {
+      // Convert object format to array
+      hours = Object.entries(place.openingHours).map(([day, hours]) => `${day}: ${hours}`);
+    }
+  }
+  
+  // Handle image URLs properly
+  let imageUrls = null;
+  if (Array.isArray(place.imageUrls) && place.imageUrls.length > 0) {
+    imageUrls = place.imageUrls.slice(0, 10); // Keep up to 10 images
+  }
+  
   return {
     placeId: place.placeId || `missing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     name: place.title || place.name || 'Negocio sin nombre',
@@ -142,57 +198,71 @@ function convertToApifyBusiness(place) {
     latitude: coordinates.lat.toString(),
     longitude: coordinates.lng.toString(),
     phone: phoneData?.formatted || place.phone || null,
-    website: place.website || null,
+    phoneFormatted: phoneData?.formatted || null,
+    phoneCountryCode: phoneData?.countryCode || '+51',
+    website: place.website || place.url || null,
     email: place.email || null,
     category: category,
-    subcategory: place.categoryName || null,
+    subcategory: place.categoryName || place.categories?.[0] || null,
     rating: place.rating ? parseFloat(place.rating).toString() : null,
     reviewCount: place.reviewsCount || place.totalScore || 0,
     priceLevel: place.priceLevel || null,
+    priceRangeText: place.price || null,
     photoUrl: Array.isArray(place.imageUrls) && place.imageUrls.length > 0 ? place.imageUrls[0] : null,
-    hours: Array.isArray(place.openingHours) ? place.openingHours.join('; ') : null,
-    description: place.description || null,
-    services: null,
-    amenities: null,
-    socialMedia: null,
-    imageUrls: Array.isArray(place.imageUrls) ? place.imageUrls.slice(0, 5).join(', ') : null,
-    popularTimes: null,
-    streetViewUrl: null,
-    accessibilityOptions: null,
-    paymentOptions: null,
-    openNow: place.openNow || null,
-    district: place.district || null,
+    hours: hours,
+    description: place.description || place.reviewsTranslation || null,
+    services: services.length > 0 ? services : null,
+    amenities: Object.keys(amenities).length > 0 ? amenities : null,
+    socialMedia: Object.keys(socialMedia).length > 0 ? socialMedia : null,
+    imageUrls: imageUrls,
+    popularTimes: place.popularTimesLive || place.popularTimesHistogram || null,
+    streetViewUrl: place.streetViewUrl || null,
+    accessibilityOptions: accessibilityOptions.length > 0 ? accessibilityOptions : null,
+    paymentOptions: paymentOptions.length > 0 ? paymentOptions : null,
+    openNow: place.isOpenNow !== undefined ? place.isOpenNow : place.openNow || null,
+    district: districtName, // Use the district name from the scraping context
     city: 'Lima',
     country: 'Perú',
+    businessStatus: place.permanentlyClosed ? 'closed' : (place.temporarilyClosed ? 'temporarily_closed' : 'operational'),
+    coordinatesValidated: coordinates.isValid,
     qualityScore: calculateQualityScore(place),
     lastUpdated: new Date().toISOString(),
+    lastScraped: new Date().toISOString(),
+    scrapingSource: 'apify_missing_districts',
     dataSource: 'apify_missing_districts',
-    isActive: true
+    isActive: !place.permanentlyClosed && !place.temporarilyClosed,
+    verifiedStatus: place.claimThisBusiness === false ? 'claimed' : 'unclaimed',
+    currentPopularity: place.currentPopularity || null,
+    livePopularityStatus: place.livePopularityStatus || null,
+    dataFreshnessScore: 100 // New data is always fresh
   };
 }
 
 function calculateQualityScore(place) {
   let score = 50; // Base score
   
-  // Contact information
-  if (place.phone) score += 15;
-  if (place.website) score += 15;
+  // Contact information (30 points max)
+  if (place.phone) score += 10;
+  if (place.website || place.url) score += 10;
   if (place.email) score += 10;
   
-  // Reviews and ratings
+  // Reviews and ratings (20 points max)
   if (place.rating && place.rating >= 4.0) score += 10;
   if (place.reviewsCount && place.reviewsCount >= 10) score += 5;
   if (place.reviewsCount && place.reviewsCount >= 50) score += 5;
   
-  // Media content
+  // Media content (15 points max)
   if (place.imageUrls && place.imageUrls.length > 0) score += 5;
   if (place.imageUrls && place.imageUrls.length >= 3) score += 5;
+  if (place.imageUrls && place.imageUrls.length >= 5) score += 5;
   
-  // Business information
-  if (place.openingHours && place.openingHours.length > 0) score += 5;
+  // Business information (20 points max)
+  if (place.openingHours && (Array.isArray(place.openingHours) ? place.openingHours.length > 0 : Object.keys(place.openingHours).length > 0)) score += 5;
   if (place.description && place.description.length > 50) score += 5;
+  if (place.additionalInfo && Object.keys(place.additionalInfo).length > 0) score += 5;
+  if (place.categories && place.categories.length > 0) score += 5;
   
-  // Address and location quality
+  // Address and location quality (15 points max)
   if (place.address && place.address.length > 20) score += 5;
   if (place.latitude && place.longitude) score += 10;
   
@@ -224,16 +294,16 @@ async function scrapeMissingDistrictsBusinesses() {
         language: 'es',
         countryCode: 'PE',
         maxReviews: 0,
-        maxImages: 5,
+        maxImages: 10, // Increased to get more images
         exportPlaceUrls: false,
-        additionalInfo: false,
+        additionalInfo: true, // Enable to get services, amenities, payment options
         // Quality filtering - only businesses with 4.0+ rating
         minRating: 4.0,
         // Enhanced scraping options
         scrapeReviewerUrlAndText: false,
         scrapeDirections: false,
         scrapeOpeningHours: true,
-        scrapeBusinessClaims: false,
+        scrapeBusinessClaims: true, // To know if business is claimed
         scrapePeopleAlsoSearch: false,
         scrapeImmediatePhotos: true,
         searchAreaSize: district.radius, // Use district-specific radius
@@ -241,7 +311,16 @@ async function scrapeMissingDistrictsBusinesses() {
         enrichPlaceWithCompanyContactDetails: true,
         scrapeDetailPage: true,
         includeWebResults: true,
-        scrapeInsidePlaces: true
+        scrapeInsidePlaces: false, // Not needed for this use case
+        // Additional options for better data
+        scrapePopularTimes: true,
+        scrapeServiceOptions: true,
+        scrapeMenuLink: true,
+        scrapeReservationLink: true,
+        geolocation: {
+          lat: district.lat,
+          lng: district.lng
+        }
       };
       
       console.log(`⚙️ Starting Apify actor for ${district.name}...`);
@@ -272,7 +351,7 @@ async function scrapeMissingDistrictsBusinesses() {
       
       // Convert and validate businesses
       const businesses = items
-        .map(item => convertToApifyBusiness(item))
+        .map(item => convertToApifyBusiness(item, district.name))
         .filter(business => {
           // Only include businesses with 4.0+ rating
           const rating = parseFloat(business.rating);

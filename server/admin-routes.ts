@@ -80,7 +80,202 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// Get paginated businesses with filters
+// Add v2 filter options endpoint
+router.get('/v2/businesses/filter-options', async (req, res) => {
+  try {
+    // Get unique categories
+    const categories = await db
+      .selectDistinct({ category: apifyBusinesses.category })
+      .from(apifyBusinesses)
+      .where(isNotNull(apifyBusinesses.category));
+
+    // Get unique subcategories by category
+    const subcategoriesRaw = await db
+      .selectDistinct({ 
+        category: apifyBusinesses.category,
+        subcategory: apifyBusinesses.subcategory 
+      })
+      .from(apifyBusinesses)
+      .where(and(isNotNull(apifyBusinesses.category), isNotNull(apifyBusinesses.subcategory)));
+
+    // Group subcategories by category
+    const subcategories: { [key: string]: string[] } = {};
+    subcategoriesRaw.forEach(item => {
+      if (!subcategories[item.category]) {
+        subcategories[item.category] = [];
+      }
+      if (item.subcategory && !subcategories[item.category].includes(item.subcategory)) {
+        subcategories[item.category].push(item.subcategory);
+      }
+    });
+
+    // Get unique statuses
+    const statuses = await db
+      .selectDistinct({ status: apifyBusinesses.verifiedStatus })
+      .from(apifyBusinesses)
+      .where(isNotNull(apifyBusinesses.verifiedStatus));
+
+    // Get unique districts
+    const districts = await db
+      .selectDistinct({ district: apifyBusinesses.district })
+      .from(apifyBusinesses)
+      .where(isNotNull(apifyBusinesses.district));
+
+    res.json({
+      categories: categories.map(c => c.category).filter(Boolean),
+      subcategories,
+      statuses: statuses.map(s => s.status).filter(Boolean),
+      districts: districts.map(d => d.district).filter(Boolean)
+    });
+  } catch (error) {
+    console.error('Filter options error:', error);
+    res.status(500).json({ error: 'Failed to fetch filter options' });
+  }
+});
+
+// Enhanced v2 businesses endpoint with advanced filtering
+router.get('/v2/businesses', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = req.query.search as string;
+    const category = req.query.category as string;
+    const subcategory = req.query.subcategory as string;
+    const status = req.query.status as string;
+    const district = req.query.district as string;
+    const isActive = req.query.isActive as string;
+    const minRating = parseFloat(req.query.minRating as string);
+    const maxRating = parseFloat(req.query.maxRating as string);
+    const minReviews = parseInt(req.query.minReviews as string);
+    const maxReviews = parseInt(req.query.maxReviews as string);
+    const sortField = (req.query.sortField as string) || 'createdAt';
+    const sortDirection = (req.query.sortDirection as string) || 'desc';
+
+    console.log('Filter params:', {
+      search,
+      category,
+      subcategory,
+      status,
+      minRating,
+      maxRating,
+      minReviews,
+      maxReviews,
+      sortBy: sortField,
+      sortOrder: sortDirection
+    });
+
+    const offset = (page - 1) * limit;
+
+    // Build query conditions
+    const conditions = [];
+
+    if (search) {
+      conditions.push(
+        sql`(${apifyBusinesses.name} ILIKE ${'%' + search + '%'} OR ${apifyBusinesses.address} ILIKE ${'%' + search + '%'})`
+      );
+    }
+
+    if (category && category !== '' && category !== 'all') {
+      conditions.push(eq(apifyBusinesses.category, category));
+    }
+
+    if (subcategory && subcategory !== '' && subcategory !== 'all') {
+      conditions.push(eq(apifyBusinesses.subcategory, subcategory));
+    }
+
+    if (status && status !== '' && status !== 'all') {
+      conditions.push(eq(apifyBusinesses.verifiedStatus, status));
+    }
+
+    if (district && district !== '' && district !== 'all') {
+      conditions.push(eq(apifyBusinesses.district, district));
+    }
+
+    if (isActive && isActive !== '' && isActive !== 'all') {
+      conditions.push(eq(apifyBusinesses.isActive, isActive === 'true'));
+    }
+
+    // Rating filters
+    if (!isNaN(minRating)) {
+      conditions.push(gte(sql`CAST(${apifyBusinesses.rating} AS FLOAT)`, minRating));
+    }
+
+    if (!isNaN(maxRating)) {
+      conditions.push(lte(sql`CAST(${apifyBusinesses.rating} AS FLOAT)`, maxRating));
+    }
+
+    // Review count filters
+    if (!isNaN(minReviews)) {
+      conditions.push(gte(apifyBusinesses.reviewCount, minReviews));
+    }
+
+    if (!isNaN(maxReviews)) {
+      conditions.push(lte(apifyBusinesses.reviewCount, maxReviews));
+    }
+
+    // Build WHERE clause
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Determine sort column
+    const sortColumn = sortField === 'createdAt' ? apifyBusinesses.createdAt :
+                      sortField === 'name' ? apifyBusinesses.name :
+                      sortField === 'category' ? apifyBusinesses.category :
+                      sortField === 'rating' ? apifyBusinesses.rating :
+                      sortField === 'qualityScore' ? apifyBusinesses.qualityScore :
+                      sortField === 'verifiedStatus' ? apifyBusinesses.verifiedStatus :
+                      apifyBusinesses.createdAt;
+
+    // Count total before filtering for debugging
+    const totalBeforeFilter = await db.select({ count: count() }).from(apifyBusinesses);
+    console.log(`Total businesses before filtering: ${totalBeforeFilter[0]?.count || 0}`);
+
+    // Main query
+    let businessQuery = db.select().from(apifyBusinesses);
+
+    if (whereCondition) {
+      businessQuery = businessQuery.where(whereCondition);
+    }
+
+    businessQuery = sortDirection === 'asc' 
+      ? businessQuery.orderBy(asc(sortColumn))
+      : businessQuery.orderBy(desc(sortColumn));
+
+    const businesses = await businessQuery.limit(limit).offset(offset);
+
+    // Debug filtering effects
+    if (!isNaN(maxRating)) {
+      const afterRatingFilter = await db.select({ count: count() }).from(apifyBusinesses)
+        .where(lte(sql`CAST(${apifyBusinesses.rating} AS FLOAT)`, maxRating));
+      console.log(`After maxRating filter (<= ${maxRating}): ${totalBeforeFilter[0]?.count || 0} -> ${afterRatingFilter[0]?.count || 0}`);
+    }
+
+    // Count query
+    let countQuery = db.select({ count: count() }).from(apifyBusinesses);
+    if (whereCondition) {
+      countQuery = countQuery.where(whereCondition);
+    }
+    const totalResult = await countQuery;
+    const total = totalResult[0]?.count || 0;
+
+    res.json({
+      businesses,
+      total,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    });
+  } catch (error) {
+    console.error('Admin v2 businesses fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch businesses' });
+  }
+});
+
+// Get paginated businesses with filters (original endpoint)
 router.get('/businesses', async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -452,6 +647,171 @@ router.get('/filter-options', async (req, res) => {
   } catch (error) {
     console.error('Admin filter options error:', error);
     res.status(500).json({ error: 'Failed to fetch filter options' });
+  }
+});
+
+// Add v2 bulk operations endpoint
+router.post('/v2/businesses/bulk', async (req, res) => {
+  try {
+    const { action, ids } = req.body;
+    
+    if (!action || !ids || !Array.isArray(ids)) {
+      return res.status(400).json({ error: 'Action and business IDs are required' });
+    }
+
+    let result;
+    switch (action) {
+      case 'delete':
+        result = await db.delete(apifyBusinesses)
+          .where(sql`${apifyBusinesses.id} = ANY(${ids})`);
+        break;
+      
+      case 'activate':
+        result = await db.update(apifyBusinesses)
+          .set({ isActive: true })
+          .where(sql`${apifyBusinesses.id} = ANY(${ids})`);
+        break;
+      
+      case 'deactivate':
+        result = await db.update(apifyBusinesses)
+          .set({ isActive: false })
+          .where(sql`${apifyBusinesses.id} = ANY(${ids})`);
+        break;
+      
+      case 'verify':
+        result = await db.update(apifyBusinesses)
+          .set({ verifiedStatus: 'verified' })
+          .where(sql`${apifyBusinesses.id} = ANY(${ids})`);
+        break;
+      
+      case 'unverify':
+        result = await db.update(apifyBusinesses)
+          .set({ verifiedStatus: 'unverified' })
+          .where(sql`${apifyBusinesses.id} = ANY(${ids})`);
+        break;
+      
+      default:
+        return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: `${action} completed for ${ids.length} businesses`,
+      affectedCount: result.count || ids.length
+    });
+  } catch (error) {
+    console.error('Bulk operation error:', error);
+    res.status(500).json({ error: 'Failed to perform bulk operation' });
+  }
+});
+
+// Add v2 export endpoint
+router.get('/v2/businesses/export', async (req, res) => {
+  try {
+    // Use same filtering logic as the main endpoint
+    const search = req.query.search as string;
+    const category = req.query.category as string;
+    const subcategory = req.query.subcategory as string;
+    const status = req.query.status as string;
+    const district = req.query.district as string;
+    const isActive = req.query.isActive as string;
+    const minRating = parseFloat(req.query.minRating as string);
+    const maxRating = parseFloat(req.query.maxRating as string);
+    const minReviews = parseInt(req.query.minReviews as string);
+    const maxReviews = parseInt(req.query.maxReviews as string);
+
+    // Build query conditions (same as v2/businesses)
+    const conditions = [];
+
+    if (search) {
+      conditions.push(
+        sql`(${apifyBusinesses.name} ILIKE ${'%' + search + '%'} OR ${apifyBusinesses.address} ILIKE ${'%' + search + '%'})`
+      );
+    }
+
+    if (category && category !== '' && category !== 'all') {
+      conditions.push(eq(apifyBusinesses.category, category));
+    }
+
+    if (subcategory && subcategory !== '' && subcategory !== 'all') {
+      conditions.push(eq(apifyBusinesses.subcategory, subcategory));
+    }
+
+    if (status && status !== '' && status !== 'all') {
+      conditions.push(eq(apifyBusinesses.verifiedStatus, status));
+    }
+
+    if (district && district !== '' && district !== 'all') {
+      conditions.push(eq(apifyBusinesses.district, district));
+    }
+
+    if (isActive && isActive !== '' && isActive !== 'all') {
+      conditions.push(eq(apifyBusinesses.isActive, isActive === 'true'));
+    }
+
+    if (!isNaN(minRating)) {
+      conditions.push(gte(sql`CAST(${apifyBusinesses.rating} AS FLOAT)`, minRating));
+    }
+
+    if (!isNaN(maxRating)) {
+      conditions.push(lte(sql`CAST(${apifyBusinesses.rating} AS FLOAT)`, maxRating));
+    }
+
+    if (!isNaN(minReviews)) {
+      conditions.push(gte(apifyBusinesses.reviewCount, minReviews));
+    }
+
+    if (!isNaN(maxReviews)) {
+      conditions.push(lte(apifyBusinesses.reviewCount, maxReviews));
+    }
+
+    const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get all businesses matching filters
+    let businessQuery = db.select().from(apifyBusinesses);
+    if (whereCondition) {
+      businessQuery = businessQuery.where(whereCondition);
+    }
+    
+    const businesses = await businessQuery;
+
+    // Convert to CSV format
+    const csvHeaders = [
+      'ID', 'Place ID', 'Name', 'Address', 'Category', 'Subcategory', 
+      'Phone', 'Website', 'Email', 'Rating', 'Review Count', 
+      'District', 'Quality Score', 'Verified Status', 'Is Active', 'Created At'
+    ];
+
+    const csvRows = businesses.map(business => [
+      business.id,
+      business.placeId,
+      business.name,
+      business.address,
+      business.category,
+      business.subcategory || '',
+      business.phone || '',
+      business.website || '',
+      business.email || '',
+      business.rating,
+      business.reviewCount,
+      business.district || '',
+      business.qualityScore,
+      business.verifiedStatus,
+      business.isActive,
+      business.createdAt
+    ]);
+
+    const csvContent = [csvHeaders, ...csvRows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="businesses-export.csv"');
+    res.send(csvContent);
+
+  } catch (error) {
+    console.error('Export error:', error);
+    res.status(500).json({ error: 'Failed to export businesses' });
   }
 });
 
