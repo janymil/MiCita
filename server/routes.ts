@@ -305,6 +305,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get subcategories by category
+  app.get("/api/subcategories/:category", async (req, res) => {
+    try {
+      const { category } = req.params;
+      const subcategoriesResult = await storage.getSubcategoriesByCategory(category, true);
+      res.json(subcategoriesResult);
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      res.status(500).json({ message: "Error fetching subcategories" });
+    }
+  });
+
+  // Get all subcategories grouped by category
+  app.get("/api/subcategories", async (req, res) => {
+    try {
+      const subcategoriesResult = await storage.getAllSubcategories();
+      res.json(subcategoriesResult);
+    } catch (error) {
+      console.error('Error fetching all subcategories:', error);
+      res.status(500).json({ message: "Error fetching subcategories" });
+    }
+  });
+
   // Public search routes
   app.get("/api/search", async (req, res) => {
     try {

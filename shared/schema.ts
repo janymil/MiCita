@@ -242,6 +242,7 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   lastScraped: timestamp("last_scraped").defaultNow(),
   scrapingSource: text("scraping_source").default("apify"),
   qualityScore: integer("quality_score").default(0),
+  originalScrapedData: jsonb("original_scraped_data"), // Complete original scraped data
 });
 
 
