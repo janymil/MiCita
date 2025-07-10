@@ -911,11 +911,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { category } = req.params;
       const { includeCounts } = req.query;
       
+      // Normalize category name to match database format
+      const categoryMap = {
+        'gastronomia': 'Gastronomía',
+        'belleza': 'Belleza',
+        'salud': 'Salud',
+        'fitness': 'Fitness',
+        'servicios': 'Servicios'
+      };
+      
+      const normalizedCategory = categoryMap[category.toLowerCase()] || category;
+      
       if (includeCounts === 'true') {
-        const subcategoriesWithCounts = await storage.getSubcategoriesByCategory(category, true);
+        const subcategoriesWithCounts = await storage.getSubcategoriesByCategory(normalizedCategory, true);
         res.json(subcategoriesWithCounts);
       } else {
-        const subcategories = await storage.getSubcategoriesByCategory(category);
+        const subcategories = await storage.getSubcategoriesByCategory(normalizedCategory);
         res.json(subcategories);
       }
     } catch (error) {

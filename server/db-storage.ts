@@ -339,7 +339,8 @@ export class DBStorage implements IStorage {
         .from(apifyBusinesses)
         .where(and(
           eq(apifyBusinesses.category, category),
-          sql`${apifyBusinesses.subcategory} IS NOT NULL`
+          sql`${apifyBusinesses.subcategory} IS NOT NULL`,
+          sql`${apifyBusinesses.subcategory} != ''`
         ))
         .groupBy(apifyBusinesses.subcategory)
         .orderBy(apifyBusinesses.subcategory);
@@ -350,7 +351,8 @@ export class DBStorage implements IStorage {
         .from(apifyBusinesses)
         .where(and(
           eq(apifyBusinesses.category, category),
-          sql`${apifyBusinesses.subcategory} IS NOT NULL`
+          sql`${apifyBusinesses.subcategory} IS NOT NULL`,
+          sql`${apifyBusinesses.subcategory} != ''`
         ))
         .groupBy(apifyBusinesses.subcategory)
         .orderBy(apifyBusinesses.subcategory);
