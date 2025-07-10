@@ -188,7 +188,7 @@ function convertToApifyBusiness(place, districtName) {
   // Handle image URLs properly
   let imageUrls = null;
   if (Array.isArray(place.imageUrls) && place.imageUrls.length > 0) {
-    imageUrls = place.imageUrls.slice(0, 10); // Keep up to 10 images
+    imageUrls = place.imageUrls.slice(0, 1); // Keep up to 10 images
   }
   
   return {
@@ -292,9 +292,9 @@ async function scrapeMissingDistrictsBusinesses() {
         locationQuery: `${district.lat},${district.lng}`,
         maxCrawledPlacesPerSearch: 50,
         language: 'es',
-        countryCode: 'PE',
+        countryCode: 'pe',
         maxReviews: 0,
-        maxImages: 10, // Increased to get more images
+        maxImages: 1, // Increased to get more images
         exportPlaceUrls: false,
         additionalInfo: true, // Enable to get services, amenities, payment options
         // Quality filtering - only businesses with 4.0+ rating
