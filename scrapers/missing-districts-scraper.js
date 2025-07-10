@@ -11,14 +11,14 @@
  */
 
 import { ApifyClient } from 'apify-client';
-import { storage } from '../server/storage.ts';
+import { storage } from '../server/storage.js';
 import { 
   PhoneNumberProcessor, 
   CategoryMapper, 
   CoordinateValidator, 
   DataValidator,
   SocialMediaDetector
-} from '../server/data-enhancement-utils.ts';
+} from '../server/data-enhancement-utils.js';
 
 const client = new ApifyClient({ 
   token: process.env.APIFY_API_TOKEN 
@@ -64,57 +64,47 @@ const MISSING_DISTRICTS = [
   { name: 'Ventanilla', lat: -11.8792, lng: -77.1539, radius: 4000 }
 ];
 
-// General business search keywords for maximum coverage
+// Specific business search keywords that find actual customer-serving businesses
 const BUSINESS_KEYWORDS = [
-  // Services
-  'servicios', 'servicio', 'consultorio', 'oficina', 'empresa', 'negocio',
+  // Food & Restaurants
+  'restaurante', 'pollería', 'cevichería', 'chifa', 'panadería', 'pastelería', 'pizzería',
+  'café', 'cafetería', 'bar', 'discoteca', 'heladería', 'jugería', 'sandwichería',
   
   // Beauty & Personal Care
-  'peluquería', 'salón', 'barbería', 'spa', 'estética', 'belleza', 'manicura', 'pedicura',
+  'peluquería', 'salón de belleza', 'barbería', 'spa', 'centro de estética', 'nail bar',
+  'manicura', 'pedicura', 'masajes', 'depilación', 'maquillaje',
   
   // Health & Medical
-  'clínica', 'hospital', 'médico', 'dentista', 'farmacia', 'botica', 'laboratorio',
-  
-  // Food & Restaurants
-  'restaurante', 'cafetería', 'pollería', 'cevichería', 'chifa', 'panadería', 'bar',
+  'clínica', 'centro médico', 'consultorio dental', 'dentista', 'farmacia', 'botica',
+  'óptica', 'laboratorio clínico', 'fisioterapia', 'psicólogo',
   
   // Retail & Shopping
-  'tienda', 'comercio', 'venta', 'mercado', 'bodega', 'minimarket', 'ferretería',
+  'tienda de ropa', 'boutique', 'zapatería', 'joyería', 'librería', 'papelería',
+  'floristería', 'regalos', 'juguetería', 'perfumería', 'minimarket', 'bodega',
   
   // Automotive
-  'taller', 'mecánico', 'llanta', 'repuestos', 'lubricentro', 'lavado',
+  'taller mecánico', 'llantería', 'repuestos', 'lubricentro', 'lavado de autos',
+  'autopartes', 'pintura automotriz', 'electricidad automotriz',
   
   // Fitness & Sports
-  'gimnasio', 'fitness', 'deporte', 'yoga', 'pilates',
+  'gimnasio', 'centro de fitness', 'yoga', 'pilates', 'natación', 'artes marciales',
+  
+  // Services
+  'lavandería', 'tintorería', 'cerrajería', 'ferretería', 'vidriería', 'tapicería',
+  'carpintería', 'soldadura', 'serigrafía', 'imprenta', 'fotografía',
   
   // Education & Training
-  'instituto', 'academia', 'colegio', 'universidad', 'capacitación',
-  
-  // Financial Services
-  'banco', 'financiera', 'cambio', 'inmobiliaria', 'seguros',
-  
-  // Home & Construction
-  'ferretería', 'construcción', 'electricista', 'plomero', 'pintura',
-  
-  // Technology
-  'computadora', 'celular', 'tecnología', 'reparación', 'internet'
+  'academia', 'centro de idiomas', 'instituto', 'nido', 'guardería'
 ];
 
 // Generate comprehensive search terms for each district
 function generateDistrictSearchTerms(district) {
   const searchTerms = [];
   
-  // Add business keywords with district name
+  // Add business keywords with district name (same format as working gastronomia scraper)
   BUSINESS_KEYWORDS.forEach(keyword => {
-    searchTerms.push(`${keyword} ${district.name}`);
-    searchTerms.push(`${keyword} en ${district.name}`);
+    searchTerms.push(`${keyword} ${district.name} Lima`);
   });
-  
-  // Add district-specific searches
-  searchTerms.push(district.name);
-  searchTerms.push(`negocios ${district.name}`);
-  searchTerms.push(`empresas ${district.name}`);
-  searchTerms.push(`servicios ${district.name}`);
   
   return searchTerms;
 }
@@ -204,8 +194,8 @@ function convertToApifyBusiness(place, districtName) {
     email: place.email || null,
     category: category,
     subcategory: place.categoryName || place.categories?.[0] || null,
-    rating: place.rating ? parseFloat(place.rating).toString() : null,
-    reviewCount: place.reviewsCount || place.totalScore || 0,
+    rating: place.totalScore ? parseFloat(place.totalScore).toString() : null,
+    reviewCount: place.reviewsCount || 0,
     priceLevel: place.priceLevel || null,
     priceRangeText: place.price || null,
     photoUrl: Array.isArray(place.imageUrls) && place.imageUrls.length > 0 ? place.imageUrls[0] : null,
@@ -247,7 +237,7 @@ function calculateQualityScore(place) {
   if (place.email) score += 10;
   
   // Reviews and ratings (20 points max)
-  if (place.rating && place.rating >= 4.0) score += 10;
+  if (place.totalScore && place.totalScore >= 4.0) score += 10;
   if (place.reviewsCount && place.reviewsCount >= 10) score += 5;
   if (place.reviewsCount && place.reviewsCount >= 50) score += 5;
   
@@ -288,31 +278,24 @@ async function scrapeMissingDistrictsBusinesses() {
       
       // Prepare the input for geolocation-based search
       const input = {
-        searchStringsArray: searchTerms.slice(0, 10), // Reduced to avoid timeout
-        locationQuery: `${district.name}, Lima, Peru`,
-        maxCrawledPlacesPerSearch: 20, // Reduced to prevent timeout
+        searchStringsArray: searchTerms.slice(0, 15),
+        lat: district.lat,
+        lng: district.lng,
+        maxPlacesPerSearch: 25,
         language: 'es',
-        countryCode: 'pe',
-        maxReviews: 0,
-        maxImages: 3,
-        exportPlaceUrls: false,
+        maxReviews: 5,
+        maxImages: 1,
         additionalInfo: true,
-        // Remove minRating filter - we'll filter later
-        scrapeReviewerUrlAndText: false,
-        scrapeDirections: false,
-        scrapeOpeningHours: true,
-        scrapeBusinessClaims: true,
-        scrapePeopleAlsoSearch: false,
-        scrapeImmediatePhotos: true,
-        // Company contacts enrichment for better data quality  
-        enrichPlaceWithCompanyContactDetails: true,
         scrapeDetailPage: true,
         includeWebResults: true,
-        scrapeInsidePlaces: false,
+        companyContactsEnrichment: true,
+        scrapeContactInfo: true,
+        includeBusinessHours: true,
         scrapePopularTimes: true,
-        scrapeServiceOptions: true,
-        scrapeMenuLink: true,
-        scrapeReservationLink: true
+        scrapeSocialMedia: true,
+        scrapeAccessibility: true,
+        scrapeAmenities: true,
+        maxCrawledPlaces: 5000
       };
       
       console.log(`⚙️ Starting Apify actor for ${district.name}...`);
@@ -323,7 +306,7 @@ async function scrapeMissingDistrictsBusinesses() {
       console.log(`📊 Status: ${run.status}, Duration: ${run.stats?.runtime || 'unknown'}`);
       
       // Calculate cost (approximately $0.002 per result)  
-      const estimatedResults = searchTerms.slice(0, 10).length * 20;
+      const estimatedResults = searchTerms.slice(0, 15).length * 50;
       const districtCost = estimatedResults * 0.002;
       totalCost += districtCost;
       
@@ -345,6 +328,12 @@ async function scrapeMissingDistrictsBusinesses() {
       const businesses = items
         .map(item => convertToApifyBusiness(item, district.name))
         .filter(business => {
+          // Filter out non-business results
+          if (!business.name || business.name.toLowerCase() === district.name.toLowerCase()) {
+            console.log(`❌ Filtered out non-business: ${business.name}`);
+            return false;
+          }
+          
           // Only include businesses with 4.0+ rating
           const rating = parseFloat(business.rating);
           if (!rating || rating < 4.0) {
