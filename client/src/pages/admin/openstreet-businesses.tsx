@@ -155,6 +155,8 @@ export default function AdminOpenStreetBusinesses() {
       setError(null);
       
       const token = localStorage.getItem('adminToken');
+      console.log('🔑 Admin token:', token ? 'present' : 'missing');
+      
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
@@ -172,15 +174,30 @@ export default function AdminOpenStreetBusinesses() {
       if (filters.wheelchair) params.append('wheelchair', filters.wheelchair);
       if (filters.osmType) params.append('osmType', filters.osmType);
       
-      const response = await fetch(`/api/admin/openstreet/businesses?${params}`, {
+      const url = `/api/admin/openstreet/businesses?${params}`;
+      console.log('🌐 Fetching:', url);
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
-      if (!response.ok) throw new Error('Failed to fetch businesses');
+      console.log('📡 Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Error:', response.status, errorText);
+        throw new Error(`Failed to fetch businesses: ${response.status}`);
+      }
       
       const data = await response.json();
+      console.log('📊 Received data:', {
+        total: data.total,
+        businessesCount: data.businesses?.length,
+        page: data.page
+      });
+      
       setBusinesses(data.businesses || []);
       setTotalCount(data.total || 0);
       

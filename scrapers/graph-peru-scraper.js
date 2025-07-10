@@ -419,6 +419,10 @@ class GraphPeruIntegration {
    * Execute Graph Perú business scraping
    */
   async execute(startRange = 20131000000, count = 200) {
+    console.log('🚀 Starting Graph Perú API scraper...');
+    console.log(`📊 Target: ${count} businesses starting from RUC ${startRange}`);
+    
+    const rucNumbers = this.generateBusinessRucNumbers(startRange, count);
     try {
       console.log('🇵🇪 GRAPH PERÚ API INTEGRATION');
       console.log('📋 Official SUNAT & RENIEC Data via Daustinn API');
@@ -494,6 +498,21 @@ class GraphPeruIntegration {
 
 // Export integration instance
 export const graphPeruIntegration = new GraphPeruIntegration();
+
+// Run if called directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log('🇵🇪 Graph Perú API Scraper - Official Business Data');
+  
+  graphPeruIntegration.execute(20131000000, 100)
+    .then(() => {
+      console.log('✅ Graph Perú scraping completed successfully');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('❌ Graph Perú scraping failed:', error);
+      process.exit(1);
+    });
+}
 
 // Execute if run directly
 if (import.meta.url === `file://${process.argv[1]}`) {

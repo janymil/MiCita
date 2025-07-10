@@ -19,7 +19,8 @@
       "Bash(true)",
       "Bash(ss:*)",
       "Bash(kill:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

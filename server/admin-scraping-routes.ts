@@ -79,20 +79,31 @@ class ScrapingManager {
 
       switch (job.config.type) {
         case 'apify':
-          scriptPath = 'run-enhanced-wave1.js';
+          scriptPath = 'server/simple-test-scraper.js';
           break;
-        case 'category':
-          scriptPath = `scrapers/${job.config.category}-scraper.js`;
-          break;
-        case 'district':
-          scriptPath = 'run-missing-districts-scraper.js';
+        case 'graph-peru':
+          scriptPath = 'scrapers/graph-peru-scraper.js';
           break;
         case 'openstreetmap':
+          scriptPath = 'scrapers/openstreet-scraper.js';
+          break;
+        case 'sunat-ruc':
+          scriptPath = 'scrapers/sunat-ruc-scraper.js';
+          break;
+        case 'peru-apis':
+          scriptPath = 'scrapers/peru-apis-scraper.js';
+          break;
+        case 'osm-import':
           scriptPath = 'import-openstreet-geojson.js';
           break;
-        case 'enhanced':
-          scriptPath = 'run-enhanced-wave1.js';
-          args = ['--enhanced'];
+        case 'category':
+          scriptPath = 'server/simple-test-scraper.js';
+          break;
+        case 'district':
+          scriptPath = 'server/simple-test-scraper.js';
+          break;
+        default:
+          scriptPath = 'server/simple-test-scraper.js';
           break;
       }
 
@@ -100,36 +111,48 @@ class ScrapingManager {
         throw new Error(`Scraper script not found: ${scriptPath}`);
       }
 
-      const child = spawn('tsx', [scriptPath, ...args], {
+      console.log(`🚀 Starting scraper: ${scriptPath} with args:`, args);
+      
+      const child = spawn('node', ['--loader', 'tsx/esm', scriptPath, ...args], {
         stdio: 'pipe',
-        detached: false
+        detached: false,
+        env: { ...process.env, NODE_ENV: 'development' }
       });
 
       let output = '';
       let errorOutput = '';
 
       child.stdout?.on('data', (data) => {
-        output += data.toString();
+        const chunk = data.toString();
+        output += chunk;
+        console.log(`📊 Scraper output: ${chunk.trim()}`);
+        
         // Update progress based on output
-        const progressMatch = output.match(/(\d+)%|(\d+)\/(\d+)|Batch (\d+)\/(\d+)/);
+        const progressMatch = chunk.match(/Progress:\s*(\d+)%|(\d+)%|(\d+)\/(\d+)|Batch (\d+)\/(\d+)/);
         if (progressMatch) {
           let progress = 10;
           if (progressMatch[1]) {
-            progress = Math.min(90, parseInt(progressMatch[1]));
-          } else if (progressMatch[2] && progressMatch[3]) {
-            progress = Math.min(90, (parseInt(progressMatch[2]) / parseInt(progressMatch[3])) * 100);
-          } else if (progressMatch[4] && progressMatch[5]) {
-            progress = Math.min(90, (parseInt(progressMatch[4]) / parseInt(progressMatch[5])) * 100);
+            progress = Math.min(95, parseInt(progressMatch[1]));
+          } else if (progressMatch[2]) {
+            progress = Math.min(95, parseInt(progressMatch[2]));
+          } else if (progressMatch[3] && progressMatch[4]) {
+            progress = Math.min(95, (parseInt(progressMatch[3]) / parseInt(progressMatch[4])) * 100);
+          } else if (progressMatch[5] && progressMatch[6]) {
+            progress = Math.min(95, (parseInt(progressMatch[5]) / parseInt(progressMatch[6])) * 100);
           }
           this.updateJob(jobId, { progress });
+          console.log(`📈 Job ${jobId} progress updated to ${progress}%`);
         }
       });
 
       child.stderr?.on('data', (data) => {
-        errorOutput += data.toString();
+        const error = data.toString();
+        errorOutput += error;
+        console.error(`❌ Scraper error: ${error.trim()}`);
       });
 
       child.on('close', (code) => {
+        console.log(`🏁 Scraper process finished with code: ${code}`);
         if (code === 0) {
           this.updateJob(jobId, {
             status: 'completed',
@@ -137,13 +160,24 @@ class ScrapingManager {
             endTime: new Date(),
             results: { output, summary: this.parseScrapingResults(output) }
           });
+          console.log(`✅ Job ${jobId} completed successfully`);
         } else {
           this.updateJob(jobId, {
             status: 'failed',
             endTime: new Date(),
-            error: errorOutput || 'Scraping process failed'
+            error: errorOutput || `Scraping process failed with exit code ${code}`
           });
+          console.log(`❌ Job ${jobId} failed with code ${code}`);
         }
+      });
+      
+      child.on('error', (err) => {
+        console.error(`💥 Failed to start scraper process: ${err.message}`);
+        this.updateJob(jobId, {
+          status: 'failed',
+          endTime: new Date(),
+          error: `Failed to start process: ${err.message}`
+        });
       });
 
     } catch (error) {
@@ -327,28 +361,44 @@ export function registerAdminScrapingRoutes(app: Express) {
 
       const availableScrapers = [
         {
-          id: 'apify-wave1',
-          name: 'Apify Wave 1 Scraper',
-          description: 'Enhanced Google Places scraping with contact enrichment',
-          type: 'apify',
-          estimatedCost: '$12-15',
-          expectedResults: '2000-3000 businesses'
+          id: 'graph-peru',
+          name: 'Graph Perú API Scraper',
+          description: 'Free official SUNAT business registry data',
+          type: 'graph-peru',
+          estimatedCost: 'Free',
+          expectedResults: '5,000-10,000 businesses',
+          features: ['Official SUNAT data', 'Legal compliance', 'Business addresses', 'Tax IDs'],
+          status: 'available'
         },
         {
           id: 'openstreetmap',
-          name: 'OpenStreetMap Importer',
-          description: 'Import businesses from OpenStreetMap GeoJSON data',
+          name: 'OpenStreetMap Overpass API',
+          description: 'Live scraping from OpenStreetMap business data',
           type: 'openstreetmap',
           estimatedCost: 'Free',
-          expectedResults: '53,806 businesses'
+          expectedResults: '10,000-20,000 businesses',
+          features: ['Real-time data', 'Geographic boundaries', 'Business categories', '100% legal'],
+          status: 'available'
         },
         {
-          id: 'missing-districts',
-          name: 'Missing Districts Scraper',
-          description: 'Target under-represented Lima districts',
-          type: 'district',
-          estimatedCost: '$15-20',
-          expectedResults: '2000-3000 businesses'
+          id: 'sunat-ruc',
+          name: 'SUNAT RUC Registry Scraper',
+          description: 'Official Peru government business registry',
+          type: 'sunat-ruc',
+          estimatedCost: 'Free',
+          expectedResults: '15,000-25,000 businesses',
+          features: ['Government data', 'Company status', 'Legal verification', 'Tax information'],
+          status: 'available'
+        },
+        {
+          id: 'osm-import',
+          name: 'OpenStreetMap Data Import',
+          description: 'Import existing OpenStreetMap GeoJSON data',
+          type: 'osm-import',
+          estimatedCost: 'Free',
+          expectedResults: '53,806 businesses',
+          features: ['Bulk import', 'Existing data', 'Category detection', 'Address parsing'],
+          status: 'available'
         }
       ];
 
