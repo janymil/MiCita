@@ -68,11 +68,25 @@ export const APPOINTMENT_STATUSES = {
 
 export const BUSINESS_CATEGORIES = [
   {
+    id: "gastronomia",
+    name: "Gastronomía",
+    icon: "utensils",
+    color: "category-gastronomia",
+    description: "Restaurantes, cafés, comida"
+  },
+  {
     id: "belleza",
     name: "Belleza",
     icon: "cut",
     color: "category-belleza",
-    description: "Peluquerías, salones de belleza, spas"
+    description: "Peluquerías, salones, spas"
+  },
+  {
+    id: "servicios",
+    name: "Servicios",
+    icon: "settings",
+    color: "category-servicios",
+    description: "Servicios profesionales"
   },
   {
     id: "salud",
@@ -87,41 +101,6 @@ export const BUSINESS_CATEGORIES = [
     icon: "dumbbell",
     color: "category-fitness",
     description: "Gimnasios, deportes, entrenamiento"
-  },
-  {
-    id: "restaurante",
-    name: "Restaurantes",
-    icon: "utensils",
-    color: "category-restaurante",
-    description: "Comida, restaurantes, delivery"
-  },
-  {
-    id: "cafeteria",
-    name: "Cafeterías",
-    icon: "coffee",
-    color: "category-cafeteria",
-    description: "Coffee shops, cafés, postres"
-  },
-  {
-    id: "automotriz",
-    name: "Automotriz",
-    icon: "car",
-    color: "category-automotriz",
-    description: "Mecánica, talleres, repuestos"
-  },
-  {
-    id: "educacion",
-    name: "Educación",
-    icon: "graduation-cap",
-    color: "category-educacion",
-    description: "Escuelas, universidades, cursos"
-  },
-  {
-    id: "hogar",
-    name: "Hogar", 
-    icon: "homeicon",
-    color: "category-hogar",
-    description: "Reparaciones, limpieza, jardinería"
   }
 ];
 

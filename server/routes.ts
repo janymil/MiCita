@@ -334,9 +334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         page: parseInt(page as string)
       });
 
-      // Use enhanced search engine
-      const { enhancedSearchEngine } = await import('./enhanced-search-engine');
-      
+      // Direct database search for better control
       const searchQuery = {
         query: (q as string) || "",
         category: category as string,
@@ -355,17 +353,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
         bounds: bounds ? JSON.parse(bounds as string) : undefined
       };
 
-      // Use proper pagination limit
-      const enhancedLimit = parseInt(limit as string);
+      // Build database conditions
+      const dbConditions = [];
       
-      const searchResult = await enhancedSearchEngine.search({
-        ...searchQuery,
-        limit: enhancedLimit
-      });
+      // Text search
+      if (searchQuery.query && searchQuery.query.trim()) {
+        const searchTerm = searchQuery.query.trim();
+        dbConditions.push(
+          sql`(${apifyBusinesses.name} ILIKE ${'%' + searchTerm + '%'} OR 
+               ${apifyBusinesses.address} ILIKE ${'%' + searchTerm + '%'} OR 
+               ${apifyBusinesses.searchTerms} ILIKE ${'%' + searchTerm + '%'})`
+        );
+      }
+      
+      // Category filter - normalize database categories
+      if (searchQuery.category && searchQuery.category !== 'all') {
+        const normalizedCategory = searchQuery.category.toLowerCase();
+        if (normalizedCategory === 'gastronomia') {
+          dbConditions.push(sql`LOWER(${apifyBusinesses.category}) = 'gastronomía'`);
+        } else {
+          dbConditions.push(sql`LOWER(${apifyBusinesses.category}) = ${normalizedCategory}`);
+        }
+      }
+      
+      // Subcategory filter
+      if (searchQuery.subcategory && searchQuery.subcategory !== 'all') {
+        dbConditions.push(eq(apifyBusinesses.subcategory, searchQuery.subcategory));
+      }
+      
+      // Rating filter
+      if (searchQuery.minRating > 0) {
+        dbConditions.push(gte(apifyBusinesses.rating, searchQuery.minRating.toString()));
+      }
+      
+      // Contact filters
+      if (searchQuery.hasPhone) {
+        dbConditions.push(and(isNotNull(apifyBusinesses.phone), ne(apifyBusinesses.phone, '')));
+      }
+      if (searchQuery.hasWebsite) {
+        dbConditions.push(and(isNotNull(apifyBusinesses.website), ne(apifyBusinesses.website, '')));
+      }
+      if (searchQuery.hasEmail) {
+        dbConditions.push(and(isNotNull(apifyBusinesses.email), ne(apifyBusinesses.email, '')));
+      }
+      
+      // Open now filter
+      if (searchQuery.openNow) {
+        dbConditions.push(eq(apifyBusinesses.openNow, true));
+      }
+      
+      // Build the main query
+      let dbQuery = db.select().from(apifyBusinesses);
+      if (dbConditions.length > 0) {
+        dbQuery = dbQuery.where(and(...dbConditions));
+      }
+      
+      // Apply sorting
+      switch (searchQuery.sortBy) {
+        case 'rating':
+          dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating));
+          break;
+        case 'reviews':
+          dbQuery = dbQuery.orderBy(desc(apifyBusinesses.reviewCount));
+          break;
+        case 'name':
+          dbQuery = dbQuery.orderBy(asc(apifyBusinesses.name));
+          break;
+        default:
+          // Default relevance sort
+          dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount));
+      }
+      
+      // Get total count
+      let countQuery = db.select({ count: sql<number>`count(*)` }).from(apifyBusinesses);
+      if (dbConditions.length > 0) {
+        countQuery = countQuery.where(and(...dbConditions));
+      }
+      
+      // Execute both queries
+      const [apifyBusinessesList, totalCountResult] = await Promise.all([
+        dbQuery.limit(searchQuery.limit).offset((searchQuery.page - 1) * searchQuery.limit),
+        countQuery
+      ]);
+      
+      const totalCount = totalCountResult[0]?.count || 0;
+      
+      // Create search result format
+      const searchResult = {
+        businesses: apifyBusinessesList,
+        totalCount,
+        page: searchQuery.page,
+        totalPages: Math.ceil(totalCount / searchQuery.limit),
+        hasMore: searchQuery.page < Math.ceil(totalCount / searchQuery.limit),
+        searchMetrics: {
+          searchTime: 50, // Approximate
+          totalMatches: totalCount,
+          relevanceScores: [],
+          queryAnalysis: []
+        }
+      };
       
 
 
-      // Convert Apify businesses to expected frontend format
+      // Convert Apify businesses to expected frontend format  
       const formattedResults = searchResult.businesses.map(business => ({
         id: business.placeId,
         name: business.name,
@@ -388,47 +478,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "google"
       }));
 
-      // Add registered businesses (if any)
-      console.log('🔍 About to search database with:', {
-        query: searchQuery.query,
-        category: searchQuery.category,
-        city: searchQuery.city
-      });
-
-      let businesses = [];
-      let publicBusinesses = [];
+      // Add registered businesses to the beginning of results for priority
+      let registeredBusinesses = [];
       
       try {
-        // When no filters, get all active businesses
+        // Only fetch registered businesses if they match search criteria
         if (!searchQuery.query && (!searchQuery.category || searchQuery.category === 'all') && !searchQuery.city) {
-          [businesses, publicBusinesses] = await Promise.all([
-            storage.getAllActiveBusinesses(), // Get all active businesses
-            storage.getAllPublicBusinesses()  // Get all public businesses
-          ]);
+          registeredBusinesses = await storage.getAllActiveBusinesses();
         } else {
-          [businesses, publicBusinesses] = await Promise.all([
-            storage.searchBusinesses(searchQuery.query, searchQuery.category, searchQuery.city),
-            storage.searchPublicBusinesses(searchQuery.query, searchQuery.category)
-          ]);
+          registeredBusinesses = await storage.searchBusinesses(searchQuery.query, searchQuery.category, searchQuery.city);
         }
 
-        console.log('🏢 Database search results:', {
-          query: searchQuery.query,
-          category: searchQuery.category,
-          city: searchQuery.city,
-          registeredBusinesses: businesses.length,
-          publicBusinesses: publicBusinesses.length,
-          registeredNames: businesses.map(b => b.name)
-        });
+        console.log('🏢 Registered businesses found:', registeredBusinesses.length);
       } catch (error) {
-        console.error('❌ Database search error:', error);
-        businesses = [];
-        publicBusinesses = [];
+        console.error('❌ Registered business search error:', error);
+        registeredBusinesses = [];
       }
 
       // For registered businesses, get their customUrl and coverImage from settings
       const businessesWithCustomUrl = await Promise.all(
-        businesses.map(async (business) => {
+        registeredBusinesses.map(async (business) => {
           const settings = await storage.getBusinessSettings(business.id);
           return {
             ...business,
@@ -593,15 +662,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       };
 
-      // Apply category normalization
+      // Apply category normalization for frontend display
       const normalizeCategory = (category: string): string => {
         const categoryMap = {
           'gastronomía': 'gastronomia',
-          'belleza': 'belleza',
+          'belleza': 'belleza', 
           'salud': 'salud',
           'fitness': 'fitness',
-          'restaurante': 'gastronomia',
-          'comida': 'gastronomia',
           'servicios': 'servicios',
           'automotriz': 'automotriz'
         };
@@ -609,21 +676,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return categoryMap[category.toLowerCase()] || category.toLowerCase();
       };
 
-      // Normalize categories for all businesses
+      // Normalize categories and combine results with registered businesses first
       const normalizedResults = [
         ...businessesWithCustomUrl.map(b => ({ ...b, category: normalizeCategory(b.category) })),
-        ...publicBusinesses.map(p => ({ ...p, category: normalizeCategory(p.category), type: "public" })),
         ...formattedResults.map(f => ({ ...f, category: normalizeCategory(f.category) }))
       ];
 
-      // Apply unified filters to combined results
-      const filteredResults = applyUnifiedFilters(normalizedResults, searchQuery);
+      // Use the actual database result totals instead of client-side filtering
+      const totalResults = searchResult.totalCount + businessesWithCustomUrl.length;
       
-      // Apply pagination to filtered results
-      const totalResults = filteredResults.length;
+      // Apply simple pagination to the combined results
       const startIndex = (searchQuery.page - 1) * searchQuery.limit;
       const endIndex = startIndex + searchQuery.limit;
-      const paginatedResults = filteredResults.slice(startIndex, endIndex);
+      
+      // For the first page, prioritize registered businesses
+      let paginatedResults = [];
+      if (searchQuery.page === 1) {
+        paginatedResults = [
+          ...businessesWithCustomUrl,
+          ...formattedResults.slice(0, searchQuery.limit - businessesWithCustomUrl.length)
+        ];
+      } else {
+        // For subsequent pages, show only Apify businesses
+        const adjustedStartIndex = startIndex - businessesWithCustomUrl.length;
+        const adjustedEndIndex = endIndex - businessesWithCustomUrl.length;
+        paginatedResults = formattedResults.slice(adjustedStartIndex, adjustedEndIndex);
+      }
       
       // Apply personalization to paginated results only
       const userId = req.headers['x-user-id'] as string || null;
@@ -635,35 +713,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         searchQuery
       );
 
-      console.log('🔍 Filtering results:', {
-        originalCount: normalizedResults.length,
-        filteredCount: filteredResults.length,
-        filters: {
-          minRating: searchQuery.minRating,
-          maxPrice: searchQuery.maxPrice,
-          hasPhone: searchQuery.hasPhone,
-          hasWebsite: searchQuery.hasWebsite,
-          hasEmail: searchQuery.hasEmail,
-          openNow: searchQuery.openNow,
-          district: searchQuery.district
-        }
+      console.log('🔍 Search results summary:', {
+        totalApifyBusinesses: searchResult.totalCount,
+        registeredBusinesses: businessesWithCustomUrl.length,
+        totalResults: totalResults,
+        currentPage: searchQuery.page,
+        returnedResults: paginatedResults.length
       });
-
-      // Debug district filtering if requested
-      if (searchQuery.district === 'miraflores') {
-        console.log('🏙️ Miraflores filtering debug:');
-        normalizedResults.forEach(business => {
-          const detectedDistrict = detectDistrictFromBusiness(business);
-          if (business.address?.toLowerCase().includes('san juan') || business.name.toLowerCase().includes('carsalud')) {
-            console.log(`   ❌ Should be excluded: "${business.name}" (${detectedDistrict}) - ${business.address}`);
-          }
-        });
-        
-        filteredResults.forEach(business => {
-          const detectedDistrict = detectDistrictFromBusiness(business);
-          console.log(`   ✅ Included: "${business.name}" (${detectedDistrict}) - ${business.address}`);
-        });
-      }
 
       res.json({
         results: personalizedResults,
@@ -817,6 +873,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('❌ Search suggestions error:', error);
       res.status(500).json({ message: "Error obteniendo sugerencias" });
+    }
+  });
+
+  // Get category counts
+  app.get("/api/categories/counts", async (req, res) => {
+    try {
+      // Get category counts directly from database
+      const categoryCounts = await db
+        .select({
+          category: apifyBusinesses.category,
+          count: sql<number>`count(*)`
+        })
+        .from(apifyBusinesses)
+        .groupBy(apifyBusinesses.category)
+        .orderBy(sql`count(*) DESC`);
+      
+      // Normalize category names for frontend
+      const normalizedCounts = categoryCounts.map(item => ({
+        category: item.category.toLowerCase() === 'gastronomía' ? 'gastronomia' : item.category.toLowerCase(),
+        count: item.count
+      }));
+      
+      res.json(normalizedCounts);
+    } catch (error) {
+      console.error('Error fetching category counts:', error);
+      res.status(500).json({ error: "Failed to fetch category counts" });
     }
   });
 

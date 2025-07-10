@@ -44,10 +44,24 @@ export default function SearchPage() {
     enabled: Boolean(selectedCategory && selectedCategory !== "all"),
   });
 
-  // Use hardcoded categories
-  const categories = BUSINESS_CATEGORIES;
+  // Fetch dynamic category counts
+  const { data: categoryCounts = [] } = useQuery({
+    queryKey: ["/api/categories/counts"],
+    queryFn: async () => {
+      const response = await fetch("/api/categories/counts");
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
 
-  // Remove dynamic category counts
+  // Merge hardcoded categories with dynamic counts
+  const categories = BUSINESS_CATEGORIES.map(category => {
+    const countData = categoryCounts.find(c => c.category === category.id);
+    return {
+      ...category,
+      count: countData?.count || 0
+    };
+  });
   
   // Reset district when city changes
   useEffect(() => {
