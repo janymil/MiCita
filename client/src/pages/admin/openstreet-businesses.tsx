@@ -7,7 +7,7 @@ import {
   Download, Trash2, Edit, Eye, Star, MapPin, Phone,
   Globe, CheckCircle, XCircle, AlertCircle, RefreshCw,
   ChevronLeft, ChevronRight, Settings, ArrowUpDown,
-  Map, Building, Wheelchair, Clock
+  Map, Building, Accessibility, Clock
 } from 'lucide-react';
 
 // Types
@@ -357,7 +357,7 @@ export default function AdminOpenStreetBusinesses() {
           
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
-              <Wheelchair className="h-10 w-10 text-orange-500" />
+              <Accessibility className="h-10 w-10 text-orange-500" />
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Accessible</p>
                 <p className="text-2xl font-semibold text-gray-900">
@@ -689,7 +689,7 @@ export default function AdminOpenStreetBusinesses() {
                               </span>
                               {wheelchairBadge && (
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${wheelchairBadge.color}`}>
-                                  <Wheelchair className="h-3 w-3 mr-1" />
+                                  <Accessibility className="h-3 w-3 mr-1" />
                                   {wheelchairBadge.text}
                                 </span>
                               )}

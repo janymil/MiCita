@@ -1,4 +1,4 @@
-import { Home, Building2, LogOut, Settings } from 'lucide-react';
+import { Home, Building2, LogOut, Settings, Map, Database } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 export default function AdminNav() {
@@ -11,7 +11,9 @@ export default function AdminNav() {
 
   const navItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: Home },
-    { path: '/admin/businesses', label: 'Businesses', icon: Building2 },
+    { path: '/admin/businesses', label: 'Apify Businesses', icon: Building2 },
+    { path: '/admin/openstreet-businesses', label: 'OpenStreet Businesses', icon: Map },
+    { path: '/admin/scraping', label: 'Scraping Management', icon: Database },
   ];
 
   return (

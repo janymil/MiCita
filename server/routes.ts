@@ -12,7 +12,9 @@ import { DBStorage } from "./db-storage.js";
 import { simpleAdminRoutes } from "./simple-admin-routes.js";
 import { adminRoutes } from "./admin-routes.js";
 import { adminBusinessRoutes } from "./admin-business-routes.js";
+import openstreetAdminRoutes from "./openstreet-admin-routes.js";
 import networkingRoutes from "./networking-routes.js";
+import { registerAdminScrapingRoutes } from "./admin-scraping-routes.js";
 import { searchAnalytics } from "./search-analytics.js";
 import { searchPersonalization } from "./personalization.js";
 import { db } from "./db.js";
@@ -2440,7 +2442,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin routes
   app.use('/api/admin', simpleAdminRoutes);
   app.use('/api/admin/v2', adminBusinessRoutes);
+  app.use('/api/admin', openstreetAdminRoutes);
   app.use('/api/networking', networkingRoutes);
+
+  // Register admin scraping routes
+  registerAdminScrapingRoutes(app);
 
   // Debug endpoint to check email configuration (remove in production)
   app.get("/api/debug/email-config", (req, res) => {

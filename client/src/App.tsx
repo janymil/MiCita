@@ -32,6 +32,8 @@ import Networking from "@/pages/networking";
 import AdminLogin from "@/pages/admin/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminBusinesses from "@/pages/admin/businesses";
+import AdminOpenStreetBusinesses from "@/pages/admin/openstreet-businesses";
+import AdminScrapingPage from "@/pages/admin-scraping";
 
 function Router() {
   return (
@@ -61,6 +63,8 @@ function Router() {
       <Route path="/admin/login" component={AdminLogin} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/admin/businesses" component={AdminBusinesses} />
+      <Route path="/admin/openstreet-businesses" component={AdminOpenStreetBusinesses} />
+      <Route path="/admin/scraping" component={AdminScrapingPage} />
 
       {/* Business micrositio route - catch-all for business slugs */}
       <Route path="/:slug" component={BusinessMicrosite} />
