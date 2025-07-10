@@ -288,39 +288,31 @@ async function scrapeMissingDistrictsBusinesses() {
       
       // Prepare the input for geolocation-based search
       const input = {
-        searchStringsArray: searchTerms.slice(0, 20), // Limit to top 20 terms per district
-        locationQuery: `${district.lat},${district.lng}`,
-        maxCrawledPlacesPerSearch: 50,
+        searchStringsArray: searchTerms.slice(0, 10), // Reduced to avoid timeout
+        locationQuery: `${district.name}, Lima, Peru`,
+        maxCrawledPlacesPerSearch: 20, // Reduced to prevent timeout
         language: 'es',
         countryCode: 'pe',
         maxReviews: 0,
-        maxImages: 1, // Increased to get more images
+        maxImages: 3,
         exportPlaceUrls: false,
-        additionalInfo: true, // Enable to get services, amenities, payment options
-        // Quality filtering - only businesses with 4.0+ rating
-        minRating: 4.0,
-        // Enhanced scraping options
+        additionalInfo: true,
+        // Remove minRating filter - we'll filter later
         scrapeReviewerUrlAndText: false,
         scrapeDirections: false,
         scrapeOpeningHours: true,
-        scrapeBusinessClaims: true, // To know if business is claimed
+        scrapeBusinessClaims: true,
         scrapePeopleAlsoSearch: false,
         scrapeImmediatePhotos: true,
-        searchAreaSize: district.radius, // Use district-specific radius
-        // Company contacts enrichment for better data quality
+        // Company contacts enrichment for better data quality  
         enrichPlaceWithCompanyContactDetails: true,
         scrapeDetailPage: true,
         includeWebResults: true,
-        scrapeInsidePlaces: false, // Not needed for this use case
-        // Additional options for better data
+        scrapeInsidePlaces: false,
         scrapePopularTimes: true,
         scrapeServiceOptions: true,
         scrapeMenuLink: true,
-        scrapeReservationLink: true,
-        geolocation: {
-          lat: district.lat,
-          lng: district.lng
-        }
+        scrapeReservationLink: true
       };
       
       console.log(`⚙️ Starting Apify actor for ${district.name}...`);
@@ -330,8 +322,8 @@ async function scrapeMissingDistrictsBusinesses() {
       console.log(`✅ Apify run completed for ${district.name}:`, run.id);
       console.log(`📊 Status: ${run.status}, Duration: ${run.stats?.runtime || 'unknown'}`);
       
-      // Calculate cost (approximately $0.002 per result)
-      const estimatedResults = searchTerms.slice(0, 20).length * 50;
+      // Calculate cost (approximately $0.002 per result)  
+      const estimatedResults = searchTerms.slice(0, 10).length * 20;
       const districtCost = estimatedResults * 0.002;
       totalCost += districtCost;
       
