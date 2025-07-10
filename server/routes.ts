@@ -433,9 +433,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         countQuery = countQuery.where(and(...dbConditions));
       }
       
-      // Execute both queries
+      // Execute queries - for map view, don't apply pagination limits
+      const isMapView = req.query.map_view === 'true';
       const [apifyBusinessesList, totalCountResult] = await Promise.all([
-        dbQuery.limit(searchQuery.limit).offset((searchQuery.page - 1) * searchQuery.limit),
+        isMapView ? dbQuery : dbQuery.limit(searchQuery.limit).offset((searchQuery.page - 1) * searchQuery.limit),
         countQuery
       ]);
       

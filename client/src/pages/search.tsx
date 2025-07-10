@@ -172,8 +172,14 @@ export default function SearchPage() {
       if (hasEmail) params.append("hasEmail", "true");
       if (sortBy !== "relevance") params.append("sort", sortBy);
       params.append("page", currentPage.toString());
-      // Use higher limit for map view to show all businesses on map
-      params.append("limit", viewMode === "map" ? "2000" : resultsPerPage.toString());
+      // For map view, request all businesses without pagination limits
+      // For list/grid view, use normal pagination
+      if (viewMode === "map") {
+        params.append("limit", "99999"); // Request all businesses for map
+        params.append("map_view", "true"); // Tell server this is map view
+      } else {
+        params.append("limit", resultsPerPage.toString());
+      }
       
       // Add map bounds if map filter is enabled and we have debounced bounds
       if (mapFilterEnabled && debouncedMapBounds) {
@@ -312,21 +318,40 @@ export default function SearchPage() {
     }
   }, [searchResults, refetch]);
 
-  // Map bounds filtering
+  // Map bounds filtering - compatible with OpenStreetMap bounds format
   const isBusinessInMapBounds = (business: any) => {
     if (!mapBounds || !business.location?.lat || !business.location?.lng) {
       return true; // Show all if no bounds or location
     }
     
-    // Simple bounds checking without Google Maps dependency
     const lat = business.location.lat;
     const lng = business.location.lng;
     
-    // Get bounds coordinates using our OpenStreetMap format
-    const north = mapBounds.getNorthEast().lat();
-    const south = mapBounds.getSouthWest().lat();
-    const east = mapBounds.getNorthEast().lng();
-    const west = mapBounds.getSouthWest().lng();
+    // Handle different bounds formats (OpenStreetMap vs Google Maps)
+    let north, south, east, west;
+    
+    if (mapBounds.getNorthEast && mapBounds.getSouthWest) {
+      // Google Maps format
+      north = mapBounds.getNorthEast().lat();
+      south = mapBounds.getSouthWest().lat();
+      east = mapBounds.getNorthEast().lng();
+      west = mapBounds.getSouthWest().lng();
+    } else if (mapBounds._northEast && mapBounds._southWest) {
+      // Leaflet format
+      north = mapBounds._northEast.lat;
+      south = mapBounds._southWest.lat;
+      east = mapBounds._northEast.lng;
+      west = mapBounds._southWest.lng;
+    } else if (mapBounds.north !== undefined) {
+      // Simple object format
+      north = mapBounds.north;
+      south = mapBounds.south;
+      east = mapBounds.east;
+      west = mapBounds.west;
+    } else {
+      // Unknown format, show all
+      return true;
+    }
     
     return lat >= south && lat <= north && lng >= west && lng <= east;
   };
@@ -908,8 +933,30 @@ export default function SearchPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-lg">
-                    {filteredResults.length} negocios encontrados
+                    {viewMode === "map" ? 
+                      `${filteredResults.length} negocios ${mapFilterEnabled ? 'en el área visible' : 'encontrados'}` :
+                      `${filteredResults.length} negocios encontrados`
+                    }
                   </h3>
+                  {viewMode === "map" && (
+                    <Button
+                      variant={mapFilterEnabled ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        setMapFilterEnabled(!mapFilterEnabled);
+                        if (!mapFilterEnabled) {
+                          // When enabling, immediately apply current bounds
+                          setDebouncedMapBounds(mapBounds);
+                        } else {
+                          // When disabling, clear bounds
+                          setDebouncedMapBounds(null);
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      {mapFilterEnabled ? "Mostrar todos" : "Filtrar por área"}
+                    </Button>
+                  )}
                 </div>
                 
                 {filteredResults.length > 0 ? (
