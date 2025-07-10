@@ -496,8 +496,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Execute queries with performance optimization
-      const isMapView = req.query.map_view === 'true';
-      
       // For map view with many results, use optimized field selection
       if (isMapView) {
         const optimizedFields = performanceOptimizer.getOptimizedFields('map');
