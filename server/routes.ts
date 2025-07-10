@@ -16,8 +16,8 @@ import networkingRoutes from "./networking-routes.js";
 import { searchAnalytics } from "./search-analytics.js";
 import { searchPersonalization } from "./personalization.js";
 import { db } from "./db.js";
-import { apifyBusinesses } from "@shared/schema";
-import { sql, eq, and, or, gte, lte, ne, isNotNull, desc, asc } from "drizzle-orm";
+import { apifyBusinesses, openstreetBusinesses } from "@shared/schema";
+import { sql, eq, and, or, gte, lte, ne, isNotNull, desc, asc, ilike } from "drizzle-orm";
 import { performanceOptimizer, SpatialClusterer } from "./performance-optimizer";
 
 
@@ -534,12 +534,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      const [apifyBusinessesList, totalCountResult] = await Promise.all([
+      // Also search OpenStreetMap businesses with similar filters
+      let osmQuery = db.select().from(openstreetBusinesses);
+      const osmConditions = [];
+      
+      // Apply same search conditions to OSM data
+      if (searchQuery.query && searchQuery.query.trim()) {
+        const searchTerm = searchQuery.query.trim();
+        osmConditions.push(
+          sql`(${openstreetBusinesses.name} ILIKE ${'%' + searchTerm + '%'} OR 
+               ${openstreetBusinesses.address} ILIKE ${'%' + searchTerm + '%'} OR 
+               ${openstreetBusinesses.amenity} ILIKE ${'%' + searchTerm + '%'} OR
+               ${openstreetBusinesses.shop} ILIKE ${'%' + searchTerm + '%'})`
+        );
+      }
+      
+      if (searchQuery.category && searchQuery.category !== 'all') {
+        osmConditions.push(eq(openstreetBusinesses.category, searchQuery.category));
+      }
+      
+      if (searchQuery.district && searchQuery.district !== 'all') {
+        osmConditions.push(eq(openstreetBusinesses.district, searchQuery.district));
+      }
+      
+      if (searchQuery.hasPhone) {
+        osmConditions.push(and(isNotNull(openstreetBusinesses.phone), ne(openstreetBusinesses.phone, '')));
+      }
+      if (searchQuery.hasWebsite) {
+        osmConditions.push(and(isNotNull(openstreetBusinesses.website), ne(openstreetBusinesses.website, '')));
+      }
+      if (searchQuery.hasEmail) {
+        osmConditions.push(and(isNotNull(openstreetBusinesses.email), ne(openstreetBusinesses.email, '')));
+      }
+      
+      if (osmConditions.length > 0) {
+        osmQuery = osmQuery.where(and(...osmConditions));
+      }
+      
+      // Apply OSM sorting (no ratings, so sort by name or contact quality)
+      osmQuery = osmQuery.orderBy(asc(openstreetBusinesses.name));
+      
+      // Count OSM businesses
+      let osmCountQuery = db.select({ count: sql<number>`count(*)` }).from(openstreetBusinesses);
+      if (osmConditions.length > 0) {
+        osmCountQuery = osmCountQuery.where(and(...osmConditions));
+      }
+      
+      // Execute all queries
+      const [apifyBusinessesList, totalCountResult, osmBusinessesList, osmCountResult] = await Promise.all([
         isMapView ? dbQuery : dbQuery.limit(searchParams.limit).offset((searchParams.page - 1) * searchParams.limit),
-        countQuery
+        countQuery,
+        isMapView ? osmQuery : osmQuery.limit(Math.max(5, searchParams.limit - 10)), // Get some OSM results
+        osmCountQuery
       ]);
       
-      const totalCount = totalCountResult[0]?.count || 0;
+      const totalApifyCount = totalCountResult[0]?.count || 0;
+      const totalOsmCount = osmCountResult[0]?.count || 0;
+      
+      // Convert OSM businesses to compatible format
+      const formattedOsmBusinesses = osmBusinessesList.map(osm => ({
+        placeId: `osm_${osm.id}`,
+        name: osm.name,
+        address: osm.address,
+        phone: osm.phone,
+        website: osm.website,
+        email: osm.email,
+        latitude: osm.latitude,
+        longitude: osm.longitude,
+        rating: null,
+        reviewCount: null,
+        priceLevel: null,
+        category: osm.category,
+        subcategory: osm.subcategory,
+        district: osm.district,
+        city: osm.city,
+        imageUrl: null,
+        openNow: null,
+        source: 'openstreetmap',
+        businessType: 'openstreetmap',
+        amenity: osm.amenity,
+        shop: osm.shop,
+        openingHours: osm.openingHours,
+        operator: osm.operator,
+        brand: osm.brand
+      }));
+      
+      // Combine results - prioritize Apify (with ratings) but include OSM for coverage
+      const combinedBusinesses = [...apifyBusinessesList, ...formattedOsmBusinesses];
+      const totalCount = totalApifyCount + totalOsmCount;
       
       // Create search result format
       const searchResult = {

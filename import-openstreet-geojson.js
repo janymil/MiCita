@@ -236,7 +236,7 @@ async function importOpenStreetMapData() {
       });
     
     // Batch import with progress tracking
-    const batchSize = 200;
+    const batchSize = 1000;
     const totalBatches = Math.ceil(processedBusinesses.length / batchSize);
     let imported = 0;
     
