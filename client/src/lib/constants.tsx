@@ -16,7 +16,9 @@ export const CITY_DISTRICTS = {
     "Pueblo Libre", "Breña", "San Miguel", "Chorrillos", "Villa El Salvador",
     "San Juan de Miraflores", "Villa María del Triunfo", "Los Olivos",
     "Comas", "Independencia", "San Martín de Porres", "Rímac", "Ate",
-    "Santa Anita", "El Agustino", "La Victoria", "San Luis", "Callao"
+    "Santa Anita", "El Agustino", "La Victoria", "San Luis", "Callao",
+    "Carabayllo", "San Juan de Lurigancho", "Puente Piedra", "Ancón",
+    "Santa Rosa", "Lurín", "Pachacamac", "Pucusana", "Punta Hermosa"
   ].sort(),
   "Arequipa": [
     "Cercado", "Cayma", "Cerro Colorado", "Characato", "Chiguata",

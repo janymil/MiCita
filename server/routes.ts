@@ -408,6 +408,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dbConditions.push(eq(apifyBusinesses.subcategory, searchQuery.subcategory));
       }
       
+      // District filter
+      if (searchQuery.district && searchQuery.district !== 'all') {
+        dbConditions.push(eq(apifyBusinesses.district, searchQuery.district));
+      }
+      
       // Rating filter
       if (searchQuery.minRating > 0) {
         dbConditions.push(gte(apifyBusinesses.rating, searchQuery.minRating.toString()));
@@ -660,7 +665,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (searchQuery.district && searchQuery.district !== 'all') {
             const detectedDistrict = detectDistrictFromBusiness(business);
             const targetDistrict = searchQuery.district.toLowerCase();
-            
             
             if (!detectedDistrict || detectedDistrict !== targetDistrict) {
               return false;

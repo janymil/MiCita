@@ -272,6 +272,15 @@ Changelog:
   - AUTOMATED: Database saving - all scraped businesses automatically saved with 4.0+ rating filter
   - COVERAGE: Comprehensive geolocation-based scraping for balanced Lima district representation
   - QUALITY: Dual-layer 4.0+ rating filtering ensures only high-quality businesses are collected
+- July 10, 2025: COMPREHENSIVE SUBCATEGORY SYSTEM AND DISTRICT FILTERING FIX:
+  - IMPORTED: 2,192 new businesses from scraped JSON data with complete information preservation
+  - ENHANCED: Database to 6,138 total businesses with intelligent category mapping system
+  - CREATED: 300+ unique subcategories across all categories (servicios: 332, salud: 30, belleza: 27, etc.)
+  - ADDED: Subcategory API endpoints and frontend support for subcategory filtering
+  - FIXED: Carabayllo district missing from search dropdown - added to CITY_DISTRICTS constant
+  - IMPLEMENTED: Proper district filtering in search API with database-level and unified filtering
+  - PRESERVED: All original scraped data including social media, emails, photos, reviews in originalScrapedData field
+  - VERIFIED: District filtering now correctly returns 981 Carabayllo businesses vs 6,138 total
 
 ## PRD Implementation Status
 
