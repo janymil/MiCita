@@ -3,9 +3,10 @@
 /**
  * 🎯 MISSING DISTRICTS TARGETED SCRAPER
  * 
- * Scrapes businesses from Lima districts that are under-represented in current data
+ * Scrapes HIGH-QUALITY businesses (4.0+ rating) from Lima districts that are under-represented in current data
  * Uses geolocation-based search with exact coordinates for each district center
- * Target: 2,000-3,000 new businesses from outer districts
+ * Quality Filter: Only businesses with 4.0+ rating are collected
+ * Target: 1,500-2,500 high-quality businesses from outer districts  
  * Cost: ~$15-20 (75-100 credits)
  */
 
@@ -201,6 +202,7 @@ function calculateQualityScore(place) {
 async function scrapeMissingDistrictsBusinesses() {
   console.log('🎯 Starting Missing Districts Scraper...');
   console.log(`📍 Targeting ${MISSING_DISTRICTS.length} under-represented districts`);
+  console.log('⭐ Quality Filter: Only businesses with 4.0+ rating will be collected');
   
   let totalBusinesses = 0;
   let totalCost = 0;
@@ -225,6 +227,8 @@ async function scrapeMissingDistrictsBusinesses() {
         maxImages: 5,
         exportPlaceUrls: false,
         additionalInfo: false,
+        // Quality filtering - only businesses with 4.0+ rating
+        minRating: 4.0,
         // Enhanced scraping options
         scrapeReviewerUrlAndText: false,
         scrapeDirections: false,
@@ -270,6 +274,13 @@ async function scrapeMissingDistrictsBusinesses() {
       const businesses = items
         .map(item => convertToApifyBusiness(item))
         .filter(business => {
+          // Only include businesses with 4.0+ rating
+          const rating = parseFloat(business.rating);
+          if (!rating || rating < 4.0) {
+            console.log(`❌ Business ${business.name} filtered out - rating: ${rating || 'N/A'} (minimum: 4.0)`);
+            return false;
+          }
+          
           const validation = DataValidator.validateBusinessData(business);
           if (!validation.isValid) {
             console.log(`❌ Invalid business data: ${validation.errors.join(', ')}`);
