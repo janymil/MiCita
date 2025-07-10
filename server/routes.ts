@@ -14,6 +14,9 @@ import { adminRoutes } from "./admin-routes.js";
 import networkingRoutes from "./networking-routes.js";
 import { searchAnalytics } from "./search-analytics.js";
 import { searchPersonalization } from "./personalization.js";
+import { db } from "./db.js";
+import { apifyBusinesses } from "@shared/schema";
+import { sql, eq, and, or, gte, lte, ne, isNotNull, desc, asc } from "drizzle-orm";
 
 
 // Helper function to send email notifications for status changes
@@ -683,7 +686,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
 
       // Use the actual database result totals instead of client-side filtering
-      const totalResults = searchResult.totalCount + businessesWithCustomUrl.length;
+      const totalResults = parseInt(searchResult.totalCount.toString()) + businessesWithCustomUrl.length;
       
       // Apply simple pagination to the combined results
       const startIndex = (searchQuery.page - 1) * searchQuery.limit;
