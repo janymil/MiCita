@@ -64,7 +64,7 @@ export default function Dashboard() {
               Comienza creando tu primer negocio para acceder al dashboard completo
             </p>
             <Link href="/dashboard/configuracion">
-              <Button className="bg-red-600 hover:bg-red-700">
+              <Button className="theme-primary text-white hover:opacity-90">
                 <Plus className="w-4 h-4 mr-2" />
                 Crear Mi Negocio
               </Button>
@@ -77,7 +77,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      <div className="p-6">
+      <div className="p-6 theme-bg min-h-screen">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
@@ -112,36 +112,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
-        {/* Business Info Card */}
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-yellow-500 rounded-lg flex items-center justify-center">
-                <span className="text-white text-xl font-bold">
-                  {currentBusiness?.name.charAt(0)}
-                </span>
-              </div>
-              <div className="flex-1">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {currentBusiness?.name}
-                </h2>
-                <p className="text-gray-600">{currentBusiness?.description}</p>
-                <div className="flex items-center mt-2 space-x-4">
-                  <Badge className="bg-red-100 text-red-800">
-                    {currentBusiness?.category}
-                  </Badge>
-                  <div className="flex items-center text-yellow-500">
-                    <Star className="w-4 h-4 fill-current mr-1" />
-                    <span className="text-sm">
-                      {currentBusiness?.rating} ({currentBusiness?.reviewCount} reseñas)
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* KPI Cards */}
         {analyticsLoading ? (

@@ -1,0 +1,235 @@
+# Business Search Platform - System Requirements
+# This file documents the system requirements and dependencies for the project
+
+# =============================================================================
+# SYSTEM REQUIREMENTS
+# =============================================================================
+
+# Node.js Runtime
+Node.js >= 18.0.0
+
+# Package Manager
+npm >= 8.0.0 (or yarn >= 1.22.0, pnpm >= 7.0.0)
+
+# Database
+PostgreSQL >= 13.0
+
+# Operating System
+- Windows 10/11
+- macOS 10.15+
+- Linux (Ubuntu 20.04+, CentOS 8+)
+
+# =============================================================================
+# CORE DEPENDENCIES (from package.json)
+# =============================================================================
+
+# Runtime Dependencies
+express@^4.21.2                    # Web server framework
+react@^18.3.1                      # Frontend framework
+react-dom@^18.3.1                  # React DOM bindings
+typescript@5.6.3                   # TypeScript compiler
+drizzle-orm@^0.39.1                # Database ORM
+postgres@^3.4.7                    # PostgreSQL client
+zod@^3.24.2                        # Runtime type validation
+
+# UI Framework & Components
+@radix-ui/react-accordion@^1.2.4
+@radix-ui/react-alert-dialog@^1.1.7
+@radix-ui/react-aspect-ratio@^1.1.3
+@radix-ui/react-avatar@^1.1.4
+@radix-ui/react-checkbox@^1.1.5
+@radix-ui/react-collapsible@^1.1.4
+@radix-ui/react-context-menu@^2.2.7
+@radix-ui/react-dialog@^1.1.7
+@radix-ui/react-dropdown-menu@^2.1.7
+@radix-ui/react-hover-card@^1.1.7
+@radix-ui/react-label@^2.1.3
+@radix-ui/react-menubar@^1.1.7
+@radix-ui/react-navigation-menu@^1.2.6
+@radix-ui/react-popover@^1.1.7
+@radix-ui/react-progress@^1.1.3
+@radix-ui/react-radio-group@^1.2.4
+@radix-ui/react-scroll-area@^1.2.4
+@radix-ui/react-select@^2.1.7
+@radix-ui/react-separator@^1.1.3
+@radix-ui/react-slider@^1.2.4
+@radix-ui/react-slot@^1.2.0
+@radix-ui/react-switch@^1.1.4
+@radix-ui/react-tabs@^1.1.4
+@radix-ui/react-toast@^1.2.7
+@radix-ui/react-toggle@^1.1.3
+@radix-ui/react-toggle-group@^1.1.3
+@radix-ui/react-tooltip@^1.2.0
+
+# Styling & UI Utilities
+tailwindcss@^3.4.17               # Utility-first CSS framework
+class-variance-authority@^0.7.1   # Component variant management
+clsx@^2.1.1                       # Conditional className utility
+tailwind-merge@^2.6.0             # Tailwind class merging
+tailwindcss-animate@^1.0.7        # Animation utilities
+lucide-react@^0.453.0             # Icon library
+framer-motion@^11.18.2            # Animation library
+
+# State Management & Data Fetching
+@tanstack/react-query@^5.60.5     # Server state management
+react-hook-form@^7.55.0           # Form handling
+@hookform/resolvers@^3.10.0       # Form validation resolvers
+wouter@^3.3.5                     # Lightweight routing
+
+# External Integrations
+@googlemaps/js-api-loader@^1.16.10 # Google Maps integration
+apify-client@^2.12.6              # Web scraping service
+@sendgrid/mail@^8.1.5             # Email service (SendGrid)
+nodemailer@^7.0.5                 # Email service (SMTP)
+multer@^2.0.1                     # File upload handling
+
+# Authentication & Session Management
+express-session@^1.18.1          # Session middleware
+passport@^0.7.0                  # Authentication middleware
+passport-local@^1.0.0            # Local authentication strategy
+connect-pg-simple@^10.0.0        # PostgreSQL session store
+memorystore@^1.6.7               # Memory session store
+
+# Utilities & Helpers
+date-fns@^3.6.0                  # Date manipulation library
+memoizee@^0.4.17                 # Memoization utility
+cmdk@^1.1.1                      # Command palette component
+react-icons@^5.4.0               # Additional icon library
+react-day-picker@^8.10.1         # Date picker component
+react-resizable-panels@^2.1.7    # Resizable panel component
+vaul@^1.1.2                      # Drawer component
+input-otp@^1.4.2                 # OTP input component
+embla-carousel-react@^8.6.0      # Carousel component
+recharts@^2.15.2                 # Chart library
+next-themes@^0.4.6               # Theme management
+
+# WebSocket & Real-time
+ws@^8.18.0                       # WebSocket implementation
+
+# Development Dependencies
+@vitejs/plugin-react@^4.3.2      # React plugin for Vite
+vite@^5.4.19                     # Build tool and dev server
+tsx@^4.19.1                      # TypeScript execution
+drizzle-kit@^0.30.4              # Database migration tool
+esbuild@^0.25.0                  # Fast bundler
+autoprefixer@^10.4.20            # CSS autoprefixer
+postcss@^8.4.47                  # CSS processor
+
+# Type Definitions
+@types/express@4.17.21
+@types/express-session@^1.18.0
+@types/node@20.16.11
+@types/passport@^1.0.16
+@types/passport-local@^1.0.38
+@types/react@^18.3.11
+@types/react-dom@^18.3.1
+@types/ws@^8.5.13
+@types/memoizee@^0.4.12
+@types/multer@^2.0.0
+@types/nodemailer@^6.4.17
+@types/connect-pg-simple@^7.0.3
+
+# Replit-specific Dependencies
+@replit/vite-plugin-cartographer@^0.2.7
+@replit/vite-plugin-runtime-error-modal@^0.0.3
+
+# =============================================================================
+# ENVIRONMENT VARIABLES REQUIRED
+# =============================================================================
+
+# Database Configuration
+DATABASE_URL=postgresql://username:password@host:port/database
+
+# Email Service Configuration
+EMAIL_USER=your_smtp_username
+EMAIL_PASS=your_smtp_password
+
+# External API Keys
+APIFY_API_TOKEN=your_apify_token
+GOOGLE_MAPS_API_KEY=your_google_maps_key
+
+# Session Configuration
+SESSION_SECRET=your_session_secret
+
+# Node Environment
+NODE_ENV=development|production
+
+# =============================================================================
+# INSTALLATION INSTRUCTIONS
+# =============================================================================
+
+# 1. Install Node.js dependencies
+npm install
+
+# 2. Set up environment variables
+# Copy .env.example to .env and fill in the required values
+
+# 3. Set up PostgreSQL database
+# Ensure PostgreSQL is running and create a database
+
+# 4. Run database migrations
+npm run db:push
+
+# 5. Start development server
+npm run dev
+
+# 6. For production deployment
+npm run build
+npm start
+
+# =============================================================================
+# BROWSER COMPATIBILITY
+# =============================================================================
+
+# Supported Browsers
+Chrome >= 90
+Firefox >= 88
+Safari >= 14
+Edge >= 90
+
+# Mobile Browsers
+Chrome Mobile >= 90
+Safari Mobile >= 14
+Samsung Internet >= 14
+
+# =============================================================================
+# OPTIONAL SYSTEM DEPENDENCIES
+# =============================================================================
+
+# For image processing (if implementing image optimization)
+Sharp >= 0.32.0
+
+# For PDF generation (if implementing PDF reports)
+Puppeteer >= 19.0.0
+
+# For background job processing (if implementing job queues)
+Redis >= 6.0 (optional)
+
+# =============================================================================
+# HARDWARE REQUIREMENTS
+# =============================================================================
+
+# Minimum System Requirements
+RAM: 4GB minimum, 8GB recommended
+Storage: 2GB free space minimum
+CPU: Dual-core processor minimum
+
+# Production Server Requirements
+RAM: 8GB minimum, 16GB recommended
+Storage: 50GB SSD minimum
+CPU: Quad-core processor minimum
+Network: Stable internet connection with 100Mbps+ bandwidth
+
+# =============================================================================
+# NOTES
+# =============================================================================
+
+# This is a Node.js project, so requirements.txt is typically not used.
+# The actual dependencies are managed through package.json and package-lock.json
+# This file serves as documentation for system administrators and deployment teams
+
+# For Python-style requirements management in Node.js, use:
+# - package.json for dependencies
+# - package-lock.json for exact versions
+# - npm list for dependency tree
+# - npm audit for security analysis

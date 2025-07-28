@@ -49,6 +49,19 @@
   --peru-red: hsl(347, 77%, 50%);
   --peru-gold: hsl(41, 96%, 48%);
   
+  /* Theme Variables - Default to Clásico Peruano */
+  --theme-primary: 0 84% 60%;
+  --theme-secondary: 45 93% 47%;
+  --theme-accent: 0 84% 60%;
+  --theme-background: 0 0% 100%;
+  --theme-surface: 45 33% 98%;
+  --theme-text: 0 0% 9%;
+  --theme-border: 45 20% 85%;
+  --theme-sidebar: 45 33% 98%;
+  --theme-header: 0 84% 60%;
+  --theme-nav-hover: 45 93% 95%;
+  --theme-nav-active: 0 84% 95%;
+  
   /* Category Colors */
   --belleza: hsl(330, 81%, 60%);
   --salud: hsl(142, 76%, 36%);
@@ -95,6 +108,74 @@
 @layer components {
   .peru-gradient {
     background: linear-gradient(135deg, var(--peru-red), var(--peru-gold));
+  }
+  
+  /* Theme-aware components */
+  .theme-bg {
+    background-color: hsl(var(--theme-background));
+    color: hsl(var(--theme-text));
+  }
+  
+  .theme-surface {
+    background-color: hsl(var(--theme-surface));
+    color: hsl(var(--theme-text));
+  }
+  
+  .theme-sidebar {
+    background-color: hsl(var(--theme-sidebar));
+    color: hsl(var(--theme-text));
+    border-color: hsl(var(--theme-border));
+  }
+  
+  .theme-header {
+    background-color: hsl(var(--theme-header));
+    color: hsl(var(--theme-text));
+    border-color: hsl(var(--theme-border));
+  }
+  
+  .theme-primary {
+    background-color: hsl(var(--theme-primary));
+    color: white;
+  }
+  
+  .theme-primary-text {
+    color: hsl(var(--theme-primary));
+  }
+  
+  .theme-border {
+    border-color: hsl(var(--theme-border));
+  }
+  
+  .theme-card {
+    background-color: hsl(var(--theme-surface));
+    border-color: hsl(var(--theme-border));
+    color: hsl(var(--theme-text));
+  }
+  
+  .theme-nav-hover:hover {
+    background-color: hsl(var(--theme-nav-hover));
+  }
+  
+  .theme-nav-active {
+    background-color: hsl(var(--theme-primary));
+    color: white;
+  }
+  
+  .theme-nav-inactive {
+    color: hsl(var(--theme-text));
+  }
+  
+  .theme-nav-inactive:hover {
+    background-color: hsl(var(--theme-nav-hover));
+    color: hsl(var(--theme-text));
+  }
+  
+  .theme-text-primary {
+    color: hsl(var(--theme-text));
+  }
+  
+  .theme-text-secondary {
+    color: hsl(var(--theme-text) / 0.7);
   }
   
   .category-belleza {

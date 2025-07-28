@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { 
   LayoutDashboard, 
@@ -11,9 +12,12 @@ import {
   LogOut,
   Search,
   DollarSign,
-  Network
+  Network,
+  Moon,
+  Sun
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { useTheme } from "@/contexts/theme-context";
 import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
@@ -35,18 +39,27 @@ const navigation = [
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
+
+  // Fetch business data to get the business name
+  const { data: businesses } = useQuery({
+    queryKey: ["/api/dashboard/businesses"],
+  });
+
+  const currentBusiness = businesses?.[0];
+  const businessName = currentBusiness?.name || "Mi Cita";
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen theme-bg">
       {/* Sidebar */}
       <div className="hidden md:flex md:w-64 md:flex-col">
-        <div className="flex flex-col flex-grow pt-5 bg-white overflow-y-auto shadow-lg">
+        <div className="flex flex-col flex-grow pt-5 theme-sidebar overflow-y-auto shadow-lg border-r theme-border">
           <div className="flex items-center flex-shrink-0 px-4">
             <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 peru-gradient rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 theme-primary rounded-lg flex items-center justify-center">
                 <Search className="text-white w-4 h-4" />
               </div>
-              <span className="text-xl font-bold text-gray-900">Mi Cita</span>
+              <span className="text-xl font-bold">{businessName}</span>
             </Link>
           </div>
           
@@ -59,12 +72,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     <div className={cn(
                       "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
                       isActive
-                        ? "bg-red-100 text-red-900"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        ? "theme-nav-active text-white"
+                        : "theme-nav-inactive hover:theme-nav-hover"
                     )}>
                       <item.icon className={cn(
                         "mr-3 h-5 w-5 flex-shrink-0",
-                        isActive ? "text-red-500" : "text-gray-400 group-hover:text-gray-500"
+                        isActive ? "text-white" : "theme-text-secondary group-hover:theme-text-primary"
                       )} />
                       {item.name}
                     </div>
@@ -74,20 +87,20 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </nav>
           </div>
 
-          <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
+          <div className="flex-shrink-0 flex border-t theme-border p-4">
             <div className="flex-shrink-0 w-full group block">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <div className="inline-block h-8 w-8 rounded-full bg-red-600 flex items-center justify-center">
+                  <div className="inline-block h-8 w-8 rounded-full theme-primary flex items-center justify-center">
                     <span className="text-sm font-medium leading-none text-white">
                       {user?.name.charAt(0)}
                     </span>
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-700 group-hover:text-gray-900">
+                    <p className="text-sm font-medium theme-text-primary">
                       {user?.name}
                     </p>
-                    <p className="text-xs font-medium text-gray-500 group-hover:text-gray-700">
+                    <p className="text-xs font-medium theme-text-secondary">
                       Ver perfil
                     </p>
                   </div>
@@ -96,7 +109,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   variant="ghost"
                   size="sm"
                   onClick={logout}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="theme-text-secondary hover:theme-text-primary"
                 >
                   <LogOut className="h-4 w-4" />
                 </Button>
@@ -108,7 +121,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       {/* Main content */}
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
-        <main className="flex-1 relative overflow-y-auto focus:outline-none">
+        {/* Header */}
+        <div className="theme-card border-b theme-border px-6 py-4">
+          <div className="flex items-center justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTheme}
+              className="theme-text-secondary hover:theme-text-primary"
+            >
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+        
+        <main className="flex-1 relative overflow-y-auto focus:outline-none theme-bg">
           {children}
         </main>
       </div>

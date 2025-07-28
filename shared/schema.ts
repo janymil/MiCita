@@ -11,6 +11,17 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// User preferences for dashboard appearance
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: serial("user_id").references(() => users.id).notNull(),
+  dashboardTheme: text("dashboard_theme").default("clasico"), // clasico, moderno, natural
+  primaryColor: text("primary_color").default("#dc2626"),
+  isDarkMode: boolean("is_dark_mode").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Business profiles
 export const businesses = pgTable("businesses", {
   id: serial("id").primaryKey(),
@@ -264,6 +275,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
 });
 
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertBusinessSchema = createInsertSchema(businesses).omit({
   id: true,
   userId: true,
@@ -499,6 +516,9 @@ export const eventAttendees = pgTable("event_attendees", {
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
 
 export type Business = typeof businesses.$inferSelect;
 export type InsertBusiness = z.infer<typeof insertBusinessSchema>;

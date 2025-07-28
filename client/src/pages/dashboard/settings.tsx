@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ import {
   Mail,
   Clock,
   Save,
+  Check,
   Link,
   Image,
   Facebook,
@@ -43,7 +44,9 @@ import {
   Edit3,
   AlertTriangle,
   Plus,
-  Trash2
+  Trash2,
+  Moon,
+  Sun
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,6 +57,9 @@ import { DEFAULT_BUSINESS_HOURS, PERUVIAN_CITIES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useTheme } from "@/contexts/theme-context";
+import { ColorPicker } from "@/components/color-picker";
+import { themes } from "@/lib/themes";
 
 const businessSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -171,6 +177,23 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("business");
   const [showCreateBusinessModal, setShowCreateBusinessModal] = useState(false);
   
+  // Theme context
+  const { currentTheme, primaryColor, isDark, setTheme, setPrimaryColor, toggleTheme } = useTheme();
+  
+  // Appearance state - track both current selections and saved values
+  const [selectedTheme, setSelectedTheme] = useState(currentTheme);
+  const [tempPrimaryColor, setTempPrimaryColor] = useState(primaryColor);
+  const [savedTheme, setSavedTheme] = useState(currentTheme);
+  const [savedPrimaryColor, setSavedPrimaryColor] = useState(primaryColor);
+
+  // Sync with theme context when it loads
+  useEffect(() => {
+    setSelectedTheme(currentTheme);
+    setTempPrimaryColor(primaryColor);
+    setSavedTheme(currentTheme);
+    setSavedPrimaryColor(primaryColor);
+  }, [currentTheme, primaryColor]);
+  
   // Blocked dates state
   const [blockDateStart, setBlockDateStart] = useState("");
   const [blockDateEnd, setBlockDateEnd] = useState("");
@@ -198,6 +221,90 @@ export default function SettingsPage() {
   });
 
   const currentBusiness = businesses?.[0];
+
+  // Theme options from lib
+  const themeOptions = Object.entries(themes).map(([key, theme]) => ({
+    id: key,
+    name: theme.name,
+    description: theme.description,
+    gradient: theme.gradient,
+    primaryColor: theme.primaryColor
+  }));
+
+  const saveAppearanceMutation = useMutation({
+    mutationFn: async (data: { theme: string; primaryColor: string; isDarkMode: boolean }) => {
+      const response = await fetch('/api/user/preferences', {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          dashboardTheme: data.theme,
+          primaryColor: data.primaryColor,
+          isDarkMode: data.isDarkMode,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save appearance settings");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      // Update saved state to match current selections
+      setSavedTheme(selectedTheme);
+      setSavedPrimaryColor(tempPrimaryColor);
+      
+      toast({
+        title: "Configuración guardada",
+        description: "La personalización de apariencia se ha guardado correctamente.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la configuración. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Check if there are unsaved changes (compare current selections with last saved values)
+  const hasUnsavedChanges = selectedTheme !== savedTheme || tempPrimaryColor !== savedPrimaryColor;
+
+  const handleSaveAppearance = () => {
+    // Apply theme changes immediately for instant visual feedback
+    setTheme(selectedTheme);
+    setPrimaryColor(tempPrimaryColor);
+    
+    // Save to backend
+    saveAppearanceMutation.mutate({
+      theme: selectedTheme,
+      primaryColor: tempPrimaryColor,
+      isDarkMode: isDark,
+    });
+  };
+
+  // Apply theme changes immediately when user makes selections (live preview)
+  const handleThemeChange = (themeId: string) => {
+    setSelectedTheme(themeId);
+    const selectedThemeData = themes[themeId as keyof typeof themes];
+    
+    // Apply theme immediately for live preview
+    setTheme(themeId);
+    
+    // Also update the primary color to match the theme's primary color
+    if (selectedThemeData?.primaryColor) {
+      setTempPrimaryColor(selectedThemeData.primaryColor);
+      setPrimaryColor(selectedThemeData.primaryColor);
+    }
+  };
+
+  const handleColorChange = (color: string) => {
+    setTempPrimaryColor(color);
+    // Apply immediately for live preview  
+    setPrimaryColor(color);
+  };
 
   const businessForm = useForm<BusinessForm>({
     resolver: zodResolver(businessSchema),
@@ -1568,51 +1675,80 @@ export default function SettingsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div>
-                  <Label className="text-base font-medium">Tema del Micrositio</Label>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Personaliza la apariencia de tu micrositio público
-                  </p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                      <div className="w-full h-20 bg-gradient-to-br from-red-500 to-yellow-500 rounded mb-3"></div>
-                      <p className="font-medium">Clásico Peruano</p>
-                      <p className="text-sm text-gray-600">Colores tradicionales</p>
-                    </div>
-
-                    <div className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                      <div className="w-full h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded mb-3"></div>
-                      <p className="font-medium">Moderno</p>
-                      <p className="text-sm text-gray-600">Diseño contemporáneo</p>
-                    </div>
-
-                    <div className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
-                      <div className="w-full h-20 bg-gradient-to-br from-green-500 to-blue-500 rounded mb-3"></div>
-                      <p className="font-medium">Natural</p>
-                      <p className="text-sm text-gray-600">Colores naturales</p>
-                    </div>
+                {/* Dark/Light Mode Toggle */}
+                <div className="flex items-center justify-between p-4 border theme-border rounded-lg">
+                  <div>
+                    <Label className="text-base font-medium">Modo Oscuro</Label>
+                    <p className="text-sm theme-text-secondary">
+                      Activa el modo oscuro para una experiencia visual más cómoda
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Sun className="h-4 w-4 theme-text-secondary" />
+                    <Switch
+                      checked={isDark}
+                      onCheckedChange={toggleTheme}
+                    />
+                    <Moon className="h-4 w-4 theme-text-secondary" />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="primary-color" className="text-base font-medium">
-                    Color Principal
-                  </Label>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Color principal para botones y elementos destacados
+                  <Label className="text-base font-medium">Tema del Micrositio</Label>
+                  <p className="text-sm theme-text-secondary mb-4">
+                    Personaliza la apariencia de tu micrositio público
                   </p>
-                  <Input
-                    type="color"
-                    id="primary-color"
-                    defaultValue="#dc2626"
-                    className="w-20 h-12"
-                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {themeOptions.map((theme) => (
+                      <div
+                        key={theme.id}
+                        onClick={() => handleThemeChange(theme.id)}
+                        className={`p-4 border rounded-lg cursor-pointer hover:theme-nav-hover transition-all theme-border ${
+                          selectedTheme === theme.id ? 'ring-2 ring-blue-500 theme-nav-active' : ''
+                        }`}
+                      >
+                        <div className={`w-full h-20 bg-gradient-to-br ${theme.gradient} rounded mb-3`}></div>
+                        <p className="font-medium theme-text-primary">{theme.name}</p>
+                        <p className="text-sm theme-text-secondary">{theme.description}</p>
+                        {selectedTheme === theme.id && (
+                          <div className="mt-2 flex items-center text-blue-600 text-sm">
+                            <Check className="w-4 h-4 mr-1" />
+                            Seleccionado
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <Button className="bg-red-600 hover:bg-red-700">
+                <div>
+                  <ColorPicker
+                    color={tempPrimaryColor}
+                    onChange={handleColorChange}
+                    label="Color Principal"
+                  />
+                  <p className="text-sm theme-text-secondary mt-2">
+                    Color principal para botones y elementos destacados
+                  </p>
+                </div>
+
+                <Button 
+                  onClick={handleSaveAppearance}
+                  disabled={saveAppearanceMutation.isPending || !hasUnsavedChanges}
+                  className={`transition-all ${
+                    hasUnsavedChanges 
+                      ? "theme-primary text-white hover:opacity-90" 
+                      : "bg-gray-400 cursor-not-allowed text-gray-600"
+                  }`}
+                >
                   <Save className="w-4 h-4 mr-2" />
-                  Guardar Personalización
+                  {saveAppearanceMutation.isPending 
+                    ? "Guardando..." 
+                    : hasUnsavedChanges 
+                      ? "Guardar Cambios" 
+                      : "Sin Cambios"
+                  }
                 </Button>
               </CardContent>
             </Card>
