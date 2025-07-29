@@ -53,6 +53,55 @@ MiCita (previously BuscarPeru) is a comprehensive full-stack appointment managem
 - **Location**: Lima, Perú as default with Peruvian geography
 - **Cultural Design**: Peru-inspired gradients and color schemes
 
+## Recent Development History
+
+### 🔄 Latest Changes (January 2025)
+
+#### Theme System Architecture Refactor ✅ **COMPLETED**
+- **Issue**: Monolithic settings component (~2000 lines) mixing CRM dashboard themes with microsite configuration
+- **Solution**: Complete component separation and architectural refactoring
+- **Changes Made**:
+  - Extracted `MicrositeSettings.tsx` for public microsite configuration (URL, images, contact info, social media, features)
+  - Created `AppearanceSettings.tsx` for CRM dashboard theme management only (Clásico, Moderno, Natural themes)
+  - Refactored main `settings.tsx` to use separated components with proper TypeScript typing
+  - Implemented proper ThemeId types and theme context integration
+  - Fixed all TypeScript compilation errors and type safety issues
+
+#### Configuration UI/UX Improvements ✅ **COMPLETED**
+- **Toggle Visibility Enhancement**: Fixed invisible toggle switches across all configuration tabs
+  - Added `bg-gray-50` backgrounds to improve contrast for toggle switches
+  - Applied to Hours tab, Notifications tab, and Microsite functionality toggles
+  - Improved user experience with clear visual indicators for enabled/disabled states
+
+#### Business Hours Synchronization Fix ✅ **COMPLETED**
+- **Critical Issue**: Hours configured in "Horarios" tab not displaying on business microsite
+- **Root Cause**: Data inconsistency between two sources:
+  - Hours tab saved to `currentBusiness.businessHours`
+  - Microsite read from `settings.workingHours`
+- **Solution**: Implemented dual-save system to maintain data consistency
+  - Modified `updateHoursMutation` to save to both data sources simultaneously
+  - Enhanced data loading to prioritize microsite-compatible format
+  - Added proper schema conversion between business hours and working hours formats
+  - Fixed query dependencies to use correct business ID for settings
+
+#### Development Environment Enhancements
+- **Port Configuration**: Configured Vite to serve on port 5000 (user preference)
+- **Dependency Resolution**: Fixed @/ alias imports and development server stability
+- **Component Architecture**: Achieved clean separation of concerns between CRM and public microsite themes
+
+### 🏗️ Technical Architecture Improvements
+
+#### Component Separation Benefits
+- **Maintainability**: Each component now has single responsibility
+- **Scalability**: Easy to add features to either CRM or microsite independently  
+- **Type Safety**: Proper TypeScript interfaces prevent configuration errors
+- **Performance**: Reduced bundle size and improved loading times
+
+#### Data Synchronization Architecture
+- **Business Hours**: Unified system ensuring CRM configuration matches public display
+- **Settings Management**: Proper query invalidation and cache management
+- **Form State**: React Hook Form integration with proper validation schemas
+
 ## Data Flow
 
 ### Authentication Flow
@@ -312,6 +361,18 @@ Changelog:
   - COST REDUCTION: Zero external API costs with free legal alternatives to expensive commercial APIs
   - COVERAGE EXPANSION: Potential 120,000+ businesses from combined legal sources (OSM + SUNAT + Graph Perú)
   - COMPREHENSIVE GUIDE: Complete documentation of all legal business data sources for Peru
+- January 29, 2025: THEME SYSTEM ARCHITECTURE REFACTOR AND UI IMPROVEMENTS:
+  - REFACTORED: Complete separation of CRM dashboard themes from microsite configuration
+  - EXTRACTED: MicrositeSettings.tsx component for public microsite configuration (URL, images, contact, social media)
+  - CREATED: AppearanceSettings.tsx component for CRM dashboard theme management (Clásico, Moderno, Natural)
+  - REDUCED: Main settings.tsx from ~2000 lines to clean, manageable component structure
+  - IMPLEMENTED: Proper TypeScript typing with ThemeId interfaces and theme context integration
+  - FIXED: All TypeScript compilation errors and enhanced type safety across components
+  - ENHANCED: Toggle button visibility with bg-gray-50 backgrounds across all configuration tabs
+  - RESOLVED: Business hours synchronization between "Horarios" tab and microsite display
+  - IMPLEMENTED: Dual-save system saving to both currentBusiness.businessHours and settings.workingHours
+  - CONFIGURED: Development server on port 5000 with proper dependency resolution
+  - ACHIEVED: Complete separation of concerns between CRM interface and public microsite theming
 
 ## PRD Implementation Status
 
@@ -321,10 +382,22 @@ Changelog:
 - User registration and login system
 - Protected routes for dashboard access
 
+**Theme System & Configuration**: ✅ **NEWLY COMPLETED**
+- Separated CRM dashboard themes from microsite configuration
+- Clean component architecture with single responsibility
+- Proper TypeScript integration and type safety
+- Theme isolation: dashboard themes don't affect public microsite
+
 **Dashboard & Analytics**:
 - Business overview dashboard with KPI cards
 - Basic analytics display (revenue, appointments, clients)
 - Quick navigation to key sections
+
+**Configuration Management**: ✅ **ENHANCED**
+- Comprehensive business settings with improved UI
+- Working hours synchronization between CRM and microsite
+- Toggle switches with proper visibility (gray backgrounds)
+- Dual-save system ensuring data consistency across platforms
 
 **Appointment Management System**:
 - Full CRUD operations for appointments
