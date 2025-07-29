@@ -1,0 +1,17 @@
+{
+  "osmId": "test_123456",
+  "osmType": "node",
+  "name": "Test Business",
+  "address": "Test Address, Lima",
+  "category": "servicios",
+  "phone": "+51 999 888 777",
+  "website": "https://test-business.com",
+  "email": "test@business.com",
+  "description": "A test business",
+  "rating": "4.5",
+  "reviewCount": 10,
+  "latitude": "-12.0464",
+  "longitude": "-77.0428",
+  "scrapingSource": "openstreetmap",
+  "publicBadge": "openstreet"
+}
