@@ -595,6 +595,49 @@ export class MemStorage implements IStorage {
     this.reviews.delete(id);
   }
 
+  async getSubcategoriesByCategory(category: string, includeCounts?: boolean): Promise<string[] | Array<{subcategory: string, count: number}>> {
+    // Get unique subcategories for the specified category
+    const subcategories = Array.from(this.apifyBusinesses.values())
+      .filter(business => business.category?.toLowerCase() === category.toLowerCase())
+      .map(business => business.subcategory)
+      .filter((subcategory): subcategory is string => subcategory !== null && subcategory !== undefined && subcategory.trim() !== '');
+
+    const uniqueSubcategories = [...new Set(subcategories)];
+
+    if (includeCounts) {
+      // Return with counts
+      const subcategoryCounts = uniqueSubcategories.map(subcategory => {
+        const count = subcategories.filter(s => s === subcategory).length;
+        return { subcategory, count };
+      });
+      return subcategoryCounts.sort((a, b) => b.count - a.count);
+    } else {
+      // Return just the names
+      return uniqueSubcategories.sort();
+    }
+  }
+
+  async getAllSubcategories(): Promise<{ category: string; subcategories: string[] }[]> {
+    // Group all subcategories by category
+    const categorySubcategories = new Map<string, Set<string>>();
+    
+    Array.from(this.apifyBusinesses.values()).forEach(business => {
+      if (business.category && business.subcategory) {
+        const category = business.category.toLowerCase();
+        if (!categorySubcategories.has(category)) {
+          categorySubcategories.set(category, new Set());
+        }
+        categorySubcategories.get(category)!.add(business.subcategory);
+      }
+    });
+
+    // Convert to required format
+    return Array.from(categorySubcategories.entries()).map(([category, subcategorySet]) => ({
+      category,
+      subcategories: Array.from(subcategorySet).sort()
+    }));
+  }
+
   async getBusinessSettings(businessId: number): Promise<BusinessSettings | undefined> {
     return Array.from(this.businessSettings.values()).find(settings => settings.businessId === businessId);
   }

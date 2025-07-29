@@ -520,6 +520,26 @@ Changelog:
   - CONFIGURED: Development server on port 5000 with proper dependency resolution
   - ACHIEVED: Complete separation of concerns between CRM interface and public microsite theming
 
+- January 29, 2025: COMPREHENSIVE REVIEWS MANAGEMENT SYSTEM IMPLEMENTATION:
+  - ENHANCED APIFY SCRAPER: Fixed image filtering to remove temporary Google URLs (streetviewpixels-pa.googleapis.com) preventing gallery breakage
+  - EXCLUDED WORKING HOURS: Removed working hours from scraping per user request - business owners set manually
+  - DUAL-SOURCE REVIEWS: Implemented complete review system with two sources:
+    - SCRAPED REVIEWS: Google Maps and Facebook reviews with 🌐/📘 source badges
+    - CUSTOMER REVIEWS: Direct microsite submissions with 💬 source badge and star rating form
+  - DATABASE ENHANCEMENT: Added enableReviews field to businessSettings table with default true
+  - MICROSITE SETTINGS: Added Reviews toggle in "Funciones" tab with Star icon and yellow styling
+  - PUBLIC MICROSITE: Enhanced review display with dual-source identification and customer submission form
+  - DEDICATED REVIEWS PAGE: Created /dashboard/resenas with comprehensive management features:
+    - Statistics cards (total reviews, average rating, microsite vs external breakdown)
+    - Rating distribution chart with visual progress bars
+    - Advanced filtering (search by name/comment, filter by rating 1-5 stars, filter by source)
+    - Review management (view details, delete inappropriate reviews)
+    - Professional UI with empty states and loading animations
+  - NAVIGATION INTEGRATION: Added "Reseñas" with Star icon to dashboard sidebar navigation
+  - API ENDPOINTS: Complete CRUD system with dashboard management and public submission
+  - STORAGE INTERFACE: Added deleteReview method to complete review management functionality
+  - BUSINESS VALUE: Centralized review management increases engagement and builds trust
+
 ## PRD Implementation Status
 
 ### ✅ Completed Features (Core Foundation)
@@ -575,6 +595,14 @@ Changelog:
 - Working hours configuration with blocked dates/times
 - Microsite customization with toggle features
 - Profile management for business information
+
+**Reviews Management System**: ✅ **NEWLY COMPLETED**
+- Dual-source review system (scraped from Google Maps/Facebook + customer submissions)
+- Dedicated reviews management page with comprehensive analytics
+- Review filtering and search capabilities (by rating, source, content)
+- Customer review submission form on public microsites
+- Business owner control via enableReviews toggle in settings
+- Professional UI with statistics, rating breakdown charts, and management tools
 
 ### 🚧 Partially Implemented Features
 **Calendar Integration**:

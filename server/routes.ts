@@ -18,7 +18,9 @@ import userPreferencesRoutes from "./user-preferences-routes.js";
 import { registerAdminScrapingRoutes } from "./admin-scraping-routes.js";
 import scrapingRoutes from "./routes/scraping.js";
 import galleryRoutes from "./routes/gallery.js";
+// @ts-ignore - JavaScript modules without TypeScript declarations
 import { searchAnalytics } from "./search-analytics.js";
+// @ts-ignore - JavaScript modules without TypeScript declarations
 import { searchPersonalization } from "./personalization.js";
 import { db } from "./db.js";
 import { apifyBusinesses, openstreetBusinesses } from "@shared/schema";
@@ -40,14 +42,14 @@ async function sendStatusChangeEmail(appointment: any, previousAppointment: any,
 
     const appointmentData: AppointmentData = {
       clientName: client.name,
-      clientEmail: client.email,
-      clientPhone: client.phone,
+      clientEmail: client.email || '',
+      clientPhone: client.phone || '',
       businessName: business.name,
-      businessEmail: business.email,
+      businessEmail: business.email || '',
       serviceName: service.name,
       date: appointment.date,
       time: appointment.time,
-      duration: service.duration,
+      duration: service.duration || 30,
       price: appointment.price,
       notes: appointment.notes || ''
     };
@@ -1527,7 +1529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         settings?.blockedDates || [],
         settings?.blockedHours || [],
         existingAppointments,
-        service.duration
+        service.duration || 30
       );
 
       res.json(availableSlots);

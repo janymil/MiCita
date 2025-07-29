@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
 import { Star, Trash2, MessageSquare, Calendar, Filter, Search, ExternalLink } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
+import DashboardLayout from '../../components/dashboard-layout';
 
 interface Review {
   id: number;
@@ -27,11 +27,19 @@ interface ReviewsStats {
 }
 
 export default function ReviewsPage() {
-  const { businessId } = useParams<{ businessId: string }>();
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRating, setFilterRating] = useState<string>('all');
   const [filterSource, setFilterSource] = useState<string>('all');
+
+  // Fetch businesses first to get the current business
+  const { data: businesses, isLoading: businessesLoading } = useQuery({
+    queryKey: ["/api/dashboard/businesses"],
+  });
+
+  const currentBusiness = businesses?.[0];
+  const businessId = currentBusiness?.id || 1; // Fallback to 1 for now
 
   // Fetch reviews
   const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
@@ -41,6 +49,7 @@ export default function ReviewsPage() {
       if (!response.ok) throw new Error('Failed to fetch reviews');
       return response.json();
     },
+    enabled: Boolean(businessId), // Only run when we have a businessId
   });
 
   // Delete review mutation
@@ -53,10 +62,17 @@ export default function ReviewsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews', businessId] });
-      toast.success('Reseña eliminada exitosamente');
+      toast({
+        title: "Éxito",
+        description: "Reseña eliminada exitosamente",
+      });
     },
     onError: () => {
-      toast.error('Error al eliminar la reseña');
+      toast({
+        title: "Error",
+        description: "Error al eliminar la reseña",
+        variant: "destructive",
+      });
     },
   });
 
@@ -130,24 +146,27 @@ export default function ReviewsPage() {
 
   if (reviewsLoading) {
     return (
-      <div className="space-y-6">
-        <div className="h-8 bg-gray-200 rounded animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 rounded animate-pulse" />
-          ))}
+      <DashboardLayout>
+        <div className="p-6 space-y-6">
+          <div className="h-8 bg-gray-200 rounded animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-24 bg-gray-200 rounded animate-pulse" />
+            ))}
+          </div>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded animate-pulse" />
+            ))}
+          </div>
         </div>
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-32 bg-gray-200 rounded animate-pulse" />
-          ))}
-        </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <DashboardLayout>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -346,5 +365,6 @@ export default function ReviewsPage() {
         )}
       </div>
     </div>
+    </DashboardLayout>
   );
 }

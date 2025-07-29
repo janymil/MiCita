@@ -38,7 +38,6 @@ import {
   MessageCircle,
   Share2,
   Edit,
-  Star,
   Sparkles
 } from "lucide-react";
 import { useForm, useWatch } from "react-hook-form";
