@@ -18,6 +18,7 @@ import {
   Youtube,
   Camera,
   Calendar,
+  Star,
   MessageSquare,
   ExternalLink,
   Upload,
@@ -37,12 +38,14 @@ import {
   MessageCircle,
   Share2,
   Edit,
-  Star
+  Star,
+  Sparkles
 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { AutoSetupTab } from "./auto-setup-tab";
 
 const micrositeSchema = z.object({
   // Identidad y Acceso
@@ -84,6 +87,7 @@ const micrositeSchema = z.object({
   enablePublicBooking: z.boolean(),
   enableContactForm: z.boolean(),
   enableGallery: z.boolean(),
+  enableReviews: z.boolean(),
   
   // Horario de Apertura (Notas)
   scheduleNotes: z.string().optional(),
@@ -178,9 +182,21 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
       enablePublicBooking: true,
       enableContactForm: true,
       enableGallery: true,
+      enableReviews: true,
       scheduleNotes: "",
     },
     mode: "onChange"
+  });
+
+  // Watch form values for real-time updates
+  const watchedProfileImage = useWatch({
+    control: micrositeForm.control,
+    name: "profileImage"
+  });
+
+  const watchedCoverImage = useWatch({
+    control: micrositeForm.control,
+    name: "coverImage"
   });
 
   // Set form values when settings load
@@ -207,6 +223,7 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
       micrositeForm.setValue("enablePublicBooking", settings.enablePublicBooking ?? true);
       micrositeForm.setValue("enableContactForm", settings.enableContactForm ?? true);
       micrositeForm.setValue("enableGallery", settings.enableGallery ?? true);
+      micrositeForm.setValue("enableReviews", settings.enableReviews ?? true);
       micrositeForm.setValue("scheduleNotes", settings.scheduleNotes || "");
       
       // Load gallery images if available
@@ -441,7 +458,11 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
 
         {/* Tabbed Interface */}
         <Tabs value={activeSection} onValueChange={setActiveSection} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 bg-gray-100">
+          <TabsList className="grid w-full grid-cols-8 bg-gray-100">
+            <TabsTrigger value="auto-setup" className="flex items-center text-xs">
+              <Sparkles className="w-4 h-4 mr-1" />
+              🤖 Auto
+            </TabsTrigger>
             <TabsTrigger value="basic" className="flex items-center text-xs">
               <Link className="w-4 h-4 mr-1" />
               Básico
@@ -471,6 +492,48 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
               Bloqueos
             </TabsTrigger>
           </TabsList>
+
+          {/* Auto-Setup Tab */}
+          <TabsContent value="auto-setup" className="space-y-6">
+            <AutoSetupTab 
+              businessId={currentBusiness?.id} 
+              onDataFetched={(data) => {
+                // Apply scraped data to form
+                if (data.name) micrositeForm.setValue("professionalTitle", data.name);
+                if (data.description) micrositeForm.setValue("publicDescription", data.description);
+                if (data.phone) micrositeForm.setValue("publicPhone", data.phone);
+                if (data.email) micrositeForm.setValue("publicEmail", data.email);
+                if (data.address) micrositeForm.setValue("streetAddress", data.address);
+                if (data.profileImage) micrositeForm.setValue("profileImage", data.profileImage);
+                if (data.coverImage) micrositeForm.setValue("coverImage", data.coverImage);
+                if (data.galleryImages) setGalleryImages(data.galleryImages);
+                if (data.facebookUrl) micrositeForm.setValue("facebookUrl", data.facebookUrl);
+                if (data.instagramUrl) micrositeForm.setValue("instagramUrl", data.instagramUrl);
+                
+                // Apply working hours if available
+                if (data.hours) {
+                  const convertedHours: any = {};
+                  Object.entries(data.hours).forEach(([day, schedule]: [string, any]) => {
+                    if (schedule && typeof schedule === 'object') {
+                      convertedHours[day.toLowerCase()] = {
+                        enabled: schedule.enabled !== false,
+                        start: schedule.start || "09:00",
+                        end: schedule.end || "17:00"
+                      };
+                    }
+                  });
+                  micrositeForm.setValue("workingHours", convertedHours);
+                }
+                
+                // Trigger form submission to save data
+                const formData = micrositeForm.getValues();
+                updateMicrositeSettingsMutation.mutate({
+                  ...formData,
+                  galleryImages: data.galleryImages || galleryImages
+                });
+              }}
+            />
+          </TabsContent>
 
           {/* Basic Information Tab */}
           <TabsContent value="basic" className="space-y-6">
@@ -548,14 +611,23 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
                       {...micrositeForm.register("profileImage")}
                       className="focus:border-purple-500"
                     />
-                    {micrositeForm.watch("profileImage") && (
-                      <div className="mt-2">
+                    {watchedProfileImage && watchedProfileImage.trim() !== "" && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-sm text-gray-600 mb-2">Vista previa:</p>
                         <img 
-                          src={micrositeForm.watch("profileImage")} 
+                          src={watchedProfileImage} 
                           alt="Vista previa del logo" 
-                          className="w-16 h-16 rounded-full object-cover border-2 border-purple-200"
-                          onError={(e) => e.currentTarget.style.display = 'none'}
+                          className="w-20 h-20 rounded-full object-cover border-2 border-purple-200 shadow-sm"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.nextElementSibling!.textContent = 'Error al cargar la imagen. Verifica la URL.';
+                          }}
+                          onLoad={(e) => {
+                            const errorMsg = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (errorMsg) errorMsg.textContent = '';
+                          }}
                         />
+                        <p className="text-xs text-red-500 mt-1"></p>
                       </div>
                     )}
                   </div>
@@ -568,17 +640,36 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
                       {...micrositeForm.register("coverImage")}
                       className="focus:border-purple-500"
                     />
-                    {micrositeForm.watch("coverImage") && (
-                      <div className="mt-2">
+                    {watchedCoverImage && watchedCoverImage.trim() !== "" && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
+                        <p className="text-sm text-gray-600 mb-2">Vista previa:</p>
                         <img 
-                          src={micrositeForm.watch("coverImage")} 
+                          src={watchedCoverImage} 
                           alt="Vista previa de portada" 
-                          className="w-full h-24 object-cover rounded-lg border-2 border-purple-200"
-                          onError={(e) => e.currentTarget.style.display = 'none'}
+                          className="w-full h-28 object-cover rounded-lg border-2 border-purple-200 shadow-sm"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.nextElementSibling!.textContent = 'Error al cargar la imagen. Verifica la URL.';
+                          }}
+                          onLoad={(e) => {
+                            const errorMsg = e.currentTarget.nextElementSibling as HTMLElement;
+                            if (errorMsg) errorMsg.textContent = '';
+                          }}
                         />
+                        <p className="text-xs text-red-500 mt-1"></p>
                       </div>
                     )}
                   </div>
+                </div>
+
+                <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-semibold text-blue-800 mb-2">💡 Consejos para mejores imágenes:</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• <strong>Logo:</strong> Usa imágenes cuadradas (1:1) de al menos 200x200px</li>
+                    <li>• <strong>Portada:</strong> Usa imágenes horizontales (16:9) de al menos 800x450px</li>
+                    <li>• Formatos recomendados: JPG, PNG, WebP</li>
+                    <li>• Las imágenes deben estar alojadas en URLs públicas (ej: imgur, cloudinary)</li>
+                  </ul>
                 </div>
               </CardContent>
             </Card>
@@ -951,6 +1042,22 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
                     <Switch
                       checked={micrositeForm.watch("enableGallery")}
                       onCheckedChange={(checked) => micrositeForm.setValue("enableGallery", checked)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <div className="flex items-center">
+                      <Star className="w-5 h-5 mr-3 text-yellow-600" />
+                      <div>
+                        <Label className="text-base font-semibold text-yellow-800">Sistema de Reseñas</Label>
+                        <p className="text-sm text-yellow-600">
+                          Permite que los clientes dejen reseñas en tu micrositio
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={micrositeForm.watch("enableReviews")}
+                      onCheckedChange={(checked) => micrositeForm.setValue("enableReviews", checked)}
                     />
                   </div>
                 </div>

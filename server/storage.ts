@@ -107,6 +107,7 @@ export interface IStorage {
   // Reviews
   getReviewsByBusinessId(businessId: number): Promise<Review[]>;
   createReview(review: InsertReview): Promise<Review>;
+  deleteReview(id: number): Promise<void>;
 
   // Business Settings
   getBusinessSettings(businessId: number): Promise<BusinessSettings | undefined>;
@@ -588,6 +589,10 @@ export class MemStorage implements IStorage {
     };
     this.reviews.set(newReview.id, newReview);
     return newReview;
+  }
+
+  async deleteReview(id: number): Promise<void> {
+    this.reviews.delete(id);
   }
 
   async getBusinessSettings(businessId: number): Promise<BusinessSettings | undefined> {

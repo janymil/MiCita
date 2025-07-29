@@ -199,6 +199,17 @@ export default function BusinessMicrosite() {
                           src={item.imageUrl} 
                           alt={item.title || "Trabajo"}
                           className="w-full h-32 object-cover transition-transform duration-500 group-hover/gallery:scale-110"
+                          onError={(e) => {
+                            console.log('🚨 Gallery image failed to load:', item.imageUrl);
+                            // Hide broken images
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            // You could also set a fallback image:
+                            // target.src = '/placeholder-image.jpg';
+                          }}
+                          onLoad={() => {
+                            console.log('✅ Gallery image loaded successfully:', item.imageUrl.substring(0, 50) + '...');
+                          }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-300" />
                         {item.title && (
@@ -214,40 +225,88 @@ export default function BusinessMicrosite() {
             )}
 
             {/* Reviews */}
-            {reviews && reviews.length > 0 && (
+            {(settings?.enableReviews || (reviews && reviews.length > 0)) && (
               <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
                     ⭐ Reseñas de Clientes
-                    <Badge variant="outline" className="ml-3 bg-gradient-to-r from-yellow-50 to-orange-50">
-                      {reviews.length} reseñas
-                    </Badge>
+                    {reviews && reviews.length > 0 && (
+                      <Badge variant="outline" className="ml-3 bg-gradient-to-r from-yellow-50 to-orange-50">
+                        {reviews.length} reseñas
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {reviews.map((review) => (
-                      <div key={review.id} className="border-b border-gray-100/50 pb-4 last:border-b-0 bg-gradient-to-r from-gray-50/50 to-white/50 rounded-lg p-4 hover:shadow-md transition-all duration-300">
-                        <div className="flex items-center mb-3">
-                          <div className="flex mr-3">
-                            {[...Array(5)].map((_, i) => (
+                  {/* Existing Reviews */}
+                  {reviews && reviews.length > 0 && (
+                    <div className="space-y-4 mb-6">
+                      {reviews.map((review) => (
+                        <div key={review.id} className="border-b border-gray-100/50 pb-4 last:border-b-0 bg-gradient-to-r from-gray-50/50 to-white/50 rounded-lg p-4 hover:shadow-md transition-all duration-300">
+                          <div className="flex items-center mb-3">
+                            <div className="flex mr-3">
+                              {[...Array(5)].map((_, i) => (
+                                <Star 
+                                  key={i} 
+                                  className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} transition-colors duration-300`} 
+                                />
+                              ))}
+                            </div>
+                            <span className="font-medium text-gray-900">{review.clientName}</span>
+                            <div className="ml-auto text-xs text-gray-500 bg-gray-100/50 px-2 py-1 rounded-full">
+                              {review.source === 'scraped' ? '🌐 Google Maps' : '💬 Micrositio'}
+                            </div>
+                          </div>
+                          {review.comment && (
+                            <p className="text-gray-600 italic leading-relaxed">"{review.comment}"</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Review Submission Form */}
+                  {settings?.enableReviews && (
+                    <div className="border-t border-gray-200/50 pt-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Star className="w-5 h-5 mr-2 text-yellow-500" />
+                        Deja tu reseña
+                      </h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="review-name" className="text-gray-700 font-medium">Tu nombre</Label>
+                          <Input 
+                            id="review-name" 
+                            placeholder="Tu nombre completo" 
+                            className="mt-1 border-gray-300 focus:border-yellow-500 focus:ring-yellow-500 transition-colors duration-300"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-gray-700 font-medium mb-2 block">Calificación</Label>
+                          <div className="flex space-x-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
                               <Star 
-                                key={i} 
-                                className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} transition-colors duration-300`} 
+                                key={star}
+                                className="w-6 h-6 cursor-pointer text-gray-300 hover:text-yellow-400 transition-colors duration-200"
                               />
                             ))}
                           </div>
-                          <span className="font-medium text-gray-900">{review.clientName}</span>
-                          <div className="ml-auto text-xs text-gray-500 bg-gray-100/50 px-2 py-1 rounded-full">
-                            Verificado ✓
-                          </div>
                         </div>
-                        {review.comment && (
-                          <p className="text-gray-600 italic leading-relaxed">"{review.comment}"</p>
-                        )}
+                        <div>
+                          <Label htmlFor="review-comment" className="text-gray-700 font-medium">Tu experiencia</Label>
+                          <Textarea 
+                            id="review-comment" 
+                            placeholder="Cuéntanos sobre tu experiencia con este negocio..." 
+                            rows={4} 
+                            className="mt-1 border-gray-300 focus:border-yellow-500 focus:ring-yellow-500 transition-colors duration-300"
+                          />
+                        </div>
+                        <Button className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 py-3">
+                          ⭐ Enviar Reseña
+                        </Button>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -350,7 +409,102 @@ export default function BusinessMicrosite() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {settings?.workingHours ? (
+                {/* Priority 1: Use scraped business hours if available */}
+                {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
+                  <div className="space-y-3">
+                    {/* Handle both array format (legacy) and object format (new) */}
+                    {Array.isArray(business.hours) 
+                      ? business.hours.map((hourString, index) => {
+                          // Parse hour strings like "Monday: 9:00 AM – 9:00 PM"
+                          const parts = hourString.split(':');
+                          if (parts.length < 2) return null;
+                          
+                          const day = parts[0].trim();
+                          const timeRange = parts.slice(1).join(':').trim();
+                          
+                          const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
+                          
+                          // Map English day names to Spanish
+                          const dayMap: { [key: string]: { label: string; emoji: string } } = {
+                            'monday': { label: 'Lunes', emoji: '📅' },
+                            'tuesday': { label: 'Martes', emoji: '📅' },
+                            'wednesday': { label: 'Miércoles', emoji: '📅' },
+                            'thursday': { label: 'Jueves', emoji: '📅' },
+                            'friday': { label: 'Viernes', emoji: '📅' },
+                            'saturday': { label: 'Sábado', emoji: '🎯' },
+                            'sunday': { label: 'Domingo', emoji: '🌞' }
+                          };
+                          
+                          const dayKey = day.toLowerCase();
+                          const dayInfo = dayMap[dayKey] || { label: day, emoji: '📅' };
+                          
+                          return (
+                            <div key={index} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
+                              isOpen 
+                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
+                                : 'bg-gradient-to-r from-gray-50 to-gray-100'
+                            }`}>
+                              <span className="capitalize font-medium flex items-center text-gray-900">
+                                <span className="mr-2">{dayInfo.emoji}</span>
+                                {dayInfo.label}:
+                              </span>
+                              <span className={`font-semibold px-2 py-1 rounded-md ${
+                                isOpen 
+                                  ? 'text-green-700 bg-green-100' 
+                                  : 'text-gray-500 bg-gray-200 italic'
+                              }`}>
+                                {isOpen ? timeRange : 'Cerrado'}
+                              </span>
+                            </div>
+                          );
+                        })
+                      : Object.entries(business.hours).map(([dayKey, schedule]: [string, any]) => {
+                          // Handle object format like { lunes: { open: "09:00", close: "17:00", closed: false } }
+                          const dayMap: { [key: string]: { label: string; emoji: string } } = {
+                            'lunes': { label: 'Lunes', emoji: '📅' },
+                            'martes': { label: 'Martes', emoji: '📅' },
+                            'miercoles': { label: 'Miércoles', emoji: '📅' },
+                            'jueves': { label: 'Jueves', emoji: '📅' },
+                            'viernes': { label: 'Viernes', emoji: '📅' },
+                            'sabado': { label: 'Sábado', emoji: '🎯' },
+                            'domingo': { label: 'Domingo', emoji: '🌞' },
+                            'monday': { label: 'Lunes', emoji: '📅' },
+                            'tuesday': { label: 'Martes', emoji: '📅' },
+                            'wednesday': { label: 'Miércoles', emoji: '📅' },
+                            'thursday': { label: 'Jueves', emoji: '📅' },
+                            'friday': { label: 'Viernes', emoji: '📅' },
+                            'saturday': { label: 'Sábado', emoji: '🎯' },
+                            'sunday': { label: 'Domingo', emoji: '🌞' }
+                          };
+                          
+                          const dayInfo = dayMap[dayKey.toLowerCase()] || { label: dayKey, emoji: '📅' };
+                          const isOpen = schedule && !schedule.closed && schedule.open && schedule.close;
+                          
+                          return (
+                            <div key={dayKey} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
+                              isOpen 
+                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
+                                : 'bg-gradient-to-r from-gray-50 to-gray-100'
+                            }`}>
+                              <span className="capitalize font-medium flex items-center text-gray-900">
+                                <span className="mr-2">{dayInfo.emoji}</span>
+                                {dayInfo.label}:
+                              </span>
+                              <span className={`font-semibold px-2 py-1 rounded-md ${
+                                isOpen 
+                                  ? 'text-green-700 bg-green-100' 
+                                  : 'text-gray-500 bg-gray-200 italic'
+                              }`}>
+                                {isOpen ? `${schedule.open} - ${schedule.close}` : 'Cerrado'}
+                              </span>
+                            </div>
+                          );
+                        })
+                    }
+                  </div>
+                ) : 
+                /* Priority 2: Fallback to microsite working hours settings */
+                settings?.workingHours ? (
                   <div className="space-y-3">
                     {[
                       { key: 'monday', label: 'Lunes', emoji: '📅' },

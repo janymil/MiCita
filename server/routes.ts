@@ -16,6 +16,8 @@ import openstreetAdminRoutes from "./openstreet-admin-routes.js";
 import networkingRoutes from "./networking-routes.js";
 import userPreferencesRoutes from "./user-preferences-routes.js";
 import { registerAdminScrapingRoutes } from "./admin-scraping-routes.js";
+import scrapingRoutes from "./routes/scraping.js";
+import galleryRoutes from "./routes/gallery.js";
 import { searchAnalytics } from "./search-analytics.js";
 import { searchPersonalization } from "./personalization.js";
 import { db } from "./db.js";
@@ -2333,6 +2335,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reviews routes
+  // Get reviews for a business (both scraped and customer reviews)
+  app.get("/api/dashboard/businesses/:businessId/reviews", async (req, res) => {
+    try {
+      const businessId = parseInt(req.params.businessId);
+      const reviews = await storage.getReviewsByBusinessId(businessId);
+      res.json(reviews);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+      res.status(500).json({ message: "Error obteniendo reseñas" });
+    }
+  });
+
+  // Create a new customer review (public endpoint for microsite)
+  app.post("/api/reviews", async (req, res) => {
+    try {
+      const reviewData = insertReviewSchema.parse(req.body);
+      
+      // Add source to identify this as a customer review
+      const newReview = await storage.createReview({
+        ...reviewData,
+        source: 'customer', // vs 'scraped' for Google Maps reviews
+        createdAt: new Date().toISOString()
+      });
+      
+      res.status(201).json(newReview);
+    } catch (error) {
+      console.error("Error creating review:", error);
+      res.status(500).json({ message: "Error creando reseña" });
+    }
+  });
+
+  // Delete a review (dashboard only)
+  app.delete("/api/dashboard/businesses/:businessId/reviews/:reviewId", async (req, res) => {
+    try {
+      const businessId = parseInt(req.params.businessId);
+      const reviewId = parseInt(req.params.reviewId);
+      
+      // Verify review belongs to business
+      const review = await storage.getReviewsByBusinessId(businessId);
+      if (!review.find(r => r.id === reviewId)) {
+        return res.status(404).json({ message: "Reseña no encontrada" });
+      }
+      
+      await storage.deleteReview(reviewId);
+      res.json({ message: "Reseña eliminada" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      res.status(500).json({ message: "Error eliminando reseña" });
+    }
+  });
+
   // Business settings routes
   app.get("/api/dashboard/businesses/:id/settings", async (req, res) => {
     const businessId = parseInt(req.params.id);
@@ -2449,6 +2503,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register admin scraping routes
   registerAdminScrapingRoutes(app);
+  
+  // Register scraping API routes
+  app.use('/api/scraping', scrapingRoutes);
+  
+  // Register gallery API routes
+  app.use('/api/gallery', galleryRoutes);
 
   // Debug endpoint to check email configuration (remove in production)
   app.get("/api/debug/email-config", (req, res) => {

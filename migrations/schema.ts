@@ -30,6 +30,7 @@ export const businessSettings = pgTable("business_settings", {
 	enablePublicBooking: boolean("enable_public_booking").default(true),
 	enableContactForm: boolean("enable_contact_form").default(true),
 	enableGallery: boolean("enable_gallery").default(true),
+	enableReviews: boolean("enable_reviews").default(true),
 	scheduleNotes: text("schedule_notes"),
 	workingHours: jsonb("working_hours").default({"friday":{"end":"17:00","start":"09:00","enabled":true},"monday":{"end":"17:00","start":"09:00","enabled":true},"sunday":{"end":"17:00","start":"09:00","enabled":false},"tuesday":{"end":"17:00","start":"09:00","enabled":true},"saturday":{"end":"17:00","start":"09:00","enabled":true},"thursday":{"end":"17:00","start":"09:00","enabled":true},"wednesday":{"end":"17:00","start":"09:00","enabled":true}}),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),

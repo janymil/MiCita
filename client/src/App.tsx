@@ -24,6 +24,7 @@ import Appointments from "@/pages/dashboard/appointments";
 import Calendar from "@/pages/dashboard/calendar";
 import Clients from "@/pages/dashboard/clients";
 import Services from "@/pages/dashboard/services";
+import Reviews from "@/pages/dashboard/reviews";
 import Analytics from "@/pages/dashboard/analytics";
 import Finanzas from "@/pages/dashboard/finanzas";
 import Settings from "@/pages/dashboard/settings";
@@ -55,9 +56,11 @@ function Router() {
       <Route path="/dashboard/calendario" component={Calendar} />
       <Route path="/dashboard/clientes" component={Clients} />
       <Route path="/dashboard/servicios" component={Services} />
+      <Route path="/dashboard/resenas" component={Reviews} />
       <Route path="/dashboard/analytics" component={Analytics} />
       <Route path="/dashboard/finanzas" component={Finanzas} />
       <Route path="/dashboard/configuracion" component={Settings} />
+      <Route path="/dashboard/micrositio" component={MicrositioBuilder} />
       <Route path="/dashboard/networking" component={Networking} />
 
       {/* Admin routes */}

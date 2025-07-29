@@ -15,7 +15,8 @@ import {
   Network,
   Moon,
   Sun,
-  Globe
+  Globe,
+  Star
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -31,6 +32,7 @@ const navigation = [
   { name: "Calendario", href: "/dashboard/calendario", icon: Calendar },
   { name: "Clientes", href: "/dashboard/clientes", icon: Users },
   { name: "Servicios", href: "/dashboard/servicios", icon: Package },
+  { name: "Reseñas", href: "/dashboard/resenas", icon: Star },
   { name: "Finanzas", href: "/dashboard/finanzas", icon: DollarSign },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Networking", href: "/dashboard/networking", icon: Network },
