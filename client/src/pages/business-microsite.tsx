@@ -322,21 +322,29 @@ export default function BusinessMicrosite() {
               <CardContent>
                 {settings?.workingHours ? (
                   <div className="space-y-2">
-                    {Object.entries(settings.workingHours).map(([day, hours]) => (
-                      <div key={day} className="flex justify-between">
-                        <span className="capitalize font-medium">
-                          {day === 'monday' ? 'Lunes' :
-                           day === 'tuesday' ? 'Martes' :
-                           day === 'wednesday' ? 'Miércoles' :
-                           day === 'thursday' ? 'Jueves' :
-                           day === 'friday' ? 'Viernes' :
-                           day === 'saturday' ? 'Sábado' : 'Domingo'}:
-                        </span>
-                        <span className={hours.enabled ? 'text-gray-900' : 'text-gray-500 italic'}>
-                          {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
-                        </span>
-                      </div>
-                    ))}
+                    {[
+                      { key: 'monday', label: 'Lunes' },
+                      { key: 'tuesday', label: 'Martes' },
+                      { key: 'wednesday', label: 'Miércoles' },
+                      { key: 'thursday', label: 'Jueves' },
+                      { key: 'friday', label: 'Viernes' },
+                      { key: 'saturday', label: 'Sábado' },
+                      { key: 'sunday', label: 'Domingo' }
+                    ].map(({ key, label }) => {
+                      const hours = settings.workingHours[key];
+                      if (!hours) return null;
+                      
+                      return (
+                        <div key={key} className="flex justify-between">
+                          <span className="capitalize font-medium">
+                            {label}:
+                          </span>
+                          <span className={hours.enabled ? 'text-gray-900' : 'text-gray-500 italic'}>
+                            {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-gray-600">Horarios no disponibles</p>
