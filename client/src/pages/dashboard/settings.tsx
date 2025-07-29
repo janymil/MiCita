@@ -35,7 +35,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useTheme } from "@/contexts/theme-context";
-import { MicrositeSettings } from "@/components/microsite-settings";
 import { AppearanceSettings } from "@/components/appearance-settings";
 
 const businessSchema = z.object({
@@ -287,12 +286,12 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses"] });
       toast({
         title: "Negocio creado",
-        description: "Tu negocio ha sido creado exitosamente. Ahora configura tu micrositio.",
+        description: "Tu negocio ha sido creado exitosamente. Ahora puedes configurar tu micrositio.",
       });
       setShowCreateBusinessModal(false);
       createBusinessForm.reset();
-      // Switch to micrositio tab to configure the URL
-      setActiveTab("microsite");
+      // Redirect to micrositio page to configure the URL
+      setLocation("/dashboard/micrositio");
     },
     onError: () => {
       toast({
@@ -389,14 +388,10 @@ export default function SettingsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="business" className="flex items-center">
               <Building2 className="w-4 h-4 mr-2" />
               Negocio
-            </TabsTrigger>
-            <TabsTrigger value="microsite" className="flex items-center">
-              <Globe className="w-4 h-4 mr-2" />
-              Micrositio
             </TabsTrigger>
             <TabsTrigger value="hours" className="flex items-center">
               <Clock className="w-4 h-4 mr-2" />
@@ -602,11 +597,6 @@ export default function SettingsPage() {
                 </Form>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Microsite Configuration */}
-          <TabsContent value="microsite" className="space-y-6">
-            <MicrositeSettings currentBusiness={currentBusiness} />
           </TabsContent>
 
           {/* Business Hours */}

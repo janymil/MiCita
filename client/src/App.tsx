@@ -27,6 +27,7 @@ import Services from "@/pages/dashboard/services";
 import Analytics from "@/pages/dashboard/analytics";
 import Finanzas from "@/pages/dashboard/finanzas";
 import Settings from "@/pages/dashboard/settings";
+import MicrositioBuilder from "@/pages/dashboard/micrositio";
 import Networking from "@/pages/networking";
 
 // Admin pages

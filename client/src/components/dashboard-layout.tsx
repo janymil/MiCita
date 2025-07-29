@@ -14,7 +14,8 @@ import {
   DollarSign,
   Network,
   Moon,
-  Sun
+  Sun,
+  Globe
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -33,6 +34,7 @@ const navigation = [
   { name: "Finanzas", href: "/dashboard/finanzas", icon: DollarSign },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Networking", href: "/dashboard/networking", icon: Network },
+  { name: "Micrositio", href: "/dashboard/micrositio", icon: Globe },
   { name: "Configuración", href: "/dashboard/configuracion", icon: Settings },
 ];
 
@@ -46,7 +48,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     queryKey: ["/api/dashboard/businesses"],
   });
 
-  const currentBusiness = businesses?.[0];
+  const currentBusiness = businesses && Array.isArray(businesses) ? businesses[0] : null;
   const businessName = currentBusiness?.name || "Mi Cita";
 
   return (
