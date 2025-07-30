@@ -13,18 +13,24 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Get auth token from Stack
-  const token = await stackClientApp.getAccessToken();
-  
   const headers: HeadersInit = {
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
-  
-  // Add authorization header if token exists
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+
+  // Get access token from Stack Auth for authenticated requests
+  try {
+    const user = await stackClientApp.getUser();
+    if (user) {
+      const { accessToken } = await user.getAuthJson();
+      if (accessToken) {
+        headers["x-stack-access-token"] = accessToken;
+      }
+    }
+  } catch (error) {
+    // Continue without auth if user not logged in
+    console.log('No authenticated user for API request');
   }
-  
+
   const res = await fetch(url, {
     method,
     headers,
@@ -41,27 +47,35 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    // Get auth token from Stack
-    const token = await stackClientApp.getAccessToken();
-    
-    const headers: HeadersInit = {};
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-    
-    const res = await fetch(queryKey[0] as string, {
-      headers,
-      credentials: "include",
-    });
+    async ({ queryKey }) => {
+      const headers: HeadersInit = {};
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+      // Get access token from Stack Auth for authenticated requests
+      try {
+        const user = await stackClientApp.getUser();
+        if (user) {
+          const { accessToken } = await user.getAuthJson();
+          if (accessToken) {
+            headers["x-stack-access-token"] = accessToken;
+          }
+        }
+      } catch (error) {
+        // Continue without auth if user not logged in
+        console.log('No authenticated user for query request');
+      }
 
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
+      const res = await fetch(queryKey[0] as string, {
+        headers,
+        credentials: "include",
+      });
+
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
+
+      await throwIfResNotOk(res);
+      return await res.json();
+    };
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -70,7 +84,7 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: true,
       staleTime: 5 * 60 * 1000, // 5 minutes - good for performance
-      cacheTime: 10 * 60 * 1000, // 10 minutes - keep in memory
+      gcTime: 10 * 60 * 1000, // 10 minutes - keep in memory (renamed from cacheTime)
       retry: false,
     },
     mutations: {

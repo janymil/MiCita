@@ -1,14 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppearanceSettings } from "@/components/appearance-settings";
+import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -16,26 +9,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { CITY_DISTRICTS, DEFAULT_BUSINESS_HOURS, PERUVIAN_CITIES } from "@/lib/constants";
+import { apiRequest } from "@/lib/queryClient";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Settings,
-  Building2,
-  Palette,
   Bell,
-  Globe,
+  Building2,
   Clock,
+  Palette,
   Save
 } from "lucide-react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useNavigate } from "react-router-dom";
-import DashboardLayout from "@/components/dashboard-layout";
-import { DEFAULT_BUSINESS_HOURS, PERUVIAN_CITIES } from "@/lib/constants";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { useTheme } from "@/contexts/theme-context";
-import { AppearanceSettings } from "@/components/appearance-settings";
+import { z } from "zod";
 
 const businessSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -44,6 +40,8 @@ const businessSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   address: z.string().optional(),
+  district: z.string().optional(),
+  referencia: z.string().optional(),
   city: z.string().min(1, "Selecciona una ciudad"),
   website: z.string().url("URL inválida").optional().or(z.literal("")),
 });
@@ -57,6 +55,8 @@ const createBusinessSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   address: z.string().optional(),
+  district: z.string().optional(),
+  referencia: z.string().optional(),
   city: z.string().min(1, "Selecciona una ciudad"),
   website: z.string().url("URL inválida").optional().or(z.literal("")),
 });
@@ -104,7 +104,7 @@ const hoursSchema = z.object({
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("business");
   const [showCreateBusinessModal, setShowCreateBusinessModal] = useState(false);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -139,6 +139,8 @@ export default function SettingsPage() {
       phone: "",
       email: "",
       address: "",
+      district: "",
+      referencia: "",
       city: "Lima",
       website: "",
     },
@@ -154,6 +156,8 @@ export default function SettingsPage() {
         phone: currentBusiness.phone || "",
         email: currentBusiness.email || "",
         address: currentBusiness.address || "",
+        district: currentBusiness.district || "",
+        referencia: currentBusiness.referencia || "",
         city: currentBusiness.city || "Lima",
         website: currentBusiness.website || "",
       });
@@ -169,6 +173,8 @@ export default function SettingsPage() {
       phone: "",
       email: "",
       address: "",
+      district: "",
+      referencia: "",
       city: "Lima",
       website: "",
     },
@@ -188,7 +194,7 @@ export default function SettingsPage() {
         if (workingHours[day]) {
           hoursForm.setValue(day as any, {
             open: workingHours[day].start || "09:00",
-            close: workingHours[day].end || "17:00", 
+            close: workingHours[day].end || "17:00",
             closed: !workingHours[day].enabled
           });
         }
@@ -201,7 +207,7 @@ export default function SettingsPage() {
         if (hours[day]) {
           hoursForm.setValue(day as any, {
             open: hours[day].open || "09:00",
-            close: hours[day].close || "17:00", 
+            close: hours[day].close || "17:00",
             closed: hours[day].closed || false
           });
         }
@@ -248,7 +254,7 @@ export default function SettingsPage() {
         // Save to settings table (for microsite display)
         apiRequest("PUT", `/api/dashboard/businesses/${currentBusiness?.id}/settings`, { workingHours })
       ]);
-      
+
       return { success: true };
     },
     onSuccess: () => {
@@ -360,11 +366,10 @@ export default function SettingsPage() {
               <p className="text-gray-600 mb-6">
                 Primero necesitas crear un negocio para acceder a la configuración
               </p>
-              <Button 
+              <Button
                 className="bg-red-600 hover:bg-red-700"
                 onClick={() => {
-                  console.log("Button clicked, opening modal");
-                  setShowCreateBusinessModal(true);
+                  setLocation("/dashboard/create-business");
                 }}
               >
                 Crear Mi Negocio
@@ -517,23 +522,6 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={businessForm.control}
-                        name="address"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Dirección</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Av. Larco 345, Miraflores"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={businessForm.control}
                         name="city"
                         render={({ field }) => (
                           <FormItem>
@@ -556,7 +544,66 @@ export default function SettingsPage() {
                           </FormItem>
                         )}
                       />
+
+                      <FormField
+                        control={businessForm.control}
+                        name="district"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Distrito</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecciona un distrito" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {(CITY_DISTRICTS[businessForm.watch("city") as keyof typeof CITY_DISTRICTS] || []).map((district) => (
+                                  <SelectItem key={district} value={district}>
+                                    {district}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
+
+                    <FormField
+                      control={businessForm.control}
+                      name="address"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dirección</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Ej: Av. Larco 345"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={businessForm.control}
+                      name="referencia"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Referencia</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Ej: Al lado del Parque Central, frente a la iglesia"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <FormField
                       control={businessForm.control}
@@ -613,7 +660,7 @@ export default function SettingsPage() {
                   {days.map((day) => {
                     const dayHours = hoursForm.watch(day.key as any);
                     const isClosed = dayHours?.closed;
-                    
+
                     return (
                       <div key={day.key} className="flex items-center space-x-4 p-4 border rounded-lg">
                         <div className="w-24">
@@ -637,7 +684,7 @@ export default function SettingsPage() {
                           />
                         </div>
                         <div className="flex items-center space-x-2 bg-gray-50 p-2 rounded-md">
-                          <Switch 
+                          <Switch
                             checked={!isClosed}
                             onCheckedChange={(checked) => hoursForm.setValue(`${day.key}.closed` as any, !checked)}
                           />
@@ -648,7 +695,7 @@ export default function SettingsPage() {
                       </div>
                     );
                   })}
-                  <Button 
+                  <Button
                     type="submit"
                     className="bg-red-600 hover:bg-red-700"
                     disabled={updateHoursMutation.isPending}
@@ -736,7 +783,7 @@ export default function SettingsPage() {
             <DialogHeader>
               <DialogTitle>Crear Tu Negocio</DialogTitle>
               <DialogDescription>
-                {currentBusiness ? 
+                {currentBusiness ?
                   "Ya tienes un negocio registrado. Solo puedes tener un negocio por cuenta." :
                   "Completa la información para registrar tu negocio en nuestra plataforma"
                 }
@@ -844,23 +891,6 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={createBusinessForm.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Dirección</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="Av. Larco 345, Miraflores"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={createBusinessForm.control}
                     name="city"
                     render={({ field }) => (
                       <FormItem>
@@ -883,7 +913,66 @@ export default function SettingsPage() {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={createBusinessForm.control}
+                    name="district"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Distrito</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un distrito" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {(CITY_DISTRICTS[createBusinessForm.watch("city") as keyof typeof CITY_DISTRICTS] || []).map((district) => (
+                              <SelectItem key={district} value={district}>
+                                {district}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
+
+                <FormField
+                  control={createBusinessForm.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dirección</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ej: Av. Larco 345"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={createBusinessForm.control}
+                  name="referencia"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Referencia</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Ej: Al lado del Parque Central, frente a la iglesia"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={createBusinessForm.control}

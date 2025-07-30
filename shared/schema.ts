@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } from "drizzle-orm/pg-core";
+import { boolean, decimal, integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -34,6 +34,8 @@ export const businesses = pgTable("businesses", {
   phone: text("phone"),
   email: text("email"),
   address: text("address"),
+  district: text("district"), // Peru-specific district (distrito)
+  referencia: text("referencia"), // Peru-specific reference/landmark
   city: text("city").default("Lima"),
   country: text("country").default("Perú"),
   latitude: decimal("latitude", { precision: 10, scale: 7 }),
@@ -127,16 +129,16 @@ export const reviews = pgTable("reviews", {
 export const businessSettings = pgTable("business_settings", {
   id: serial("id").primaryKey(),
   businessId: serial("business_id").references(() => businesses.id),
-  
+
   // Micrositio Identity & Access
   customUrl: text("custom_url"),
   professionalTitle: text("professional_title"),
   publicDescription: text("public_description"),
-  
+
   // Brand Images
   profileImage: text("profile_image"),
   coverImage: text("cover_image"),
-  
+
   // Extended Contact Info
   publicEmail: text("public_email"),
   publicPhone: text("public_phone"),
@@ -145,21 +147,21 @@ export const businessSettings = pgTable("business_settings", {
   region: text("region"),
   postalCode: text("postal_code"),
   country: text("country").default("Perú"),
-  
+
   // Social Media
   facebookUrl: text("facebook_url"),
   instagramUrl: text("instagram_url"),
   tiktokUrl: text("tiktok_url"),
   youtubeUrl: text("youtube_url"),
-  
+
   // Features
   enablePublicBooking: boolean("enable_public_booking").default(true),
   enableContactForm: boolean("enable_contact_form").default(true),
   enableGallery: boolean("enable_gallery").default(true),
-  
+
   // Schedule Notes
   scheduleNotes: text("schedule_notes"),
-  
+
   // Working Hours
   workingHours: jsonb("working_hours").$type<{
     [key: string]: {
@@ -176,7 +178,7 @@ export const businessSettings = pgTable("business_settings", {
     saturday: { enabled: true, start: "09:00", end: "17:00" },
     sunday: { enabled: false, start: "09:00", end: "17:00" },
   }),
-  
+
   // Blocked dates and hours for appointments
   blockedDates: jsonb("blocked_dates").$type<{
     startDate: string;
@@ -189,14 +191,14 @@ export const businessSettings = pgTable("business_settings", {
     endTime: string;
     reason?: string;
   }[]>().default([]),
-  
+
   // Existing fields
   theme: text("theme").default("default"),
   primaryColor: text("primary_color"),
   bookingSettings: jsonb("booking_settings"),
   emailNotifications: boolean("email_notifications").default(true),
   smsNotifications: boolean("sms_notifications").default(false),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -224,7 +226,7 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   district: text("district"), // Auto-detected district from address/coordinates
   isRegistered: boolean("is_registered").default(false),
   lastUpdated: timestamp("last_updated").defaultNow(),
-  
+
   // Enhanced data for modern UI
   streetViewUrl: text("street_view_url"),
   photos: jsonb("photos").$type<string[]>(), // Array of photo URLs
@@ -237,11 +239,11 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   currentPopularity: integer("current_popularity"), // Current busy percentage
   livePopularityStatus: text("live_popularity_status"), // "Not busy", "A little busy", etc.
   createdAt: timestamp("created_at").defaultNow(),
-  
+
   // Enhanced fields
   description: text("description"),
   services: text("services").array(),
-  socialMedia: jsonb("social_media").$type<{[key: string]: string}>(),
+  socialMedia: jsonb("social_media").$type<{ [key: string]: string }>(),
   imageUrls: text("image_urls").array(),
   verifiedStatus: text("verified_status").default("unverified"),
   dataFreshnessScore: integer("data_freshness_score").default(0),
@@ -249,13 +251,13 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   phoneCountryCode: text("phone_country_code").default("+51"),
   coordinatesValidated: boolean("coordinates_validated").default(false),
   businessStatus: text("business_status").default("unknown"),
-  amenities: jsonb("amenities").$type<{[key: string]: boolean}>(),
+  amenities: jsonb("amenities").$type<{ [key: string]: boolean }>(),
   priceRangeText: text("price_range_text"),
   lastScraped: timestamp("last_scraped").defaultNow(),
   scrapingSource: text("scraping_source").default("apify"),
   qualityScore: integer("quality_score").default(0),
   originalScrapedData: jsonb("original_scraped_data"), // Complete original scraped data
-  
+
   // Badge system fields
   publicBadge: text("public_badge").default("unverified"),
   marketingBadge: text("marketing_badge").default("analyzing"),

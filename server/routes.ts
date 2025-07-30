@@ -1838,10 +1838,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Business dashboard routes - Protected with authentication
   app.get("/api/dashboard/businesses", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      console.log('📊 Dashboard businesses request from user:', req.user?.email);
       const dbUser = await getAuthenticatedUser(req, res);
       if (!dbUser) return; // Response already sent
 
+      console.log('👤 Database user found:', { id: dbUser.id, email: dbUser.email, stackAuthId: dbUser.stackAuthId });
       const businesses = await storage.getBusinessesByUserId(dbUser.id);
+      console.log('🏢 Found businesses for user:', businesses.length, businesses.map(b => ({ id: b.id, name: b.name })));
       res.json(businesses);
     } catch (error) {
       console.error('Error getting businesses:', error);
