@@ -6,6 +6,8 @@ import multer from "multer";
 import path from "path";
 import { adminBusinessRoutes } from "./admin-business-routes.js";
 import { registerAdminScrapingRoutes } from "./admin-scraping-routes.js";
+import { getAuthenticatedUser, verifyBusinessOwnership, verifyClientOwnership, verifyServiceOwnership } from "./auth-helpers.js";
+import { requireAuth, type AuthenticatedRequest } from "./auth-middleware.js";
 import { emailService } from "./email-service.js";
 import { AppointmentData } from "./email-templates";
 import networkingRoutes from "./networking-routes.js";
@@ -1833,25 +1835,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Business dashboard routes
-  app.get("/api/dashboard/businesses", async (req, res) => {
+  // Business dashboard routes - Protected with authentication
+  app.get("/api/dashboard/businesses", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      // TODO: Get from authenticated user session
-      const userId = 1; // Mock user ID
-      const businesses = await storage.getBusinessesByUserId(userId);
+      const dbUser = await getAuthenticatedUser(req, res);
+      if (!dbUser) return; // Response already sent
+
+      const businesses = await storage.getBusinessesByUserId(dbUser.id);
       res.json(businesses);
     } catch (error) {
+      console.error('Error getting businesses:', error);
       res.status(500).json({ message: "Error obteniendo negocios" });
     }
   });
 
-  app.post("/api/dashboard/businesses", async (req, res) => {
+  app.post("/api/dashboard/businesses", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessData = insertBusinessSchema.parse(req.body);
-      const userId = 1; // Mock user ID
+
+      const dbUser = await getAuthenticatedUser(req, res);
+      if (!dbUser) return; // Response already sent
 
       // Check if user already has a business
-      const existingBusinesses = await storage.getBusinessesByUserId(userId);
+      const existingBusinesses = await storage.getBusinessesByUserId(dbUser.id);
       if (existingBusinesses.length > 0) {
         // Return error if user already has a business
         return res.status(400).json({
@@ -1863,30 +1869,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const business = await storage.createBusiness({
         ...businessData,
         slug: null, // No slug needed - customUrl in settings handles micrositio access
-        userId
+        userId: dbUser.id // Use authenticated user's database ID
       });
 
       res.json(business);
     } catch (error) {
+      console.error('Error creating business:', error);
       res.status(400).json({ message: "Error creando negocio" });
     }
   });
 
-  // Services routes
-  app.get("/api/dashboard/businesses/:businessId/services", async (req, res) => {
+  // Services routes - Protected with authentication
+  app.get("/api/dashboard/businesses/:businessId/services", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
+
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
+
       const services = await storage.getServicesByBusinessId(businessId);
       res.json(services);
     } catch (error) {
+      console.error('Error getting services:', error);
       res.status(500).json({ message: "Error obteniendo servicios" });
     }
   });
 
-  app.post("/api/dashboard/businesses/:businessId/services", async (req, res) => {
+  app.post("/api/dashboard/businesses/:businessId/services", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
       console.log("Creating service with data:", req.body);
+
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
 
       // Validate the request body
       const serviceData = insertServiceSchema.parse(req.body);
@@ -1915,43 +1930,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/dashboard/services/:id", async (req, res) => {
+  app.put("/api/dashboard/services/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const id = parseInt(req.params.id);
+
+      const dbUser = await verifyServiceOwnership(req, res, id);
+      if (!dbUser) return; // Response already sent
+
       const serviceData = insertServiceSchema.partial().parse(req.body);
 
       const service = await storage.updateService(id, serviceData);
       res.json(service);
     } catch (error) {
+      console.error('Error updating service:', error);
       res.status(400).json({ message: "Error actualizando servicio" });
     }
   });
 
-  app.delete("/api/dashboard/services/:id", async (req, res) => {
+  app.delete("/api/dashboard/services/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const id = parseInt(req.params.id);
+
+      const dbUser = await verifyServiceOwnership(req, res, id);
+      if (!dbUser) return; // Response already sent
+
       await storage.deleteService(id);
       res.json({ message: "Servicio eliminado" });
     } catch (error) {
+      console.error('Error deleting service:', error);
       res.status(500).json({ message: "Error eliminando servicio" });
     }
   });
 
-  app.put("/api/dashboard/clients/:id", async (req, res) => {
+  app.put("/api/dashboard/clients/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const id = parseInt(req.params.id);
+
+      const dbUser = await verifyClientOwnership(req, res, id);
+      if (!dbUser) return; // Response already sent
+
       const clientData = insertClientSchema.partial().parse(req.body);
 
       const client = await storage.updateClient(id, clientData);
       res.json(client);
     } catch (error) {
+      console.error('Error updating client:', error);
       res.status(400).json({ message: "Error actualizando cliente" });
     }
   });
 
-  app.delete("/api/dashboard/clients/:id", async (req, res) => {
+  app.delete("/api/dashboard/clients/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const id = parseInt(req.params.id);
+
+      const dbUser = await verifyClientOwnership(req, res, id);
+      if (!dbUser) return; // Response already sent
+
       await storage.deleteClient(id);
       res.json({ message: "Cliente eliminado exitosamente" });
     } catch (error) {
@@ -1961,19 +1995,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Clients routes
-  app.get("/api/dashboard/businesses/:businessId/clients", async (req, res) => {
+  app.get("/api/dashboard/businesses/:businessId/clients", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
+
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
+
       const clients = await storage.getClientsByBusinessId(businessId);
       res.json(clients);
     } catch (error) {
+      console.error('Error getting clients:', error);
       res.status(500).json({ message: "Error obteniendo clientes" });
     }
   });
 
-  app.post("/api/dashboard/businesses/:businessId/clients", async (req, res) => {
+  app.post("/api/dashboard/businesses/:businessId/clients", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
+
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
+
       const clientData = insertClientSchema.parse(req.body);
 
       const client = await storage.createClient({
@@ -1983,6 +2026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(client);
     } catch (error) {
+      console.error('Error creating client:', error);
       res.status(400).json({ message: "Error creando cliente" });
     }
   });
