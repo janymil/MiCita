@@ -2035,10 +2035,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Appointments routes
-  app.get("/api/dashboard/businesses/:businessId/appointments", async (req, res) => {
+  app.get("/api/dashboard/businesses/:businessId/appointments", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
       const { date } = req.query;
+
+      // CRITICAL: Verify user owns this business before returning appointments
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
 
       let appointments;
       if (date) {
@@ -2053,9 +2057,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/dashboard/businesses/:businessId/appointments", async (req, res) => {
+  app.post("/api/dashboard/businesses/:businessId/appointments", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
+
+      // CRITICAL: Verify user owns this business before creating appointments
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
+
       const appointmentData = insertAppointmentSchema.parse(req.body);
 
       const appointment = await storage.createAppointment({
@@ -2070,10 +2079,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update appointment with enhanced validation and status management
-  app.put("/api/dashboard/businesses/:businessId/appointments/:id", async (req, res) => {
+  app.put("/api/dashboard/businesses/:businessId/appointments/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const appointmentId = parseInt(req.params.id);
       const businessId = parseInt(req.params.businessId);
+      const appointmentId = parseInt(req.params.id);
+
+      // CRITICAL: Verify user owns this business before updating appointments
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
       const appointmentData = req.body;
 
       // Validate that this appointment belongs to the business
@@ -2133,10 +2146,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete appointment
-  app.delete("/api/dashboard/businesses/:businessId/appointments/:id", async (req, res) => {
+  app.delete("/api/dashboard/businesses/:businessId/appointments/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const appointmentId = parseInt(req.params.id);
       const businessId = parseInt(req.params.businessId);
+
+      // CRITICAL: Verify user owns this business before deleting appointments
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
 
       // Validate that this appointment belongs to the business
       const existingAppointment = await storage.getAppointment(appointmentId);
@@ -2153,9 +2170,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Analytics routes
-  app.get("/api/dashboard/businesses/:businessId/analytics", async (req, res) => {
+  app.get("/api/dashboard/businesses/:businessId/analytics", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
+
+      // CRITICAL: Verify user owns this business before returning analytics
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return; // Response already sent
 
       const [appointments, clients, services] = await Promise.all([
         storage.getAppointmentsByBusinessId(businessId),

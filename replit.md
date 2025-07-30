@@ -203,6 +203,23 @@ Successfully transformed the micrositio configuration from a complex, outdated i
 
 ### 🔄 Latest Changes (January 2025)
 
+#### CRITICAL SECURITY FIX - User Data Isolation ✅ **COMPLETED**
+- **Critical Issue**: Cross-user data contamination allowing users to access other users' business data
+- **Root Cause**: Appointment endpoints missing authentication and business ownership verification
+- **Security Vulnerability**: Any authenticated user could access appointments, analytics, and modify data for ANY business by changing businessId parameter
+- **Resolution**: Added `requireAuth` middleware and `verifyBusinessOwnership` verification to all appointment endpoints:
+  - GET `/api/dashboard/businesses/:businessId/appointments` - Now properly protected
+  - POST `/api/dashboard/businesses/:businessId/appointments` - Now properly protected  
+  - PUT `/api/dashboard/businesses/:businessId/appointments/:id` - Now properly protected
+  - DELETE `/api/dashboard/businesses/:businessId/appointments/:id` - Now properly protected
+  - GET `/api/dashboard/businesses/:businessId/analytics` - Now properly protected
+- **Impact**: Complete user data isolation now enforced - users can only access their own business data
+
+#### Stack Auth Token Integration Fix ✅ **COMPLETED**
+- **Issue**: Frontend queries not including Stack Auth tokens in request headers
+- **Solution**: Updated TanStack Query's `getQueryFn` to include `x-stack-access-token` header for all GET requests
+- **Result**: Authentication now works properly for all dashboard data fetching
+
 #### Theme System Architecture Refactor ✅ **COMPLETED**
 - **Issue**: Monolithic settings component (~2000 lines) mixing CRM dashboard themes with microsite configuration
 - **Solution**: Complete component separation and architectural refactoring
