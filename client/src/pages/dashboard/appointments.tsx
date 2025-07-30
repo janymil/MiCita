@@ -38,19 +38,27 @@ export default function Appointments() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // TODO: Get businessId from user session or context
-  const businessId = 1;
+  // Get user's businesses first
+  const { data: businesses } = useQuery({
+    queryKey: ["/api/dashboard/businesses"],
+  });
+
+  // Use the first business (in a real app, should handle multiple businesses)
+  const businessId = businesses?.[0]?.id;
 
   const { data: appointments, isLoading } = useQuery({
     queryKey: [`/api/dashboard/businesses/${businessId}/appointments`],
+    enabled: !!businessId, // Only run when businessId is available
   });
 
   const { data: clients } = useQuery({
     queryKey: [`/api/dashboard/businesses/${businessId}/clients`],
+    enabled: !!businessId,
   });
 
   const { data: services } = useQuery({
     queryKey: [`/api/dashboard/businesses/${businessId}/services`],
+    enabled: !!businessId,
   });
 
   const updateStatusMutation = useMutation({

@@ -34,14 +34,16 @@ export default function Finanzas() {
     queryKey: ["/api/dashboard/businesses"],
   });
 
+  const businessId = businesses?.[0]?.id;
+
   const { data: financialData, isLoading: financialLoading } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/financials", selectedPeriod],
-    enabled: Boolean(businesses && businesses.length > 0),
+    queryKey: [`/api/dashboard/businesses/${businessId}/financials`, selectedPeriod],
+    enabled: !!businessId,
   });
 
   const { data: analytics } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/analytics"],
-    enabled: Boolean(businesses && businesses.length > 0),
+    queryKey: [`/api/dashboard/businesses/${businessId}/analytics`],
+    enabled: !!businessId,
   });
 
   const currentBusiness = businesses?.[0];

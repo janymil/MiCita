@@ -44,8 +44,16 @@ export default function Services() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Get user's businesses first
+  const { data: businesses } = useQuery({
+    queryKey: ["/api/dashboard/businesses"],
+  });
+
+  const businessId = businesses?.[0]?.id;
+
   const { data: services, isLoading } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/services"],
+    queryKey: [`/api/dashboard/businesses/${businessId}/services`],
+    enabled: !!businessId,
   });
 
   const form = useForm<ServiceForm>({
@@ -63,7 +71,7 @@ export default function Services() {
     mutationFn: async (data: ServiceForm) => {
       const endpoint = editingService
         ? `/api/dashboard/services/${editingService.id}`
-        : "/api/dashboard/businesses/1/services";
+        : `/api/dashboard/businesses/${businessId}/services`;
       const method = editingService ? "PUT" : "POST";
       
       // Ensure price is a valid number
@@ -78,7 +86,7 @@ export default function Services() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/services"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/services`] });
       setIsDialogOpen(false);
       setEditingService(null);
       form.reset();
@@ -103,7 +111,7 @@ export default function Services() {
       return apiRequest("DELETE", `/api/dashboard/services/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/services"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/services`] });
       toast({
         title: "Servicio eliminado",
         description: "El servicio ha sido eliminado exitosamente.",
@@ -116,7 +124,7 @@ export default function Services() {
       return apiRequest("PUT", `/api/dashboard/services/${id}`, { isActive });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/services"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/services`] });
       toast({
         title: "Estado actualizado",
         description: "El estado del servicio ha sido actualizado.",

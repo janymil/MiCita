@@ -44,9 +44,6 @@ import {
   Star
 } from "lucide-react";
 
-// Mock business ID - in real app, get from auth context
-const MOCK_BUSINESS_ID = 1;
-
 // Schema for networking post form
 const networkingPostSchema = z.object({
   title: z.string().min(5, "El título debe tener al menos 5 caracteres"),
@@ -90,10 +87,19 @@ export default function NetworkingPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Get user's businesses first
+  const { data: businesses } = useQuery({
+    queryKey: ["/api/dashboard/businesses"],
+  });
+
+  // Use the first business (in a real app, should handle multiple businesses)
+  const businessId = businesses?.[0]?.id;
+
   // Fetch networking stats
   const { data: networkingStats } = useQuery({
-    queryKey: ["/api/networking/stats", MOCK_BUSINESS_ID],
-    queryFn: () => apiRequest(`/api/networking/stats/${MOCK_BUSINESS_ID}`),
+    queryKey: ["/api/networking/stats", businessId],
+    queryFn: () => apiRequest(`/api/networking/stats/${businessId}`),
+    enabled: !!businessId,
   });
 
   // Fetch networking posts
@@ -116,27 +122,30 @@ export default function NetworkingPage() {
 
   // Fetch business connections
   const { data: connections = [] } = useQuery({
-    queryKey: ["/api/networking/connections", MOCK_BUSINESS_ID],
-    queryFn: () => apiRequest(`/api/networking/connections/${MOCK_BUSINESS_ID}`),
+    queryKey: ["/api/networking/connections", businessId],
+    queryFn: () => apiRequest(`/api/networking/connections/${businessId}`),
+    enabled: !!businessId,
   });
 
   // Fetch connection requests
   const { data: connectionRequests = [] } = useQuery({
-    queryKey: ["/api/networking/connections", MOCK_BUSINESS_ID, "requests"],
-    queryFn: () => apiRequest(`/api/networking/connections/${MOCK_BUSINESS_ID}/requests`),
+    queryKey: ["/api/networking/connections", businessId, "requests"],
+    queryFn: () => apiRequest(`/api/networking/connections/${businessId}/requests`),
+    enabled: !!businessId,
   });
 
   // Fetch suggested connections
   const { data: suggestions = [] } = useQuery({
-    queryKey: ["/api/networking/suggestions", MOCK_BUSINESS_ID],
-    queryFn: () => apiRequest(`/api/networking/suggestions/${MOCK_BUSINESS_ID}`),
+    queryKey: ["/api/networking/suggestions", businessId],
+    queryFn: () => apiRequest(`/api/networking/suggestions/${businessId}`),
+    enabled: !!businessId,
   });
 
   // Create networking post mutation
   const createPostMutation = useMutation({
     mutationFn: (data: any) => apiRequest("/api/networking/posts", {
       method: "POST",
-      body: JSON.stringify({ ...data, businessId: MOCK_BUSINESS_ID }),
+      body: JSON.stringify({ ...data, businessId }),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/networking/posts"] });
@@ -152,7 +161,7 @@ export default function NetworkingPage() {
   const createProjectMutation = useMutation({
     mutationFn: (data: any) => apiRequest("/api/networking/collaborations", {
       method: "POST",
-      body: JSON.stringify({ ...data, creatorId: MOCK_BUSINESS_ID }),
+      body: JSON.stringify({ ...data, creatorId: businessId }),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/networking/collaborations"] });
@@ -168,7 +177,7 @@ export default function NetworkingPage() {
   const createEventMutation = useMutation({
     mutationFn: (data: any) => apiRequest("/api/networking/events", {
       method: "POST",
-      body: JSON.stringify({ ...data, organizerId: MOCK_BUSINESS_ID }),
+      body: JSON.stringify({ ...data, organizerId: businessId }),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/networking/events"] });

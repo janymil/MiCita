@@ -24,14 +24,16 @@ export default function Dashboard() {
     queryKey: ["/api/dashboard/businesses"],
   });
 
+  const businessId = businesses?.[0]?.id;
+
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/analytics"],
-    enabled: Boolean(businesses && businesses.length > 0),
+    queryKey: [`/api/dashboard/businesses/${businessId}/analytics`],
+    enabled: !!businessId,
   });
 
   const { data: recentAppointments, isLoading: appointmentsLoading } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/appointments"],
-    enabled: Boolean(businesses && businesses.length > 0),
+    queryKey: [`/api/dashboard/businesses/${businessId}/appointments`],
+    enabled: !!businessId,
   });
 
   const currentBusiness = businesses?.[0];

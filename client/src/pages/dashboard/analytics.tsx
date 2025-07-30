@@ -19,20 +19,32 @@ import DashboardLayout from "@/components/dashboard-layout";
 import { formatDatePeruvian } from "@/lib/utils";
 
 export default function Analytics() {
+  // Get user's businesses first
+  const { data: businesses } = useQuery({
+    queryKey: ["/api/dashboard/businesses"],
+  });
+
+  // Use the first business (in a real app, should handle multiple businesses)
+  const businessId = businesses?.[0]?.id;
+
   const { data: analytics, isLoading } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/analytics"],
+    queryKey: [`/api/dashboard/businesses/${businessId}/analytics`],
+    enabled: !!businessId,
   });
 
   const { data: appointments } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/appointments"],
+    queryKey: [`/api/dashboard/businesses/${businessId}/appointments`],
+    enabled: !!businessId,
   });
 
   const { data: clients } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/clients"],
+    queryKey: [`/api/dashboard/businesses/${businessId}/clients`],
+    enabled: !!businessId,
   });
 
   const { data: services } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/services"],
+    queryKey: [`/api/dashboard/businesses/${businessId}/services`],
+    enabled: !!businessId,
   });
 
   if (isLoading) {
