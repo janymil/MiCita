@@ -1,31 +1,29 @@
+import { insertAppointmentSchema, insertBusinessSchema, insertBusinessSettingsSchema, insertClientSchema, insertReviewSchema, insertServiceSchema, insertUserSchema } from "@shared/schema";
 import express, { type Express } from "express";
+import fs from "fs";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { z } from "zod";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
-import { insertUserSchema, insertBusinessSchema, insertServiceSchema, insertClientSchema, insertAppointmentSchema, insertGallerySchema, insertReviewSchema, insertBusinessSettingsSchema } from "@shared/schema";
+import { adminBusinessRoutes } from "./admin-business-routes.js";
+import { registerAdminScrapingRoutes } from "./admin-scraping-routes.js";
 import { emailService } from "./email-service.js";
 import { AppointmentData } from "./email-templates";
-import { DBStorage } from "./db-storage.js";
-import { simpleAdminRoutes } from "./simple-admin-routes.js";
-import { adminRoutes } from "./admin-routes.js";
-import { adminBusinessRoutes } from "./admin-business-routes.js";
-import openstreetAdminRoutes from "./openstreet-admin-routes.js";
 import networkingRoutes from "./networking-routes.js";
-import userPreferencesRoutes from "./user-preferences-routes.js";
-import { registerAdminScrapingRoutes } from "./admin-scraping-routes.js";
-import scrapingRoutes from "./routes/scraping.js";
+import openstreetAdminRoutes from "./openstreet-admin-routes.js";
 import galleryRoutes from "./routes/gallery.js";
+import scrapingRoutes from "./routes/scraping.js";
+import { simpleAdminRoutes } from "./simple-admin-routes.js";
+import { storage } from "./storage";
+import userPreferencesRoutes from "./user-preferences-routes.js";
 // @ts-ignore - JavaScript modules without TypeScript declarations
 import { searchAnalytics } from "./search-analytics.js";
 // @ts-ignore - JavaScript modules without TypeScript declarations
-import { searchPersonalization } from "./personalization.js";
-import { db } from "./db.js";
 import { apifyBusinesses, openstreetBusinesses } from "@shared/schema";
-import { sql, eq, and, or, gte, lte, ne, isNotNull, desc, asc, ilike } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
+import { stackServerApp } from "../stack/server.js";
+import { db } from "./db.js";
 import { performanceOptimizer, SpatialClusterer } from "./performance-optimizer";
+import { searchPersonalization } from "./personalization.js";
 
 
 // Helper function to send email notifications for status changes
@@ -34,7 +32,7 @@ async function sendStatusChangeEmail(appointment: any, previousAppointment: any,
     const business = await storage.getBusiness(businessId);
     const client = await storage.getClient(appointment.clientId);
     const service = await storage.getService(appointment.serviceId);
-    
+
     if (!business || !client || !service) {
       console.error('Missing data for email notification');
       return;
@@ -57,8 +55,8 @@ async function sendStatusChangeEmail(appointment: any, previousAppointment: any,
     // Send appropriate email based on status
     if (appointment.status === 'cancelled') {
       await emailService.sendAppointmentCancelled(appointmentData);
-    } else if (appointment.status === 'rescheduled' || 
-               (appointment.date !== previousAppointment.date || appointment.time !== previousAppointment.time)) {
+    } else if (appointment.status === 'rescheduled' ||
+      (appointment.date !== previousAppointment.date || appointment.time !== previousAppointment.time)) {
       // Send rescheduled email if status changed to rescheduled OR if date/time changed
       const rescheduledData = {
         ...appointmentData,
@@ -205,9 +203,9 @@ class SmartScheduler {
 
           // Check for overlap including buffer time
           return this.hasTimeOverlap(
-            minutes, 
+            minutes,
             minutes + serviceDuration + bufferMinutes,
-            appointmentStart - bufferMinutes, 
+            appointmentStart - bufferMinutes,
             appointmentEnd
           );
         })
@@ -280,7 +278,7 @@ const upload = multer({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  
+
   // Authentication routes
   app.post("/api/auth/register", async (req, res) => {
     try {
@@ -313,6 +311,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Stack Auth user sync endpoint
+  app.post("/api/auth/sync", async (req, res) => {
+    try {
+      // Get the authorization header
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'No authorization token provided' });
+      }
+
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+      // Verify the token with Stack Auth
+      const stackUser = await stackServerApp.verifyToken(token);
+
+      if (!stackUser) {
+        return res.status(401).json({ message: 'Invalid or expired token' });
+      }
+
+      // Import the sync function
+      const { syncUserWithDatabase, getUserByStackId } = await import('./auth-sync.js');
+
+      // Try to get existing user first
+      let dbUser;
+      try {
+        dbUser = await getUserByStackId(stackUser.id);
+      } catch (error) {
+        // If user doesn't exist, sync will create them
+        dbUser = await syncUserWithDatabase(stackUser.id);
+      }
+
+      // Get user's businesses
+      const businesses = await storage.getBusinessesByUserId(dbUser.id);
+
+      res.json({
+        user: {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          stackAuthId: dbUser.stackAuthId
+        },
+        businesses
+      });
+    } catch (error) {
+      console.error('Error syncing user:', error);
+      res.status(500).json({ message: "Error syncing user with database" });
+    }
+  });
+
   // Get subcategories by category
   app.get("/api/subcategories/:category", async (req, res) => {
     try {
@@ -339,13 +386,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Public search routes with performance optimization
   app.get("/api/search", async (req, res) => {
     const startTime = Date.now();
-    
+
     try {
-      const { 
-        q, 
-        category, 
+      const {
+        q,
+        category,
         subcategory,
-        city, 
+        city,
         district,
         minRating = '0',
         maxPrice = '5',
@@ -389,11 +436,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log('🔍 Enhanced search request:', { 
-        query: q, 
-        category, 
+      console.log('🔍 Enhanced search request:', {
+        query: q,
+        category,
         subcategory,
-        city, 
+        city,
         district,
         minRating: parseFloat(minRating as string),
         filters: { openNow, hasPhone, hasWebsite, hasEmail },
@@ -422,7 +469,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Build database conditions
       const dbConditions = [];
-      
+
       // Text search
       if (searchQuery.query && searchQuery.query.trim()) {
         const searchTerm = searchQuery.query.trim();
@@ -432,7 +479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                ${apifyBusinesses.searchTerms} ILIKE ${'%' + searchTerm + '%'})`
         );
       }
-      
+
       // Category filter - normalize database categories
       if (searchQuery.category && searchQuery.category !== 'all') {
         const normalizedCategory = searchQuery.category.toLowerCase();
@@ -442,22 +489,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           dbConditions.push(sql`LOWER(${apifyBusinesses.category}) = ${normalizedCategory}`);
         }
       }
-      
+
       // Subcategory filter
       if (searchQuery.subcategory && searchQuery.subcategory !== 'all') {
         dbConditions.push(eq(apifyBusinesses.subcategory, searchQuery.subcategory));
       }
-      
+
       // District filter
       if (searchQuery.district && searchQuery.district !== 'all') {
         dbConditions.push(eq(apifyBusinesses.district, searchQuery.district));
       }
-      
+
       // Rating filter
       if (searchQuery.minRating > 0) {
         dbConditions.push(gte(apifyBusinesses.rating, searchQuery.minRating.toString()));
       }
-      
+
       // Contact filters
       if (searchQuery.hasPhone) {
         dbConditions.push(and(isNotNull(apifyBusinesses.phone), ne(apifyBusinesses.phone, '')));
@@ -468,18 +515,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (searchQuery.hasEmail) {
         dbConditions.push(and(isNotNull(apifyBusinesses.email), ne(apifyBusinesses.email, '')));
       }
-      
+
       // Open now filter
       if (searchQuery.openNow) {
         dbConditions.push(eq(apifyBusinesses.openNow, true));
       }
-      
+
       // Build the main query
       let dbQuery = db.select().from(apifyBusinesses);
       if (dbConditions.length > 0) {
         dbQuery = dbQuery.where(and(...dbConditions));
       }
-      
+
       // Apply sorting
       switch (searchQuery.sortBy) {
         case 'rating':
@@ -495,13 +542,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Default relevance sort
           dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount));
       }
-      
+
       // Get total count
       let countQuery = db.select({ count: sql<number>`count(*)` }).from(apifyBusinesses);
       if (dbConditions.length > 0) {
         countQuery = countQuery.where(and(...dbConditions));
       }
-      
+
       // Execute queries with performance optimization
       // For map view with many results, use optimized field selection
       if (isMapView) {
@@ -519,12 +566,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           phone: apifyBusinesses.phone,
           website: apifyBusinesses.website
         }).from(apifyBusinesses);
-        
+
         // Re-apply conditions for optimized query
         if (dbConditions.length > 0) {
           dbQuery = dbQuery.where(and(...dbConditions));
         }
-        
+
         // Apply same sorting
         switch (searchParams.sortBy) {
           case 'rating':
@@ -540,11 +587,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount));
         }
       }
-      
+
       // Also search OpenStreetMap businesses with similar filters
       let osmQuery = db.select().from(openstreetBusinesses);
       const osmConditions = [];
-      
+
       // Apply same search conditions to OSM data
       if (searchQuery.query && searchQuery.query.trim()) {
         const searchTerm = searchQuery.query.trim();
@@ -555,15 +602,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
                ${openstreetBusinesses.shop} ILIKE ${'%' + searchTerm + '%'})`
         );
       }
-      
+
       if (searchQuery.category && searchQuery.category !== 'all') {
         osmConditions.push(eq(openstreetBusinesses.category, searchQuery.category));
       }
-      
+
       if (searchQuery.district && searchQuery.district !== 'all') {
         osmConditions.push(eq(openstreetBusinesses.district, searchQuery.district));
       }
-      
+
       if (searchQuery.hasPhone) {
         osmConditions.push(and(isNotNull(openstreetBusinesses.phone), ne(openstreetBusinesses.phone, '')));
       }
@@ -573,20 +620,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (searchQuery.hasEmail) {
         osmConditions.push(and(isNotNull(openstreetBusinesses.email), ne(openstreetBusinesses.email, '')));
       }
-      
+
       if (osmConditions.length > 0) {
         osmQuery = osmQuery.where(and(...osmConditions));
       }
-      
+
       // Apply OSM sorting (no ratings, so sort by name or contact quality)
       osmQuery = osmQuery.orderBy(asc(openstreetBusinesses.name));
-      
+
       // Count OSM businesses
       let osmCountQuery = db.select({ count: sql<number>`count(*)` }).from(openstreetBusinesses);
       if (osmConditions.length > 0) {
         osmCountQuery = osmCountQuery.where(and(...osmConditions));
       }
-      
+
       // Execute all queries
       const [apifyBusinessesList, totalCountResult, osmBusinessesList, osmCountResult] = await Promise.all([
         isMapView ? dbQuery : dbQuery.limit(searchParams.limit).offset((searchParams.page - 1) * searchParams.limit),
@@ -594,10 +641,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isMapView ? osmQuery : osmQuery.limit(Math.max(5, searchParams.limit - 10)), // Get some OSM results
         osmCountQuery
       ]);
-      
+
       const totalApifyCount = totalCountResult[0]?.count || 0;
       const totalOsmCount = osmCountResult[0]?.count || 0;
-      
+
       // Convert OSM businesses to compatible format
       const formattedOsmBusinesses = osmBusinessesList.map(osm => ({
         placeId: `osm_${osm.id}`,
@@ -625,11 +672,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         operator: osm.operator,
         brand: osm.brand
       }));
-      
+
       // Combine results - prioritize Apify (with ratings) but include OSM for coverage
       const combinedBusinesses = [...apifyBusinessesList, ...formattedOsmBusinesses];
       const totalCount = totalApifyCount + totalOsmCount;
-      
+
       // Create search result format
       const searchResult = {
         businesses: apifyBusinessesList,
@@ -644,7 +691,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           queryAnalysis: []
         }
       };
-      
+
 
 
       // Convert Apify businesses to expected frontend format with performance optimization
@@ -678,7 +725,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add registered businesses to the beginning of results for priority
       let registeredBusinesses = [];
-      
+
       try {
         // Only fetch registered businesses if they match search criteria
         if (!searchQuery.query && (!searchQuery.category || searchQuery.category === 'all') && !searchQuery.city) {
@@ -712,14 +759,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (business.district) {
           return business.district.toLowerCase();
         }
-        
+
         // District detection from address
         if (!business.address || typeof business.address !== 'string') {
           return null;
         }
-        
+
         const addressLower = business.address.toLowerCase();
-        
+
         // Lima districts and their variations
         const LIMA_DISTRICTS = {
           'miraflores': ['miraflores'],
@@ -770,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'chaclacayo': ['chaclacayo'],
           'cieneguilla': ['cieneguilla']
         };
-        
+
         // Look for district patterns in address
         for (const [district, variations] of Object.entries(LIMA_DISTRICTS)) {
           for (const variation of variations) {
@@ -784,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
         }
-        
+
         return null;
       };
 
@@ -807,11 +854,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (searchQuery.hasPhone) {
             if (!business.phone || business.phone.trim() === '') return false;
           }
-          
+
           if (searchQuery.hasWebsite) {
             if (!business.website || business.website.trim() === '') return false;
           }
-          
+
           if (searchQuery.hasEmail) {
             if (!business.email || business.email.trim() === '') return false;
           }
@@ -830,7 +877,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (searchQuery.district && searchQuery.district !== 'all') {
             const detectedDistrict = detectDistrictFromBusiness(business);
             const targetDistrict = searchQuery.district.toLowerCase();
-            
+
             if (!detectedDistrict || detectedDistrict !== targetDistrict) {
               return false;
             }
@@ -838,19 +885,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Map bounds filter - check if business is within specified coordinates
           if (searchQuery.bounds) {
-            const bounds = typeof searchQuery.bounds === 'string' 
-              ? JSON.parse(searchQuery.bounds) 
+            const bounds = typeof searchQuery.bounds === 'string'
+              ? JSON.parse(searchQuery.bounds)
               : searchQuery.bounds;
-              
+
             const lat = parseFloat(business.location?.lat || business.latitude || '0');
             const lng = parseFloat(business.location?.lng || business.longitude || '0');
-            
+
             // Skip businesses without location data
             if (lat === 0 && lng === 0) return false;
-            
+
             // Check if business is within bounds
-            if (lat < bounds.south || lat > bounds.north || 
-                lng < bounds.west || lng > bounds.east) {
+            if (lat < bounds.south || lat > bounds.north ||
+              lng < bounds.west || lng > bounds.east) {
               return false;
             }
           }
@@ -863,13 +910,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const normalizeCategory = (category: string): string => {
         const categoryMap = {
           'gastronomía': 'gastronomia',
-          'belleza': 'belleza', 
+          'belleza': 'belleza',
           'salud': 'salud',
           'fitness': 'fitness',
           'servicios': 'servicios',
           'automotriz': 'automotriz'
         };
-        
+
         return categoryMap[category.toLowerCase()] || category.toLowerCase();
       };
 
@@ -881,11 +928,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use the actual database result totals instead of client-side filtering
       const totalResults = parseInt(searchResult.totalCount.toString()) + businessesWithCustomUrl.length;
-      
+
       // Apply simple pagination to the combined results
       const startIndex = (searchQuery.page - 1) * searchQuery.limit;
       const endIndex = startIndex + searchQuery.limit;
-      
+
       // For the first page, prioritize registered businesses
       let paginatedResults = [];
       if (searchQuery.page === 1) {
@@ -899,20 +946,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const adjustedEndIndex = endIndex - businessesWithCustomUrl.length;
         paginatedResults = formattedResults.slice(adjustedStartIndex, adjustedEndIndex);
       }
-      
+
       // Apply personalization to paginated results only
       const userId = req.headers['x-user-id'] as string || null;
       const sessionId = req.sessionID || req.headers['x-session-id'] as string || null;
       const personalizedResults = searchPersonalization.personalizeResults(
-        paginatedResults, 
-        userId, 
-        sessionId, 
+        paginatedResults,
+        userId,
+        sessionId,
         searchQuery
       );
 
       // Calculate actual performance metrics
       const actualSearchTime = Date.now() - startTime;
-      
+
       console.log('🔍 Search results summary:', {
         totalApifyBusinesses: searchResult.totalCount,
         registeredBusinesses: businessesWithCustomUrl.length,
@@ -989,7 +1036,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         resultsCount: totalResults
       });
-      
+
       searchPersonalization.updateSessionProfile(sessionId, {
         query: searchQuery.query,
         category: searchQuery.category,
@@ -1040,7 +1087,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/search/suggestions", async (req, res) => {
     try {
       const { q, limit = '5' } = req.query;
-      
+
       if (!q || (q as string).length < 2) {
         // Return trending searches if no query
         const trending = searchAnalytics.getTrendingSearches(parseInt(limit as string));
@@ -1061,7 +1108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get database-based suggestions
       const { enhancedSearchEngine } = await import('./enhanced-search-engine');
       const dbSuggestions = await enhancedSearchEngine.getSearchSuggestions(
-        q as string, 
+        q as string,
         parseInt(limit as string)
       );
 
@@ -1073,7 +1120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Remove duplicates and limit results
       const uniqueSuggestions = combinedSuggestions
-        .filter((suggestion, index, self) => 
+        .filter((suggestion, index, self) =>
           index === self.findIndex(s => s.value === suggestion.value)
         )
         .slice(0, parseInt(limit as string));
@@ -1097,13 +1144,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(apifyBusinesses)
         .groupBy(apifyBusinesses.category)
         .orderBy(sql`count(*) DESC`);
-      
+
       // Normalize category names for frontend
       const normalizedCounts = categoryCounts.map(item => ({
         category: item.category.toLowerCase() === 'gastronomía' ? 'gastronomia' : item.category.toLowerCase(),
         count: item.count
       }));
-      
+
       res.json(normalizedCounts);
     } catch (error) {
       console.error('Error fetching category counts:', error);
@@ -1116,18 +1163,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { category } = req.params;
       const { includeCounts } = req.query;
-      
+
       // Normalize category name to match database format
       const categoryMap = {
         'gastronomia': 'Gastronomía',
         'belleza': 'belleza',
-        'salud': 'salud', 
+        'salud': 'salud',
         'fitness': 'fitness',
         'servicios': 'servicios'
       };
-      
+
       const normalizedCategory = categoryMap[category.toLowerCase()] || category;
-      
+
       if (includeCounts === 'true') {
         const subcategoriesWithCounts = await storage.getSubcategoriesByCategory(normalizedCategory, true);
         res.json(subcategoriesWithCounts);
@@ -1186,7 +1233,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('🧪 Testing Apify scraping...');
         const { apifyScraper } = await import('./apify-scraper-service');
         const testResult = await apifyScraper.testScraping();
-        
+
         if (testResult.success) {
           results.apify = {
             status: 'working',
@@ -1220,7 +1267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('🧪 Running Apify test scraping...');
       const { apifyScraper } = await import('./apify-scraper-service');
       const result = await apifyScraper.testScraping();
-      
+
       res.json({
         success: result.success,
         message: result.success ? 'Test scraping completed successfully' : 'Test scraping failed',
@@ -1229,10 +1276,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Test scraping error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Test scraping failed', 
-        error: error.message 
+      res.status(500).json({
+        success: false,
+        message: 'Test scraping failed',
+        error: error.message
       });
     }
   });
@@ -1240,7 +1287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/scrape/category", async (req, res) => {
     try {
       const { category, location = 'Lima, Peru', maxPlaces = 50 } = req.body;
-      
+
       if (!category) {
         return res.status(400).json({ message: 'Category is required' });
       }
@@ -1248,7 +1295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🔍 Scraping ${category} businesses...`);
       const { apifyScraper } = await import('./apify-scraper-service');
       const businesses = await apifyScraper.scrapeCategoryBusinesses(category, location, maxPlaces);
-      
+
       res.json({
         success: true,
         message: `Successfully scraped ${businesses.length} businesses`,
@@ -1261,10 +1308,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Category scraping error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Category scraping failed', 
-        error: error.message 
+      res.status(500).json({
+        success: false,
+        message: 'Category scraping failed',
+        error: error.message
       });
     }
   });
@@ -1273,7 +1320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🚀 Starting comprehensive Lima business scraping...');
       const { apifyScraper } = await import('./apify-scraper-service');
-      
+
       // Start scraping in background and return immediately
       res.json({
         success: true,
@@ -1291,10 +1338,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error('Comprehensive scraping error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: 'Failed to start comprehensive scraping', 
-        error: error.message 
+      res.status(500).json({
+        success: false,
+        message: 'Failed to start comprehensive scraping',
+        error: error.message
       });
     }
   });
@@ -1303,10 +1350,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/places/:placeId", async (req, res) => {
     try {
       const { placeId } = req.params;
-      
+
       // Check Apify businesses
       const apifyBusiness = await storage.getApifyBusiness(placeId);
-      
+
       if (apifyBusiness) {
         res.json({
           name: apifyBusiness.name,
@@ -1323,7 +1370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         return;
       }
-      
+
       return res.status(404).json({ message: "Negocio no encontrado en los datos almacenados" });
     } catch (error) {
       console.error("Error fetching place details:", error);
@@ -1335,18 +1382,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/apify/pull-fresh", async (req, res) => {
     try {
       console.log('🔄 Pulling fresh data from Apify dataset...');
-      
+
       const response = await fetch('https://api.apify.com/v2/datasets/jC3uI7WSuQKRTj2i1/items?token=apify_api_SThnhfb7cGOxixoqRUbdxCnjvoP6Kc33SbEq&clean=true&format=json&limit=2000');
-      
+
       if (!response.ok) {
         throw new Error(`Apify API error: ${response.status}`);
       }
-      
+
       const apifyData = await response.json();
       console.log(`📦 Retrieved ${apifyData.length} businesses from Apify dataset`);
-      
+
       let processed = 0;
-      
+
       for (const item of apifyData) { // Process all items
         try {
           const cacheData = {
@@ -1367,21 +1414,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
             searchTerms: `${item.title} ${item.address} ${item.categoryName}`.toLowerCase(),
             isRegistered: false
           };
-          
+
           await storage.addApifyBusiness(cacheData);
           processed++;
         } catch (error) {
           console.error(`❌ Error processing business: ${error.message}`);
         }
       }
-      
+
       res.json({
         success: true,
         message: `Successfully processed ${processed} businesses from Apify dataset`,
         processed,
         total: apifyData.length
       });
-      
+
     } catch (error) {
       console.error('❌ Error pulling fresh Apify data:', error);
       res.status(500).json({
@@ -1395,29 +1442,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Map Apify categories to our system
   function mapCategoryFromApify(categoryName: string): string {
     const category = categoryName?.toLowerCase() || '';
-    
-    if (category.includes('barbería') || category.includes('peluquería') || 
-        category.includes('salón') || category.includes('spa') || 
-        category.includes('belleza') || category.includes('manicure')) {
+
+    if (category.includes('barbería') || category.includes('peluquería') ||
+      category.includes('salón') || category.includes('spa') ||
+      category.includes('belleza') || category.includes('manicure')) {
       return 'belleza';
     }
-    if (category.includes('gimnasio') || category.includes('fitness') || 
-        category.includes('yoga') || category.includes('pilates')) {
+    if (category.includes('gimnasio') || category.includes('fitness') ||
+      category.includes('yoga') || category.includes('pilates')) {
       return 'fitness';
     }
-    if (category.includes('restaurante') || category.includes('comida') || 
-        category.includes('bar') || category.includes('cafetería')) {
+    if (category.includes('restaurante') || category.includes('comida') ||
+      category.includes('bar') || category.includes('cafetería')) {
       return 'gastronomia';
     }
-    if (category.includes('médico') || category.includes('dentista') || 
-        category.includes('clínica') || category.includes('farmacia')) {
+    if (category.includes('médico') || category.includes('dentista') ||
+      category.includes('clínica') || category.includes('farmacia')) {
       return 'salud';
     }
-    if (category.includes('taller') || category.includes('mecánico') || 
-        category.includes('auto') || category.includes('gasolinera')) {
+    if (category.includes('taller') || category.includes('mecánico') ||
+      category.includes('auto') || category.includes('gasolinera')) {
       return 'automotriz';
     }
-    
+
     return 'servicios';
   }
 
@@ -1428,7 +1475,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const waves = apifyWaveScraper.getWaveConfigs();
       const progress = apifyWaveScraper.getAllProgress();
       const stats = apifyWaveScraper.getSummaryStats();
-      
+
       res.json({
         waves: waves.map(wave => ({
           ...wave,
@@ -1446,7 +1493,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { waveId } = req.params;
       const { apifyWaveScraper } = await import('./apify-wave-scraper.js');
-      
+
       // Start wave execution in background
       res.json({
         success: true,
@@ -1463,10 +1510,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error starting wave:", error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         message: "Error iniciando ola de scraping",
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -1474,7 +1521,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/apify/waves/execute-all", async (req, res) => {
     try {
       const { apifyWaveScraper } = await import('./apify-wave-scraper.js');
-      
+
       res.json({
         success: true,
         message: "All waves started in background - this will take several hours",
@@ -1491,10 +1538,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error starting all waves:", error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         message: "Error iniciando todas las olas",
-        error: error.message 
+        error: error.message
       });
     }
   });
@@ -1545,9 +1592,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const appointmentData = req.body;
 
       // Validate required fields
-      if (!appointmentData.businessId || !appointmentData.serviceId || !appointmentData.date || 
-          !appointmentData.time || !appointmentData.clientName || !appointmentData.clientPhone || 
-          !appointmentData.clientEmail) {
+      if (!appointmentData.businessId || !appointmentData.serviceId || !appointmentData.date ||
+        !appointmentData.time || !appointmentData.clientName || !appointmentData.clientPhone ||
+        !appointmentData.clientEmail) {
         return res.status(400).json({ message: "Todos los campos son requeridos" });
       }
 
@@ -1572,7 +1619,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (conflictCheck.hasConflict) {
-        return res.status(409).json({ 
+        return res.status(409).json({
           message: "El horario seleccionado tiene conflicto con otra cita",
           conflicts: conflictCheck.conflictingAppointments,
           suggestedAction: "Por favor selecciona otro horario"
@@ -1592,7 +1639,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const requestedSlot = availableSlots.find(slot => slot.time === appointmentData.time);
 
       if (!requestedSlot || !requestedSlot.available) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "El horario seleccionado ya no está disponible",
           reason: requestedSlot?.reason || "slot_unavailable"
         });
@@ -1600,14 +1647,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create or find client (with duplicate prevention)
       let client = await storage.getClientsByBusinessId(appointmentData.businessId)
-        .then(clients => clients.find(c => 
+        .then(clients => clients.find(c =>
           c.email.toLowerCase() === appointmentData.clientEmail.toLowerCase()
         ));
-      
+
       // If no email match, check phone as secondary option
       if (!client) {
         client = await storage.getClientsByBusinessId(appointmentData.businessId)
-          .then(clients => clients.find(c => 
+          .then(clients => clients.find(c =>
             c.phone === appointmentData.clientPhone
           ));
       }
@@ -1666,8 +1713,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         appointment: {
           ...appointment,
           serviceName: service.name,
@@ -1807,8 +1854,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingBusinesses = await storage.getBusinessesByUserId(userId);
       if (existingBusinesses.length > 0) {
         // Return error if user already has a business
-        return res.status(400).json({ 
-          message: "Ya tienes un negocio registrado. Solo puedes tener un negocio por cuenta." 
+        return res.status(400).json({
+          message: "Ya tienes un negocio registrado. Solo puedes tener un negocio por cuenta."
         });
       }
 
@@ -1855,14 +1902,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error creating service:", error);
       if (error.name === 'ZodError') {
-        res.status(400).json({ 
+        res.status(400).json({
           message: "Datos del servicio inválidos",
-          details: error.errors 
+          details: error.errors
         });
       } else {
-        res.status(400).json({ 
+        res.status(400).json({
           message: "Error creando servicio",
-          details: error.message 
+          details: error.message
         });
       }
     }
@@ -2015,22 +2062,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         if (conflictCheck.hasConflict) {
-          return res.status(409).json({ 
+          return res.status(409).json({
             message: "El nuevo horario tiene conflicto con otra cita",
-            conflicts: conflictCheck.conflictingAppointments 
+            conflicts: conflictCheck.conflictingAppointments
           });
         }
       }
 
       const appointment = await storage.updateAppointment(appointmentId, validatedData);
-      
+
       // Send email notifications for status changes or date/time changes
       if ((validatedData.status && validatedData.status !== existingAppointment.status) ||
-          (validatedData.date && validatedData.date !== existingAppointment.date) ||
-          (validatedData.time && validatedData.time !== existingAppointment.time)) {
+        (validatedData.date && validatedData.date !== existingAppointment.date) ||
+        (validatedData.time && validatedData.time !== existingAppointment.time)) {
         await sendStatusChangeEmail(appointment, existingAppointment, businessId);
       }
-      
+
       res.json(appointment);
     } catch (error) {
       console.error("Error updating appointment:", error);
@@ -2095,8 +2142,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const weekAppointments = appointments.filter(a => {
           if (!a.createdAt) return false;
           const appointmentDate = new Date(a.createdAt);
-          return appointmentDate >= weekStart && appointmentDate <= weekEnd && 
-                 a.status === 'completed'; // Only count completed appointments for revenue
+          return appointmentDate >= weekStart && appointmentDate <= weekEnd &&
+            a.status === 'completed'; // Only count completed appointments for revenue
         });
 
         const weekRevenue = weekAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
@@ -2142,8 +2189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pendingPayments = appointments
         .filter(a => a.status === 'pending' || a.status === 'confirmed')
         .reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-      const averageAppointmentValue = completedAppointments.length > 0 
-        ? totalRevenue / completedAppointments.length 
+      const averageAppointmentValue = completedAppointments.length > 0
+        ? totalRevenue / completedAppointments.length
         : 0;
 
       const analytics = {
@@ -2215,8 +2262,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate financial metrics
       const totalRevenue = completedAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
       const pendingPayments = pendingAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-      const averageAppointmentValue = completedAppointments.length > 0 
-        ? totalRevenue / completedAppointments.length 
+      const averageAppointmentValue = completedAppointments.length > 0
+        ? totalRevenue / completedAppointments.length
         : 0;
 
       // Generate monthly revenue chart data
@@ -2354,14 +2401,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/reviews", async (req, res) => {
     try {
       const reviewData = insertReviewSchema.parse(req.body);
-      
+
       // Add source to identify this as a customer review
       const newReview = await storage.createReview({
         ...reviewData,
         source: 'customer', // vs 'scraped' for Google Maps reviews
         createdAt: new Date().toISOString()
       });
-      
+
       res.status(201).json(newReview);
     } catch (error) {
       console.error("Error creating review:", error);
@@ -2374,13 +2421,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.businessId);
       const reviewId = parseInt(req.params.reviewId);
-      
+
       // Verify review belongs to business
       const review = await storage.getReviewsByBusinessId(businessId);
       if (!review.find(r => r.id === reviewId)) {
         return res.status(404).json({ message: "Reseña no encontrada" });
       }
-      
+
       await storage.deleteReview(reviewId);
       res.json({ message: "Reseña eliminada" });
     } catch (error) {
@@ -2433,13 +2480,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const businessId = parseInt(req.params.id);
       const business = await storage.getBusiness(businessId);
-      
+
       if (!business) {
         return res.status(404).json({ message: "Negocio no encontrado" });
       }
 
       console.log(`Enriching business ${business.name} with Google Places data...`);
-      
+
       // Search for the business in Google Places
       const enrichedData = await googlePlacesService.findAndEnrichBusiness(
         business.name,
@@ -2448,7 +2495,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (!enrichedData) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           message: "No se encontró información en Google Places para este negocio",
           business: {
             name: business.name,
@@ -2473,7 +2520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Error enriching business with Google Places:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Error enriqueciendo negocio con Google Places",
         error: error instanceof Error ? error.message : "Error desconocido"
       });
@@ -2505,10 +2552,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register admin scraping routes
   registerAdminScrapingRoutes(app);
-  
+
   // Register scraping API routes
   app.use('/api/scraping', scrapingRoutes);
-  
+
   // Register gallery API routes
   app.use('/api/gallery', galleryRoutes);
 

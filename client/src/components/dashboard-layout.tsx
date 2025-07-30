@@ -1,26 +1,26 @@
-import { ReactNode } from "react";
-import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  Users, 
-  Package, 
-  BarChart3, 
-  Settings, 
-  LogOut,
-  Search,
-  DollarSign,
-  Network,
-  Moon,
-  Sun,
-  Globe,
-  Star
-} from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/contexts/theme-context";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import {
+  BarChart3,
+  Calendar,
+  DollarSign,
+  Globe,
+  LayoutDashboard,
+  LogOut,
+  Moon,
+  Network,
+  Package,
+  Search,
+  Settings,
+  Star,
+  Sun,
+  Users
+} from "lucide-react";
+import { ReactNode } from "react";
+import { Link, useLocation } from "wouter";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -66,7 +66,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <span className="text-xl font-bold">{businessName}</span>
             </Link>
           </div>
-          
+
           <div className="mt-5 flex-grow flex flex-col">
             <nav className="flex-1 px-2 space-y-1">
               {navigation.map((item) => {
@@ -97,12 +97,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <div className="flex items-center">
                   <div className="inline-block h-8 w-8 rounded-full theme-primary flex items-center justify-center">
                     <span className="text-sm font-medium leading-none text-white">
-                      {user?.name.charAt(0)}
+                      {user?.displayName?.charAt(0) || user?.email?.charAt(0) || '?'}
                     </span>
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium theme-text-primary">
-                      {user?.name}
+                      {user?.displayName || user?.email}
                     </p>
                     <p className="text-xs font-medium theme-text-secondary">
                       Ver perfil
@@ -138,7 +138,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </Button>
           </div>
         </div>
-        
+
         <main className="flex-1 relative overflow-y-auto focus:outline-none theme-bg">
           {children}
         </main>

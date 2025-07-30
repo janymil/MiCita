@@ -1,0 +1,80 @@
+{
+  "typescript.preferences.includePackageJsonAutoImports": "off",
+  "typescript.suggest.autoImports": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "vscode.typescript-language-features",
+  "emmet.includeLanguages": {
+    "typescript": "html",
+    "typescriptreact": "html"
+  },
+  "files.associations": {
+    "*.tsx": "typescriptreact",
+    "*.ts": "typescript"
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/.git": true,
+    "**/uploads": true,
+    "**/migrations": true,
+    "**/*.log": true
+  },
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/dist": true,
+    "**/build": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.git/objects/**": true,
+    "**/dist/**": true,
+    "**/build/**": true,
+    "**/uploads/**": true
+  },
+  "typescript.updateImportsOnFileMove.enabled": "never",
+  "typescript.suggest.includeAutomaticOptionalChainCompletions": false,
+  "editor.semanticHighlighting.enabled": false,
+  "typescript.disableAutomaticTypeAcquisition": true,
+  "typescript.preferences.useLabelDetailsInCompletionEntries": true,
+  "typescript.suggest.completeFunctionCalls": false,
+  "typescript.surveys.enabled": false,
+  "typescript.tsserver.maxTsServerMemory": 1024,
+  "javascript.validate.enable": false,
+  "typescript.validate.enable": true,
+  "editor.minimap.enabled": false,
+  "editor.inlayHints.enabled": "off",
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
+  "editor.hover.enabled": false,
+  "editor.parameterHints.enabled": false,
+  "editor.quickSuggestions": {
+    "other": false,
+    "comments": false,
+    "strings": false
+  },
+  "editor.suggestOnTriggerCharacters": false,
+  "editor.wordBasedSuggestions": "off",
+  "javascript.suggest.enabled": false,
+  "editor.bracketPairColorization.enabled": false,
+  "editor.guides.bracketPairs": false,
+  "editor.renderWhitespace": "none",
+  "editor.renderControlCharacters": false,
+  "workbench.editor.enablePreview": false,
+  "workbench.editor.enablePreviewFromQuickOpen": false,
+  "terminal.integrated.enablePersistentSessions": false,
+  "problems.decorations.enabled": false,
+  "mcp": {
+    "servers": {
+      "Neon": {
+        "command": "npx",
+        "args": ["-y", "@neondatabase/mcp-server-neon", "start", "napi_p4uepbyezh1zb3941v0ykzi1bjig4utfh4l8fient65v24d82m8fbvhex0zsw7mo"]
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
+  stackAuthId: text("stack_auth_id").unique(), // Stack Auth user ID
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -1,46 +1,51 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { User } from "@/lib/auth";
+import { useUser } from "@stackframe/react";
+import { createContext, ReactNode, useContext } from "react";
+
+export interface User {
+  id: string;
+  email: string;
+  displayName: string | null;
+}
 
 interface AuthContextType {
   user: User | null;
-  login: (user: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  // Use Stack's built-in useUser hook - should work with React 19
+  const stackUser = useUser();
 
-  useEffect(() => {
-    // Check for stored auth data on app start
-    const storedUser = localStorage.getItem("auth-user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        localStorage.removeItem("auth-user");
-      }
+  // Convert Stack user to our User interface
+  const user: User | null = stackUser ? {
+    id: stackUser.id,
+    email: stackUser.primaryEmail || '',
+    displayName: stackUser.displayName
+  } : null;
+
+  const isLoading = false; // Stack manages loading state internally
+
+  const logout = async () => {
+    try {
+      // Use Stack's signOut method on the user
+      await stackUser?.signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      // Fallback: redirect to Stack's logout handler
+      window.location.href = '/handler/sign-out';
     }
-  }, []);
-
-  const login = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem("auth-user", JSON.stringify(userData));
-  };
-
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("auth-user");
   };
 
   return (
     <AuthContext.Provider value={{
       user,
-      login,
       logout,
-      isAuthenticated: !!user
+      isAuthenticated: !!user,
+      isLoading
     }}>
       {children}
     </AuthContext.Provider>

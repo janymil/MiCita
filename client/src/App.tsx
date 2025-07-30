@@ -1,44 +1,52 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ThemeProvider } from "@/contexts/theme-context";
 import NotFound from "@/pages/not-found";
+import { StackHandler, StackProvider, StackTheme } from "@stackframe/react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Route, Switch, useLocation } from "wouter";
+import { stackClientApp } from "../../stack/client";
+import { queryClient } from "./lib/queryClient";
 
 // Public pages
-import Home from "@/pages/home";
-import PublicSearchPage from "@/pages/public-search";
 import BusinessLandingPage from "@/pages/business-landing";
-import Search from "@/pages/search";
 import BusinessMicrosite from "@/pages/business-microsite";
+import Home from "@/pages/home";
+import Search from "@/pages/search";
 
 // Auth pages
 import Login from "@/pages/auth/login";
 import Register from "@/pages/auth/register";
 
 // Dashboard pages
-import Dashboard from "@/pages/dashboard/index";
+import Analytics from "@/pages/dashboard/analytics";
 import Appointments from "@/pages/dashboard/appointments";
 import Calendar from "@/pages/dashboard/calendar";
 import Clients from "@/pages/dashboard/clients";
-import Services from "@/pages/dashboard/services";
-import Reviews from "@/pages/dashboard/reviews";
-import Analytics from "@/pages/dashboard/analytics";
 import Finanzas from "@/pages/dashboard/finanzas";
-import Settings from "@/pages/dashboard/settings";
+import Dashboard from "@/pages/dashboard/index";
 import MicrositioBuilder from "@/pages/dashboard/micrositio";
+import Reviews from "@/pages/dashboard/reviews";
+import Services from "@/pages/dashboard/services";
+import Settings from "@/pages/dashboard/settings";
 import Networking from "@/pages/networking";
 
 // Admin pages
-import AdminLogin from "@/pages/admin/login";
-import AdminDashboard from "@/pages/admin/dashboard";
-import AdminBusinesses from "@/pages/admin/businesses";
-import AdminOpenStreetBusinesses from "@/pages/admin/openstreet-businesses";
 import AdminScrapingPage from "@/pages/admin-scraping";
+import AdminBusinesses from "@/pages/admin/businesses";
+import AdminDashboard from "@/pages/admin/dashboard";
+import AdminLogin from "@/pages/admin/login";
+import AdminOpenStreetBusinesses from "@/pages/admin/openstreet-businesses";
 
 function Router() {
+  const [location] = useLocation();
+
+  // Handle Stack auth routes
+  if (location.startsWith('/handler/')) {
+    return <StackHandler app={stackClientApp} location={location} fullPage />;
+  }
+
   return (
     <Switch>
       {/* Public routes */}
@@ -82,16 +90,20 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <StackProvider app={stackClientApp}>
+      <StackTheme>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <ThemeProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Router />
+              </TooltipProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </QueryClientProvider>
+      </StackTheme>
+    </StackProvider>
   );
 }
 

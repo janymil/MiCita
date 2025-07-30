@@ -16,6 +16,10 @@ export default defineConfig({
         ]
       : []),
   ],
+  define: {
+    global: 'globalThis',
+    'process.env': {},
+  },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

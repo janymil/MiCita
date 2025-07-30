@@ -1,9 +1,11 @@
-import { apiRequest } from "./queryClient";
+import { stackClientApp } from "../../../stack/client";
+
+export { stackClientApp };
 
 export interface User {
-  id: number;
+  id: string;
   email: string;
-  name: string;
+  displayName: string | null;
 }
 
 export interface LoginCredentials {
@@ -14,24 +16,63 @@ export interface LoginCredentials {
 export interface RegisterData {
   email: string;
   password: string;
-  name: string;
+  displayName: string;
 }
 
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<User> => {
-    const response = await apiRequest("POST", "/api/auth/login", credentials);
-    const data = await response.json();
-    return data.user;
+    const result = await stackClientApp.signInWithCredential({
+      email: credentials.email,
+      password: credentials.password,
+    });
+    
+    if (!result.user) {
+      throw new Error('Login failed');
+    }
+    
+    return {
+      id: result.user.id,
+      email: result.user.primaryEmail || '',
+      displayName: result.user.displayName,
+    };
   },
 
   register: async (userData: RegisterData): Promise<User> => {
-    const response = await apiRequest("POST", "/api/auth/register", userData);
-    const data = await response.json();
-    return data.user;
+    const result = await stackClientApp.signUpWithCredential({
+      email: userData.email,
+      password: userData.password,
+    });
+    
+    if (!result.user) {
+      throw new Error('Registration failed');
+    }
+
+    // Update display name if provided
+    if (userData.displayName) {
+      await result.user.update({
+        displayName: userData.displayName,
+      });
+    }
+    
+    return {
+      id: result.user.id,
+      email: result.user.primaryEmail || '',
+      displayName: result.user.displayName || userData.displayName,
+    };
   },
 
   logout: async (): Promise<void> => {
-    // Clear local storage in the context
-    localStorage.removeItem("auth-user");
+    await stackClientApp.signOut();
+  },
+
+  getCurrentUser: (): User | null => {
+    const user = stackClientApp.getUser();
+    if (!user) return null;
+    
+    return {
+      id: user.id,
+      email: user.primaryEmail || '',
+      displayName: user.displayName,
+    };
   }
 };
