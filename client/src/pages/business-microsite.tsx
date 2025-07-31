@@ -205,13 +205,15 @@ export default function BusinessMicrosite() {
           )}
 
           {/* Booking Widget */}
-          {settings?.enableBooking && services && services.length > 0 && (
+          {settings?.enablePublicBooking && services && services.length > 0 && (
             <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
               <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">RESERVAR</h2>
               <BookingWidget 
                 services={services}
                 businessId={business.id}
                 workingHours={business.hours}
+                blockedDates={settings?.blockedDates}
+                blockedHours={settings?.blockedHours}
               />
             </div>
           )}
@@ -401,13 +403,15 @@ export default function BusinessMicrosite() {
           )}
 
           {/* Booking Widget */}
-          {settings?.enableBooking && services && services.length > 0 && (
+          {settings?.enablePublicBooking && services && services.length > 0 && (
             <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
               <h2 className="text-2xl font-mono font-bold text-cyan-400 uppercase tracking-widest mb-6">// BOOKING.SYS</h2>
               <BookingWidget 
                 services={services}
                 businessId={business.id}
                 workingHours={business.hours}
+                blockedDates={settings?.blockedDates}
+                blockedHours={settings?.blockedHours}
               />
             </div>
           )}
@@ -611,7 +615,7 @@ export default function BusinessMicrosite() {
           )}
 
           {/* Booking Widget */}
-          {settings?.enableBooking && services && services.length > 0 && (
+          {settings?.enablePublicBooking && services && services.length > 0 && (
             <div className={`${themeConfig.card} ${themeConfig.effects} md:col-span-3`}>
               <div className="p-8">
                 <h2 className="text-xl font-semibold text-stone-800 mb-6">Reservar Cita</h2>
@@ -619,6 +623,8 @@ export default function BusinessMicrosite() {
                   services={services}
                   businessId={business.id}
                   workingHours={business.hours}
+                  blockedDates={settings?.blockedDates}
+                  blockedHours={settings?.blockedHours}
                 />
               </div>
             </div>
@@ -753,6 +759,17 @@ export default function BusinessMicrosite() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Booking Widget */}
+            {settings?.enablePublicBooking && services && services.length > 0 && (
+              <BookingWidget 
+                services={services}
+                businessId={business.id}
+                workingHours={business.hours}
+                blockedDates={settings?.blockedDates}
+                blockedHours={settings?.blockedHours}
+              />
             )}
           </div>
 
