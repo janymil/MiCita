@@ -401,8 +401,11 @@ export class ApifyScrapingService {
       reviewCount: parseInt(rawData.reviewsCount) || parseInt(rawData.reviewCount) || parseInt(rawData.userRatingCount) || 0,
       reviews: this.parseReviews(rawData.reviews || []), // Enhanced review parsing
       images: this.extractImages([
-        ...(rawData.imageUrls || []),
-        ...(rawData.images || []),
+        ...(Array.isArray(rawData.imageUrls) ? rawData.imageUrls : []),
+        ...(Array.isArray(rawData.images) ? rawData.images : []),
+        ...(Array.isArray(rawData.photos) ? rawData.photos : []),
+        rawData.photoUrl,
+        rawData.imageUrl,
         ...(rawData.photos || []),
         rawData.photoUrl,
         rawData.imageUrl,

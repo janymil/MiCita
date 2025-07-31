@@ -32,7 +32,13 @@ const ApplyScrapedDataSchema = z.object({
 router.post('/businesses/:businessId/apply-scraped-data', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const businessId = parseInt(req.params.businessId);
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
     
     console.log('🔄 Applying scraped data to business:', businessId);
     
@@ -42,7 +48,7 @@ router.post('/businesses/:businessId/apply-scraped-data', requireAuth, async (re
     
     // Verify business ownership
     const business = await storage.getBusiness(businessId);
-    if (!business || business.userId !== userId) {
+    if (!business || business.userId !== Number(userId)) {
       return res.status(404).json({
         success: false,
         message: 'Business not found or access denied'

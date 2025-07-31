@@ -22,8 +22,12 @@ import {
   Clock,
   Brain,
   Rocket,
-  ExternalLink
+  ExternalLink,
+  Wand2,
+  Layout
 } from "lucide-react";
+import ScrapingModal from './scraping-modal';
+import VisualMicrositioBuilder from './visual-micrositio-builder';
 
 interface AutoSetupTabProps {
   businessId: string | number;
@@ -55,6 +59,8 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
     progress: 0,
     currentStep: ''
   });
+  const [showModal, setShowModal] = useState(false);
+  const [showVisualBuilder, setShowVisualBuilder] = useState(false);
 
   // Enhanced Google Maps URL validation - handles both simple and browser formats
   const validateGoogleMapsUrl = (url: string): boolean => {
@@ -80,6 +86,7 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || ''}`,
           'x-stack-access-token': localStorage.getItem('stack-access-token') || ''
         },
         body: JSON.stringify(data)
@@ -370,6 +377,29 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
             Completa automáticamente tu micrositio extrayendo información de tus redes sociales y Google
           </p>
         </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button 
+              onClick={() => setShowModal(true)}
+              className="flex-1 h-12 text-base bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              size="lg"
+            >
+              <Wand2 className="w-5 h-5 mr-2" />
+              Nueva Extracción Inteligente
+            </Button>
+            <Button 
+              onClick={() => setShowVisualBuilder(true)}
+              className="flex-1 h-12 text-base bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700"
+              size="lg"
+            >
+              <Layout className="w-5 h-5 mr-2" />
+              Constructor Visual IA
+            </Button>
+          </div>
+          <div className="mt-3 text-sm text-purple-700 flex items-center justify-center px-4 py-2 bg-white rounded border">
+            ✨ Extracción incremental + Constructor visual con inteligencia artificial
+          </div>
+        </CardContent>
       </Card>
 
       {/* Source Input */}
@@ -683,6 +713,28 @@ function ScrapingResults({ data, onStartOver }: { data: any; onStartOver: () => 
           Ver micrositio
         </Button>
       </div>
+      
+      {/* Scraping Modal Integration */}
+      <ScrapingModal 
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        businessId={Number(businessId)}
+        onSuccess={() => {
+          toast({
+            title: "¡Datos aplicados!",
+            description: "Tu negocio ha sido actualizado con los datos extraídos",
+          });
+          onDataFetched({ success: true });
+        }}
+      />
+
+      {/* Visual Micrositio Builder */}
+      {showVisualBuilder && (
+        <VisualMicrositioBuilder 
+          businessId={Number(businessId)}
+          onClose={() => setShowVisualBuilder(false)}
+        />
+      )}
     </div>
   );
 }
