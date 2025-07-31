@@ -180,12 +180,14 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
         
         const statusData = result.data;
         
-        // Update status immediately
-        setScrapingStatus({
-          status: statusData.status === 'completed' ? 'running' : 'running', // Keep showing progress
-          progress: statusData.progress || 0,
-          currentStep: statusData.currentStep || 'Procesando...'
-        });
+        // Update status based on actual job status
+        if (statusData.status !== 'completed') {
+          setScrapingStatus({
+            status: 'running',
+            progress: statusData.progress || 0,
+            currentStep: statusData.currentStep || 'Procesando...'
+          });
+        }
         
         if (statusData.status === 'completed') {
           console.log('✅ Job completed, fetching results...');
@@ -200,21 +202,23 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
           const resultsData = await resultsResponse.json();
           console.log('📊 Results fetched:', resultsData);
           
-          if (resultsData.success && resultsData.data) {
+          if (resultsData.success && resultsData.data && resultsData.data.processedData) {
+            console.log('✅ Setting preview data:', resultsData.data.processedData);
             setScrapingStatus({
               status: 'preview',
               progress: 100,
               currentStep: 'Datos listos para revisar',
-              data: resultsData.data
+              data: resultsData.data.processedData
             });
             
             toast({
               title: "¡Datos Extraídos!",
-              description: `Se encontraron datos para tu negocio. Revisa y aplica los que necesites.`,
+              description: `Se encontraron datos con ${resultsData.data.qualityScore}% completitud. Revisa y aplica.`,
               variant: "default"
             });
           } else {
-            throw new Error('No data found in results');
+            console.error('❌ Results structure invalid:', resultsData);
+            throw new Error('No valid data structure in results');
           }
           
         } else if (statusData.status === 'failed') {
