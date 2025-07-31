@@ -279,6 +279,8 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
       return;
     }
 
+    // Open modal and start scraping process
+    setShowModal(true);
     startScrapingMutation.mutate(sources);
   };
 
@@ -506,13 +508,21 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
       {/* Action Buttons */}
       <div className="flex justify-center">
         <Button 
-          onClick={() => setShowModal(true)}
-          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 text-lg"
+          onClick={handleStartScraping}
+          disabled={startScrapingMutation.isPending || (!!sources.googleMapsUrl && !validateGoogleMapsUrl(sources.googleMapsUrl))}
+          className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 text-lg disabled:opacity-50"
         >
-          <>
-            <Sparkles className="w-5 h-5 mr-2" />
-            🚀 Iniciar Auto-Configuración
-          </>
+          {startScrapingMutation.isPending ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Iniciando...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5 mr-2" />
+              🚀 Iniciar Auto-Configuración
+            </>
+          )}
         </Button>
       </div>
 
@@ -524,19 +534,42 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
         </p>
       </div>
 
-      {/* Scraping Modal - Simple Popup for Data Collection */}
-      <ScrapingModal 
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        businessId={Number(businessId)}
-        onSuccess={() => {
-          toast({
-            title: "¡Datos aplicados exitosamente!",
-            description: "Información extraída y aplicada a tu negocio",
-          });
-          onDataFetched({ success: true });
-        }}
-      />
+      {/* Scraping Modal - Shows Progress and Results */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            {scrapingStatus.status === 'running' && (
+              <ScrapingProgress status={scrapingStatus} sources={sources} />
+            )}
+            {scrapingStatus.status === 'preview' && (
+              <ScrapedDataPreview 
+                data={scrapingStatus.data || {}}
+                onApprove={() => applyDataMutation.mutate(scrapingStatus.data)}
+                onReject={() => setShowModal(false)}
+                isApplying={applyDataMutation.isPending}
+              />
+            )}
+            {scrapingStatus.status === 'completed' && (
+              <ScrapingResults 
+                data={scrapingStatus.data || {}} 
+                onStartOver={() => {
+                  setShowModal(false);
+                  handleStartOver();
+                }} 
+              />
+            )}
+            <div className="mt-4 flex justify-end">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowModal(false)}
+                disabled={scrapingStatus.status === 'running'}
+              >
+                {scrapingStatus.status === 'running' ? 'Procesando...' : 'Cerrar'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Visual Micrositio Builder */}
       {showVisualBuilder && (
