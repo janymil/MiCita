@@ -247,7 +247,11 @@ export class ApifyScrapingService {
         maxReviews: 10,
         includeContacts: true,
         includeImages: true,
-        maxImages: 20
+        maxImages: 50,
+        scrapePhotos: true,
+        scrapeVideos: false,
+        includePhotos: true,
+        photosCount: 30
       }, {
         timeout: 300000 // 5 minutes timeout
       });
@@ -256,6 +260,10 @@ export class ApifyScrapingService {
       const rawData = dataset.items[0];
       
       console.log('📘 Facebook raw data received:', rawData ? Object.keys(rawData) : 'No data');
+      console.log('📸 Facebook photos field inspection:');
+      console.log('📸 rawData.photos:', typeof rawData?.photos, Array.isArray(rawData?.photos) ? rawData.photos.length : 'not array');
+      console.log('📸 rawData.images:', typeof rawData?.images, Array.isArray(rawData?.images) ? rawData.images.length : 'not array');
+      console.log('📸 Full raw data sample:', JSON.stringify(rawData, null, 2).substring(0, 1000));
       
       if (!rawData) {
         throw new Error('No data found for Facebook page');
@@ -276,11 +284,14 @@ export class ApifyScrapingService {
       const run = await this.client.actor("shu8hvrXbJbY3Eb9W").call({
         directUrls: [instagramUrl],
         resultsType: "posts",
-        resultsLimit: 20,
+        resultsLimit: 30,
         searchLimit: 1,
         addParentData: true,
         enhanceUserSearchWithFacebookPage: false,
-        language: "es"
+        language: "es",
+        scrapePostsImages: true,
+        scrapeHighlights: true,
+        scrapeReels: true
       }, {
         timeout: 300000 // 5 minutes timeout
       });
@@ -289,6 +300,10 @@ export class ApifyScrapingService {
       const rawData = dataset.items[0];
       
       console.log('📸 Instagram raw data received:', rawData ? Object.keys(rawData) : 'No data');
+      console.log('📸 Instagram posts field inspection:');
+      console.log('📸 rawData.posts:', typeof rawData?.posts, Array.isArray(rawData?.posts) ? rawData.posts.length : 'not array');
+      console.log('📸 rawData.latestPosts:', typeof rawData?.latestPosts, Array.isArray(rawData?.latestPosts) ? rawData.latestPosts.length : 'not array');
+      console.log('📸 Full raw data sample:', JSON.stringify(rawData, null, 2).substring(0, 1000));
       
       if (!rawData) {
         throw new Error('No data found for Instagram profile');
@@ -1142,12 +1157,30 @@ export class ApifyScrapingService {
   }
 
   private extractInstagramImages(posts: any[]): string[] {
-    if (!Array.isArray(posts)) return [];
+    console.log('📸 EXTRACTING INSTAGRAM IMAGES - Input type:', typeof posts, 'Length:', Array.isArray(posts) ? posts.length : 'Not array');
+    console.log('📸 Posts data sample:', JSON.stringify(posts?.slice(0, 2), null, 2));
     
-    return posts
-      .map(post => post.displayUrl || post.imageUrl || post.url || '')
-      .filter(url => url && url.startsWith('http'))
+    if (!Array.isArray(posts)) {
+      console.log('📸 No posts array found, returning empty');
+      return [];
+    }
+    
+    const extractedImages = posts
+      .map((post, index) => {
+        console.log(`📸 Processing post ${index}:`, typeof post, Object.keys(post || {}));
+        const imageUrl = post?.displayUrl || post?.imageUrl || post?.url || post?.src || post?.media?.displayUrl || post?.thumbnail || post;
+        console.log(`📸 Extracted URL ${index}:`, imageUrl);
+        return imageUrl;
+      })
+      .filter(url => {
+        const isValid = url && typeof url === 'string' && url.startsWith('http');
+        console.log('📸 URL validation:', url?.substring(0, 50), '-> Valid:', isValid);
+        return isValid;
+      })
       .slice(0, 20);
+    
+    console.log('📸 INSTAGRAM IMAGES FINAL COUNT:', extractedImages.length);
+    return extractedImages;
   }
 
   private extractHashtags(posts: any[]): string[] {
@@ -1216,7 +1249,7 @@ export class ApifyScrapingService {
       hours: this.parseFacebookHours(rawData.hours || rawData.openingHours || {}),
       profileImage: rawData.profilePictureUrl || rawData.profilePhoto || '',
       coverImage: rawData.coverPhotoUrl || rawData.coverPhoto || '',
-      galleryImages: this.extractFacebookImages(rawData.photos || rawData.images || []),
+      galleryImages: this.extractFacebookImages(rawData.photos || rawData.images || rawData.galleryImages || rawData.pagePhotos || []),
       rating: parseFloat(rawData.ratingOverall) || parseFloat(rawData.rating) || 0,
       reviewCount: parseInt(rawData.ratingCount) || parseInt(rawData.reviewCount) || 0,
       services: this.extractFacebookServices(rawData.services || []),
@@ -1228,6 +1261,8 @@ export class ApifyScrapingService {
     console.log('📝 Description:', transformed.description?.substring(0, 100) + '...');
     console.log('📸 Profile Image:', transformed.profileImage ? 'Found' : 'Missing');
     console.log('📸 Cover Image:', transformed.coverImage ? 'Found' : 'Missing');
+    console.log('📸 Gallery Images count:', transformed.galleryImages.length);
+    console.log('📸 Gallery Images URLs:', transformed.galleryImages.slice(0, 3));
     
     return transformed;
   }
@@ -1252,7 +1287,7 @@ export class ApifyScrapingService {
       profileImage: rawData.profilePicUrl || rawData.avatar || '',
       postsCount: parseInt(rawData.postsCount) || 0,
       followersCount: parseInt(rawData.followersCount) || 0,
-      galleryImages: this.extractInstagramImages(rawData.posts || rawData.latestPosts || []),
+      galleryImages: this.extractInstagramImages(rawData.posts || rawData.latestPosts || rawData.media || []),
       hashtags: this.extractHashtags(rawData.posts || rawData.latestPosts || []),
       location: rawData.location || ''
     };
@@ -1261,7 +1296,8 @@ export class ApifyScrapingService {
     console.log('📝 Username:', transformed.username);
     console.log('📝 Full Name:', transformed.fullName);
     console.log('📝 Bio:', transformed.biography?.substring(0, 100) + '...');
-    console.log('📸 Gallery Images:', transformed.galleryImages.length);
+    console.log('📸 Gallery Images count:', transformed.galleryImages.length);
+    console.log('📸 Gallery Images URLs:', transformed.galleryImages.slice(0, 3));
     
     return transformed;
   }
@@ -1337,12 +1373,30 @@ export class ApifyScrapingService {
   }
 
   private extractFacebookImages(photos: any[]): string[] {
-    if (!Array.isArray(photos)) return [];
+    console.log('📸 EXTRACTING FACEBOOK IMAGES - Input type:', typeof photos, 'Length:', Array.isArray(photos) ? photos.length : 'Not array');
+    console.log('📸 Photos data sample:', JSON.stringify(photos?.slice(0, 3), null, 2));
     
-    return photos
-      .map(photo => photo.url || photo.source || photo.link || '')
-      .filter(url => url && url.startsWith('http'))
+    if (!Array.isArray(photos)) {
+      console.log('📸 No photos array found, returning empty');
+      return [];
+    }
+    
+    const extractedImages = photos
+      .map((photo, index) => {
+        console.log(`📸 Processing photo ${index}:`, typeof photo, Object.keys(photo || {}));
+        const imageUrl = photo?.url || photo?.source || photo?.src || photo?.link || photo?.imageUrl || photo?.fullResolutionSrc || photo;
+        console.log(`📸 Extracted URL ${index}:`, imageUrl);
+        return imageUrl;
+      })
+      .filter(url => {
+        const isValid = url && typeof url === 'string' && url.startsWith('http');
+        console.log('📸 URL validation:', url?.substring(0, 50), '-> Valid:', isValid);
+        return isValid;
+      })
       .slice(0, 20);
+    
+    console.log('📸 FACEBOOK IMAGES FINAL COUNT:', extractedImages.length);
+    return extractedImages;
   }
 
   private extractFacebookServices(services: any[]): string[] {
