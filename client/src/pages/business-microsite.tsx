@@ -1,7 +1,6 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare, Palette } from "lucide-react";
+import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,13 +12,9 @@ import { MicrositeSkeletonLoader } from "@/components/ui/skeleton";
 import BookingWidget from "@/components/booking-widget";
 import { categories } from "@/lib/constants";
 import { formatDatePeruvian } from "@/lib/utils";
-import { useMicrositeTheme } from "@/contexts/MicrositeThemeContext";
-import MicrositeThemeSelector from "@/components/microsite-theme-selector";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
-  const { theme } = useMicrositeTheme();
-  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
 
   console.log("BusinessMicrosite: slug =", slug);
 
@@ -94,15 +89,6 @@ export default function BusinessMicrosite() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => setIsThemeSelectorOpen(true)}
-                className="border-purple-200 hover:bg-purple-50 hover:border-purple-300 transition-all duration-300"
-              >
-                <Palette className="w-4 h-4 mr-2 text-purple-600" />
-                Temas
-              </Button>
               {settings?.publicPhone && (
                 <Button size="sm" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                   <Phone className="w-4 h-4 mr-2" />
