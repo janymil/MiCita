@@ -28,6 +28,8 @@ import {
 } from "lucide-react";
 import ScrapingModal from './scraping-modal';
 import VisualMicrositioBuilder from './visual-micrositio-builder';
+import BusinessSetupWizard from './business-setup-wizard';
+import ModernBusinessDashboard from './modern-business-dashboard';
 
 interface AutoSetupTabProps {
   businessId: string | number;
@@ -61,6 +63,7 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
   });
   const [showModal, setShowModal] = useState(false);
   const [showVisualBuilder, setShowVisualBuilder] = useState(false);
+  const [showSetupWizard, setShowSetupWizard] = useState(false);
 
   // Enhanced Google Maps URL validation - handles both simple and browser formats
   const validateGoogleMapsUrl = (url: string): boolean => {
@@ -364,6 +367,16 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
     return <ScrapingResults data={scrapingStatus.data || {}} onStartOver={handleStartOver} />;
   }
 
+  // Show modern dashboard if we're not in any active state
+  if (scrapingStatus.status === 'idle') {
+    return (
+      <ModernBusinessDashboard 
+        businessId={Number(businessId)}
+        onLaunchSetup={() => setShowSetupWizard(true)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -378,26 +391,40 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
           </p>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="space-y-4">
             <Button 
-              onClick={() => setShowModal(true)}
-              className="flex-1 h-12 text-base bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+              onClick={() => setShowSetupWizard(true)}
+              className="w-full h-14 text-lg bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
               size="lg"
             >
-              <Wand2 className="w-5 h-5 mr-2" />
-              Nueva Extracción Inteligente
+              <Wand2 className="w-6 h-6 mr-3" />
+              Asistente de Configuración Completa
             </Button>
-            <Button 
-              onClick={() => setShowVisualBuilder(true)}
-              className="flex-1 h-12 text-base bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700"
-              size="lg"
-            >
-              <Layout className="w-5 h-5 mr-2" />
-              Constructor Visual IA
-            </Button>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Button 
+                onClick={() => setShowModal(true)}
+                variant="outline"
+                className="h-12 text-base border-purple-300 hover:bg-purple-50"
+                size="lg"
+              >
+                <Wand2 className="w-5 h-5 mr-2" />
+                Extracción Individual
+              </Button>
+              <Button 
+                onClick={() => setShowVisualBuilder(true)}
+                variant="outline"
+                className="h-12 text-base border-green-300 hover:bg-green-50"
+                size="lg"
+              >
+                <Layout className="w-5 h-5 mr-2" />
+                Constructor Visual
+              </Button>
+            </div>
           </div>
-          <div className="mt-3 text-sm text-purple-700 flex items-center justify-center px-4 py-2 bg-white rounded border">
-            ✨ Extracción incremental + Constructor visual con inteligencia artificial
+          
+          <div className="mt-4 text-sm text-purple-700 flex items-center justify-center px-4 py-2 bg-white rounded border">
+            ✨ Proceso completo automatizado con inteligencia artificial
           </div>
         </CardContent>
       </Card>
@@ -733,6 +760,22 @@ function ScrapingResults({ data, onStartOver }: { data: any; onStartOver: () => 
         <VisualMicrositioBuilder 
           businessId={Number(businessId)}
           onClose={() => setShowVisualBuilder(false)}
+        />
+      )}
+
+      {/* Business Setup Wizard */}
+      {showSetupWizard && (
+        <BusinessSetupWizard 
+          isOpen={showSetupWizard}
+          onClose={() => setShowSetupWizard(false)}
+          businessId={Number(businessId)}
+          onSuccess={() => {
+            toast({
+              title: "¡Configuración completada!",
+              description: "Tu negocio ha sido configurado automáticamente",
+            });
+            onDataFetched({ success: true });
+          }}
         />
       )}
     </div>
