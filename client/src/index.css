@@ -24,109 +24,309 @@
   .theme-material .theme-card,
   .theme-material .card {
     box-shadow: 
-      0 1px 3px hsl(var(--theme-shadow) / 0.12),
-      0 1px 2px hsl(var(--theme-shadow) / 0.24);
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+      0 2px 4px hsl(var(--theme-shadow) / 0.12),
+      0 4px 8px hsl(var(--theme-shadow) / 0.08),
+      0 8px 16px hsl(var(--theme-shadow) / 0.04);
+    transition: all 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .theme-material .theme-card::before,
+  .theme-material .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: hsl(var(--theme-primary));
+    transform: scaleX(0);
+    transition: transform 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
   }
   
   .theme-material .theme-card:hover,
   .theme-material .card:hover {
     box-shadow: 
-      0 14px 28px hsl(var(--theme-shadow) / 0.25),
-      0 10px 10px hsl(var(--theme-shadow) / 0.22);
-    transform: translateY(-2px);
+      0 4px 8px hsl(var(--theme-shadow) / 0.16),
+      0 8px 16px hsl(var(--theme-shadow) / 0.12),
+      0 16px 32px hsl(var(--theme-shadow) / 0.08);
+    transform: translateY(-4px);
+  }
+  
+  .theme-material .theme-card:hover::before,
+  .theme-material .card:hover::before {
+    transform: scaleX(1);
   }
   
   .theme-material .theme-btn,
   .theme-material button {
-    box-shadow: 0 2px 4px hsl(var(--theme-shadow) / 0.2);
-    transition: all 0.2s ease;
+    box-shadow: 
+      0 2px 4px hsl(var(--theme-shadow) / 0.2),
+      0 1px 2px hsl(var(--theme-shadow) / 0.15);
+    transition: all 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
     border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .theme-material .theme-btn::before,
+  .theme-material button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: hsl(0 0% 100% / 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
   }
   
   .theme-material .theme-btn:hover,
   .theme-material button:hover {
-    box-shadow: 0 4px 8px hsl(var(--theme-shadow) / 0.3);
-    transform: translateY(-1px);
+    box-shadow: 
+      0 4px 8px hsl(var(--theme-shadow) / 0.25),
+      0 2px 4px hsl(var(--theme-shadow) / 0.2);
+    transform: translateY(-2px);
+  }
+  
+  .theme-material .theme-btn:active::before,
+  .theme-material button:active::before {
+    width: 300px;
+    height: 300px;
   }
   
   .theme-material .theme-fab {
     box-shadow: 
-      0 3px 5px -1px hsl(var(--theme-shadow) / 0.2),
-      0 6px 10px 0 hsl(var(--theme-shadow) / 0.14),
-      0 1px 18px 0 hsl(var(--theme-shadow) / 0.12);
+      0 6px 10px hsl(var(--theme-shadow) / 0.2),
+      0 2px 4px hsl(var(--theme-shadow) / 0.15);
     border-radius: 50%;
+    transition: all 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+  
+  .theme-material .theme-fab:hover {
+    box-shadow: 
+      0 8px 14px hsl(var(--theme-shadow) / 0.25),
+      0 4px 8px hsl(var(--theme-shadow) / 0.2);
+    transform: translateY(-3px) scale(1.05);
+  }
+  
+  .theme-material input,
+  .theme-material textarea,
+  .theme-material select {
+    border: none;
+    border-bottom: 2px solid hsl(var(--theme-border));
+    border-radius: 4px 4px 0 0;
+    background: hsl(var(--theme-surface));
+    transition: all 0.28s cubic-bezier(0.4, 0.0, 0.2, 1);
+    position: relative;
+  }
+  
+  .theme-material input:focus,
+  .theme-material textarea:focus,
+  .theme-material select:focus {
+    border-bottom-color: hsl(var(--theme-primary));
+    outline: none;
+    box-shadow: 0 2px 8px hsl(var(--theme-primary) / 0.2);
   }
   
   /* Glassmorphism Theme Styles - Only applied when .theme-glassmorphism class is on html */
+  .theme-glassmorphism {
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-background) / 0.9), 
+      hsl(var(--theme-surface) / 0.7)
+    );
+  }
+  
   .theme-glassmorphism .theme-surface {
-    background: hsl(var(--theme-surface));
-    backdrop-filter: blur(var(--theme-blur, 12px));
-    border: 1px solid hsl(var(--theme-border));
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-surface) / 0.7), 
+      hsl(var(--theme-elevated) / 0.5)
+    );
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid hsl(var(--theme-border) / 0.3);
     box-shadow: 
       0 8px 32px hsl(var(--theme-shadow) / 0.1),
-      inset 0 1px 0 hsl(var(--theme-frost));
+      inset 0 1px 0 hsl(0 0% 100% / 0.1),
+      inset 0 -1px 0 hsl(0 0% 0% / 0.05);
+    border-radius: 20px;
   }
   
   .theme-glassmorphism .theme-card,
   .theme-glassmorphism .card {
-    background: hsl(var(--theme-elevated));
-    backdrop-filter: blur(var(--theme-blur, 12px));
-    border: 1px solid hsl(var(--theme-border));
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-elevated) / 0.8), 
+      hsl(var(--theme-surface) / 0.6)
+    );
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid hsl(var(--theme-border) / 0.2);
     box-shadow: 
-      0 8px 32px hsl(var(--theme-shadow) / 0.15),
-      inset 0 1px 0 hsl(var(--theme-frost));
-    transition: all 0.3s ease;
-    border-radius: 16px;
+      0 8px 32px hsl(var(--theme-shadow) / 0.1),
+      inset 0 1px 0 hsl(0 0% 100% / 0.15),
+      0 0 0 1px hsl(var(--theme-glow) / 0.05);
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    border-radius: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .theme-glassmorphism .theme-card::before,
+  .theme-glassmorphism .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+      transparent, 
+      hsl(0 0% 100% / 0.1), 
+      transparent
+    );
+    transition: left 0.6s ease;
   }
   
   .theme-glassmorphism .theme-card:hover,
   .theme-glassmorphism .card:hover {
-    background: hsl(var(--theme-elevated) / 0.9);
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-elevated) / 0.9), 
+      hsl(var(--theme-surface) / 0.7)
+    );
+    backdrop-filter: blur(20px) saturate(200%);
     box-shadow: 
-      0 12px 40px hsl(var(--theme-shadow) / 0.2),
-      inset 0 1px 0 hsl(var(--theme-frost)),
-      0 0 20px hsl(var(--theme-glow) / 0.1);
-    transform: translateY(-2px);
+      0 16px 48px hsl(var(--theme-shadow) / 0.15),
+      inset 0 1px 0 hsl(0 0% 100% / 0.2),
+      0 0 0 1px hsl(var(--theme-glow) / 0.1),
+      0 0 40px hsl(var(--theme-glow) / 0.1);
+    transform: translateY(-4px) scale(1.02);
+    border-color: hsl(var(--theme-border) / 0.4);
+  }
+  
+  .theme-glassmorphism .theme-card:hover::before,
+  .theme-glassmorphism .card:hover::before {
+    left: 100%;
   }
   
   .theme-glassmorphism .theme-btn,
   .theme-glassmorphism button {
-    background: hsl(var(--theme-primary) / 0.8);
-    backdrop-filter: blur(8px);
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-primary) / 0.8), 
+      hsl(var(--theme-secondary) / 0.6)
+    );
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
     border: 1px solid hsl(var(--theme-primary) / 0.3);
     box-shadow: 
       0 4px 16px hsl(var(--theme-primary) / 0.2),
-      inset 0 1px 0 hsl(0 0% 100% / 0.2);
-    border-radius: 12px;
-    transition: all 0.3s ease;
+      inset 0 1px 0 hsl(0 0% 100% / 0.2),
+      0 0 0 1px hsl(var(--theme-primary) / 0.1);
+    border-radius: 16px;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+    color: white;
+    font-weight: 500;
+  }
+  
+  .theme-glassmorphism .theme-btn::before,
+  .theme-glassmorphism button::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, 
+      hsl(var(--theme-primary)), 
+      hsl(var(--theme-secondary)), 
+      hsl(var(--theme-accent))
+    );
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.4s ease;
   }
   
   .theme-glassmorphism .theme-btn:hover,
   .theme-glassmorphism button:hover {
-    background: hsl(var(--theme-primary) / 0.9);
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-primary) / 0.9), 
+      hsl(var(--theme-secondary) / 0.7)
+    );
+    backdrop-filter: blur(16px) saturate(200%);
     box-shadow: 
-      0 6px 20px hsl(var(--theme-primary) / 0.3),
-      inset 0 1px 0 hsl(0 0% 100% / 0.3);
-    transform: translateY(-1px);
+      0 8px 24px hsl(var(--theme-primary) / 0.3),
+      inset 0 1px 0 hsl(0 0% 100% / 0.3),
+      0 0 0 1px hsl(var(--theme-primary) / 0.2),
+      0 0 20px hsl(var(--theme-glow) / 0.2);
+    transform: translateY(-2px) scale(1.05);
+  }
+  
+  .theme-glassmorphism .theme-btn:hover::before,
+  .theme-glassmorphism button:hover::before {
+    opacity: 1;
+  }
+  
+  .theme-glassmorphism input,
+  .theme-glassmorphism textarea,
+  .theme-glassmorphism select {
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-surface) / 0.6), 
+      hsl(var(--theme-elevated) / 0.4)
+    );
+    backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid hsl(var(--theme-border) / 0.2);
+    border-radius: 12px;
+    transition: all 0.4s ease;
+  }
+  
+  .theme-glassmorphism input:focus,
+  .theme-glassmorphism textarea:focus,
+  .theme-glassmorphism select:focus {
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-surface) / 0.8), 
+      hsl(var(--theme-elevated) / 0.6)
+    );
+    backdrop-filter: blur(16px) saturate(200%);
+    border-color: hsl(var(--theme-primary) / 0.4);
+    box-shadow: 
+      0 0 0 3px hsl(var(--theme-primary) / 0.1),
+      0 8px 24px hsl(var(--theme-primary) / 0.1);
+    outline: none;
   }
   
   /* Bento Theme Styles - Only applied when .theme-bento class is on html */
+  .theme-bento {
+    background: hsl(var(--theme-background));
+  }
+  
   .theme-bento .theme-grid {
     display: grid;
-    gap: var(--theme-grid-gap, 16px);
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--theme-grid-gap, 20px);
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    padding: 20px;
   }
   
   .theme-bento .theme-card,
   .theme-bento .card {
     background: hsl(var(--theme-surface));
-    border-radius: var(--theme-radius-md, 16px);
-    border: 2px solid hsl(var(--theme-border));
-    padding: 24px;
-    transition: all 0.3s ease;
+    border-radius: var(--theme-radius-lg, 24px);
+    border: 3px solid hsl(var(--theme-border));
+    padding: 32px;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     position: relative;
     overflow: hidden;
+    box-shadow: 
+      0 4px 20px hsl(var(--theme-shadow) / 0.08),
+      0 1px 3px hsl(var(--theme-shadow) / 0.1);
   }
   
   .theme-bento .theme-card::before,
@@ -136,45 +336,105 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 6px;
     background: linear-gradient(90deg, 
       hsl(var(--theme-primary)), 
       hsl(var(--theme-secondary)), 
-      hsl(var(--theme-accent))
+      hsl(var(--theme-accent)),
+      hsl(var(--theme-tertiary))
     );
+    border-radius: var(--theme-radius-lg, 24px) var(--theme-radius-lg, 24px) 0 0;
+  }
+  
+  .theme-bento .theme-card::after,
+  .theme-bento .card::after {
+    content: '';
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-primary) / 0.1), 
+      hsl(var(--theme-secondary) / 0.1)
+    );
+    border-radius: 50%;
+    transition: all 0.4s ease;
   }
   
   .theme-bento .theme-card:hover,
   .theme-bento .card:hover {
     background: hsl(var(--theme-elevated));
-    border-color: hsl(var(--theme-primary) / 0.5);
-    transform: translateY(-4px);
+    border-color: hsl(var(--theme-primary));
+    transform: translateY(-8px) rotate(1deg);
     box-shadow: 
-      0 12px 32px hsl(var(--theme-shadow) / 0.15),
-      0 0 0 1px hsl(var(--theme-primary) / 0.1);
+      0 20px 48px hsl(var(--theme-shadow) / 0.2),
+      0 8px 16px hsl(var(--theme-shadow) / 0.15),
+      0 0 0 1px hsl(var(--theme-primary) / 0.2);
+  }
+  
+  .theme-bento .theme-card:hover::after,
+  .theme-bento .card:hover::after {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-primary) / 0.2), 
+      hsl(var(--theme-secondary) / 0.2)
+    );
+  }
+  
+  .theme-bento .theme-card:nth-child(2n),
+  .theme-bento .card:nth-child(2n) {
+    transform: rotate(-0.5deg);
+  }
+  
+  .theme-bento .theme-card:nth-child(2n):hover,
+  .theme-bento .card:nth-child(2n):hover {
+    transform: translateY(-8px) rotate(-1.5deg);
+  }
+  
+  .theme-bento .theme-card:nth-child(3n),
+  .theme-bento .card:nth-child(3n) {
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-surface)), 
+      hsl(var(--theme-elevated))
+    );
   }
   
   .theme-bento .theme-card-small {
-    border-radius: var(--theme-radius-sm, 8px);
-    padding: 16px;
+    border-radius: var(--theme-radius-sm, 12px);
+    padding: 20px;
+    grid-column: span 1;
+    aspect-ratio: 1;
   }
   
   .theme-bento .theme-card-large {
-    border-radius: var(--theme-radius-lg, 24px);
-    padding: 32px;
+    border-radius: var(--theme-radius-lg, 32px);
+    padding: 48px;
+    grid-column: span 2;
+    aspect-ratio: 2/1;
   }
   
   .theme-bento .theme-btn,
   .theme-bento button {
-    background: hsl(var(--theme-primary));
-    border-radius: var(--theme-radius-sm, 8px);
-    border: none;
-    padding: 12px 24px;
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-primary)), 
+      hsl(var(--theme-secondary))
+    );
+    border-radius: var(--theme-radius-md, 16px);
+    border: 2px solid hsl(var(--theme-primary));
+    padding: 16px 32px;
     color: white;
-    font-weight: 600;
-    transition: all 0.2s ease;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     position: relative;
     overflow: hidden;
+    box-shadow: 
+      0 4px 12px hsl(var(--theme-primary) / 0.3),
+      0 2px 4px hsl(var(--theme-shadow) / 0.1);
   }
   
   .theme-bento .theme-btn::before,
@@ -187,10 +447,25 @@
     height: 100%;
     background: linear-gradient(90deg, 
       transparent, 
-      hsl(var(--theme-secondary) / 0.3), 
+      hsl(0 0% 100% / 0.2), 
       transparent
     );
-    transition: left 0.5s ease;
+    transition: left 0.6s ease;
+  }
+  
+  .theme-bento .theme-btn::after,
+  .theme-bento button::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid white;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transform: translateY(-50%);
+    transition: all 0.4s ease;
   }
   
   .theme-bento .theme-btn:hover::before,
@@ -200,9 +475,43 @@
   
   .theme-bento .theme-btn:hover,
   .theme-bento button:hover {
-    background: hsl(var(--theme-accent));
+    background: linear-gradient(135deg, 
+      hsl(var(--theme-accent)), 
+      hsl(var(--theme-tertiary))
+    );
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 
+      0 8px 24px hsl(var(--theme-accent) / 0.4),
+      0 4px 8px hsl(var(--theme-shadow) / 0.15);
+    border-color: hsl(var(--theme-accent));
+  }
+  
+  .theme-bento .theme-btn:hover::after,
+  .theme-bento button:hover::after {
+    right: 12px;
+  }
+  
+  .theme-bento input,
+  .theme-bento textarea,
+  .theme-bento select {
+    background: hsl(var(--theme-surface));
+    border: 2px solid hsl(var(--theme-border));
+    border-radius: var(--theme-radius-md, 16px);
+    padding: 16px 20px;
+    transition: all 0.4s ease;
+    font-weight: 500;
+  }
+  
+  .theme-bento input:focus,
+  .theme-bento textarea:focus,
+  .theme-bento select:focus {
+    border-color: hsl(var(--theme-primary));
+    background: hsl(var(--theme-elevated));
+    outline: none;
+    box-shadow: 
+      0 0 0 4px hsl(var(--theme-primary) / 0.1),
+      0 8px 24px hsl(var(--theme-primary) / 0.1);
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px hsl(var(--theme-primary) / 0.3);
   }
   
   /* Neo-Brutalism Theme Styles - Only applied when .theme-neobrutalism class is on html */
