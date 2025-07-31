@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/contexts/theme-context";
 import { cn } from "@/lib/utils";
+import DashboardLayout from "@/components/dashboard-layout";
 import {
   Book,
   Calendar,
@@ -194,40 +195,41 @@ export default function Documentation() {
   );
 
   return (
-    <div className="min-h-screen theme-bg">
-      {/* Header */}
-      <div className="theme-card border-b theme-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              <Book className="h-12 w-12 theme-primary mr-4" />
-              <h1 className="text-4xl font-bold theme-text-primary">
-                Documentación y Ayuda
-              </h1>
+    <DashboardLayout>
+      <div className="min-h-screen theme-bg">
+        {/* Header */}
+        <div className="theme-card border-b theme-border">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-4">
+                <Book className="h-12 w-12 theme-primary mr-4" />
+                <h1 className="text-4xl font-bold theme-text-primary">
+                  Documentación y Ayuda
+                </h1>
+              </div>
+              <p className="text-lg theme-text-secondary max-w-2xl mx-auto">
+                Aprende a utilizar todas las funciones de tu plataforma de gestión de citas y 
+                encuentra respuestas a las preguntas más frecuentes.
+              </p>
             </div>
-            <p className="text-lg theme-text-secondary max-w-2xl mx-auto">
-              Aprende a utilizar todas las funciones de tu plataforma de gestión de citas y 
-              encuentra respuestas a las preguntas más frecuentes.
-            </p>
-          </div>
 
-          {/* Search */}
-          <div className="mt-8 max-w-2xl mx-auto">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 theme-text-secondary h-5 w-5" />
-              <Input
-                type="text"
-                placeholder="Buscar en la documentación..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 py-3 text-lg"
-              />
+            {/* Search */}
+            <div className="mt-8 max-w-2xl mx-auto">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 theme-text-secondary h-5 w-5" />
+                <Input
+                  type="text"
+                  placeholder="Buscar en la documentación..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 py-3 text-lg"
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Quick Links */}
         <div className="mb-12">
           <h2 className="text-2xl font-bold theme-text-primary mb-6">Acceso Rápido</h2>
@@ -356,7 +358,8 @@ export default function Documentation() {
             </Button>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

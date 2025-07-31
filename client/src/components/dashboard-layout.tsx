@@ -343,14 +343,18 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {chatMessages.length === 0 ? (
                 <div className="text-center theme-text-secondary text-sm">
-                  <p>¡Hola! Soy tu asistente AI.</p>
-                  <p>Puedes preguntarme sobre:</p>
-                  <ul className="mt-2 text-left">
-                    <li>• ¿Cuántas citas tengo hoy?</li>
-                    <li>• ¿Quién no se presentó?</li>
-                    <li>• Resumen de ingresos</li>
-                    <li>• Estado de clientes</li>
+                  <p className="font-medium mb-2">¡Hola! Soy tu asistente AI de MiCita.</p>
+                  <p className="mb-3">Puedo ayudarte con:</p>
+                  <ul className="mt-2 text-left space-y-1">
+                    <li>• Uso y navegación de la plataforma</li>
+                    <li>• Consultas sobre tus datos de negocio</li>
+                    <li>• Reportes financieros y análisis</li>
+                    <li>• Configuración de funciones</li>
+                    <li>• Resolución de dudas generales</li>
                   </ul>
+                  <p className="mt-3 text-xs opacity-75">
+                    Pregúntame cualquier cosa sobre tu negocio o la aplicación
+                  </p>
                 </div>
               ) : (
                 chatMessages.map((message, index) => (

@@ -143,25 +143,52 @@ Fecha actual: ${new Date().toLocaleDateString('es-ES', {
     }
     
     if (lowerMessage.includes('ayuda') || lowerMessage.includes('como') || lowerMessage.includes('cómo')) {
-      return `¡Estoy aquí para ayudarte! Puedes preguntarme sobre:
-• Citas y calendario
-• Gestión de clientes  
-• Reportes financieros
-• Configuración de servicios
-• Uso del micrositio
-• Navegación de la plataforma
+      return `¡Estoy aquí para ayudarte! Puedo asistirte con:
 
-¿Sobre qué tema específico te gustaría saber más?`;
+📅 **Citas y Calendario:**
+• Gestión de citas y disponibilidad
+• Estados y seguimiento de citas
+
+👥 **Clientes:**
+• Información y historial de clientes  
+• Gestión de contactos y notas
+
+💼 **Servicios y Finanzas:**
+• Configuración de servicios y precios
+• Reportes de ingresos y análisis financiero
+
+🌐 **Micrositio y Marketing:**
+• Personalización de tu página web
+• Optimización de presencia online
+
+⚙️ **Configuración y Uso:**
+• Navegación de la plataforma
+• Configuración de preferencias y opciones
+
+Simplemente pregúntame lo que necesites saber, por ejemplo:
+"¿Cómo creo un nuevo servicio?" o "¿Cuáles fueron mis ingresos esta semana?"`;
     }
 
     // Respuesta por defecto
-    return `Hola ${context.userDisplayName}! Soy tu asistente AI de MiCita. Puedo ayudarte con consultas sobre citas, clientes, ingresos y el uso de la plataforma. 
+    return `Hola ${context.userDisplayName}! Soy tu asistente AI de MiCita. 
 
-Algunas consultas populares:
-• "¿Cuántas citas tengo hoy?"
-• "¿Quién no se presentó esta semana?"
-• "¿Cuáles son mis ingresos del mes?"
-• "¿Cómo configuro un nuevo servicio?"
+Puedo ayudarte con:
+
+🏢 **Gestión del Negocio:**
+• Consultas sobre citas, clientes e ingresos
+• Análisis de rendimiento y estadísticas
+
+📚 **Uso de la Plataforma:**
+• Cómo usar cada función de la aplicación
+• Navegación y configuración de opciones
+
+💰 **Información Financiera:**
+• Reportes de ingresos y análisis de ganancias
+• Tendencias y métricas de tu negocio
+
+❓ **Soporte General:**
+• Resolución de dudas sobre funcionalidades
+• Mejores prácticas y consejos de uso
 
 ¿En qué puedo ayudarte específicamente?`;
   }
