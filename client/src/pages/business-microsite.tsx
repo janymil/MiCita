@@ -81,9 +81,9 @@ export default function BusinessMicrosite() {
                 </div>
               )}
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 hover:text-red-600 transition-colors duration-300">{business.name}</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:from-purple-600 hover:to-pink-600 transition-all duration-500">{business.name}</h1>
                 {settings?.professionalTitle && (
-                  <p className="text-gray-600 font-medium">{settings.professionalTitle}</p>
+                  <p className="text-gray-700 font-semibold bg-gray-100 px-3 py-1 rounded-full text-sm">{settings.professionalTitle}</p>
                 )}
                 {categoryInfo && (
                   <Badge variant="secondary" className="mt-1 bg-gradient-to-r from-blue-50 to-purple-50 text-gray-700 border border-gray-200 hover:shadow-md transition-shadow duration-300">
@@ -521,19 +521,19 @@ export default function BusinessMicrosite() {
                 settings?.workingHours ? (
                   <div className="space-y-3">
                     {[
-                      { key: 'monday', label: 'Lunes', emoji: '📅' },
-                      { key: 'tuesday', label: 'Martes', emoji: '📅' },
-                      { key: 'wednesday', label: 'Miércoles', emoji: '📅' },
-                      { key: 'thursday', label: 'Jueves', emoji: '📅' },
-                      { key: 'friday', label: 'Viernes', emoji: '📅' },
-                      { key: 'saturday', label: 'Sábado', emoji: '🎯' },
-                      { key: 'sunday', label: 'Domingo', emoji: '🌞' }
-                    ].map(({ key, label, emoji }) => {
-                      const hours = settings.workingHours[key];
+                      { dayIndex: '1', label: 'Lunes', emoji: '📅' },
+                      { dayIndex: '2', label: 'Martes', emoji: '📅' },
+                      { dayIndex: '3', label: 'Miércoles', emoji: '📅' },
+                      { dayIndex: '4', label: 'Jueves', emoji: '📅' },
+                      { dayIndex: '5', label: 'Viernes', emoji: '📅' },
+                      { dayIndex: '6', label: 'Sábado', emoji: '🎯' },
+                      { dayIndex: '0', label: 'Domingo', emoji: '🌞' }
+                    ].map(({ dayIndex, label, emoji }) => {
+                      const hours = settings.workingHours[dayIndex];
                       if (!hours) return null;
                       
                       return (
-                        <div key={key} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
+                        <div key={dayIndex} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
                           hours.enabled 
                             ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
                             : 'bg-gradient-to-r from-gray-50 to-gray-100'
@@ -554,26 +554,8 @@ export default function BusinessMicrosite() {
                     })}
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {[
-                      { key: 'monday', label: 'Lunes', emoji: '📅' },
-                      { key: 'tuesday', label: 'Martes', emoji: '📅' },
-                      { key: 'wednesday', label: 'Miércoles', emoji: '📅' },
-                      { key: 'thursday', label: 'Jueves', emoji: '📅' },
-                      { key: 'friday', label: 'Viernes', emoji: '📅' },
-                      { key: 'saturday', label: 'Sábado', emoji: '🎯' },
-                      { key: 'sunday', label: 'Domingo', emoji: '🌞' }
-                    ].map(({ key, label, emoji }) => (
-                      <div key={key} className="flex justify-between items-center p-3 rounded-lg transition-all duration-300 bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md">
-                        <span className="capitalize font-medium flex items-center text-gray-900">
-                          <span className="mr-2">{emoji}</span>
-                          {label}:
-                        </span>
-                        <span className="font-semibold px-2 py-1 rounded-md text-green-700 bg-green-100">
-                          9:00 AM - 6:00 PM
-                        </span>
-                      </div>
-                    ))}
+                  <div className="text-center p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
+                    <p className="text-gray-600">⏰ Horarios no disponibles</p>
                   </div>
                 )}
 
