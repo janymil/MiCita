@@ -81,13 +81,15 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
     mutationFn: async (data: any) => {
       console.log('🔄 Applying scraped data to micrositio...');
       
-      // Apply data to business settings
+      // Apply data to business settings with proper authentication
+      const token = localStorage.getItem('stack-access-token') || sessionStorage.getItem('stack-access-token') || '';
+      
       const response = await fetch(`/api/dashboard/businesses/${businessId}/apply-scraped-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || ''}`,
-          'x-stack-access-token': localStorage.getItem('stack-access-token') || ''
+          'Authorization': `Bearer ${token}`,
+          'x-stack-access-token': token
         },
         body: JSON.stringify(data)
       });
@@ -660,12 +662,20 @@ function ScrapingProgress({ status, sources }: { status: ScrapingStatus; sources
               <div className="flex-1">
                 <div className="font-medium">{step.label}</div>
                 {isActive && (
-                  <div className="text-sm text-blue-600">En progreso...</div>
+                  <div className="text-sm text-blue-600">
+                    En progreso... {Math.round(status.progress)}%
+                    <div className="text-xs text-gray-500 mt-1">{status.currentStep}</div>
+                  </div>
                 )}
                 {isCompleted && (
                   <div className="text-sm text-green-600">✓ Completado</div>
                 )}
               </div>
+              {isActive && (
+                <div className="ml-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                </div>
+              )}
             </div>
           );
         })}
@@ -675,6 +685,12 @@ function ScrapingProgress({ status, sources }: { status: ScrapingStatus; sources
         <div className="text-center">
           <div className="text-blue-800 font-medium">Progreso: {Math.round(status.progress)}%</div>
           <div className="text-blue-600 text-sm mt-1">{status.currentStep}</div>
+          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div 
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${status.progress}%` }}
+            ></div>
+          </div>
         </div>
       </div>
     </div>
