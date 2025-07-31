@@ -143,10 +143,10 @@ class SmartScheduler {
   ): any[] {
     const slots = [];
     const selectedDate = new Date(date);
-    const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+    const dayOfWeek = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
     // Check if the day is a working day
-    const daySchedule = workingHours[dayName];
+    const daySchedule = workingHours[dayOfWeek.toString()];
     if (!daySchedule || !daySchedule.enabled) {
       return slots;
     }
