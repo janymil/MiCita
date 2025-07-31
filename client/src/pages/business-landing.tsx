@@ -303,13 +303,13 @@ export default function BusinessLandingPage() {
       </section>
 
       {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 px-4">
+      <section id="testimonials" className="py-20 px-4 bg-white dark:bg-gray-900">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Lo que dicen nuestros clientes
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-gray-600 dark:text-gray-300">
               Miles de negocios ya confían en Mi Cita
             </p>
           </div>
@@ -324,7 +324,7 @@ export default function BusinessLandingPage() {
                     ))}
                   </div>
                   
-                  <p className="text-gray-600 mb-6 italic">
+                  <p className="text-gray-600 dark:text-gray-300 mb-6 italic">
                     "{testimonial.text}"
                   </p>
                   
@@ -335,8 +335,8 @@ export default function BusinessLandingPage() {
                       className="w-12 h-12 rounded-full mr-4"
                     />
                     <div>
-                      <div className="font-semibold text-gray-900">{testimonial.name}</div>
-                      <div className="text-sm text-gray-600">{testimonial.business}</div>
+                      <div className="font-semibold text-gray-900 dark:text-white">{testimonial.name}</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">{testimonial.business}</div>
                     </div>
                   </div>
                 </CardContent>
@@ -347,13 +347,13 @@ export default function BusinessLandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-4 bg-gray-50">
+      <section id="pricing" className="py-20 px-4 bg-gray-50 dark:bg-gray-800">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Planes diseñados para crecer contigo
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-gray-600 dark:text-gray-300">
               Comienza gratis y escala según las necesidades de tu negocio
             </p>
           </div>
@@ -365,7 +365,7 @@ export default function BusinessLandingPage() {
                 className={`relative border-2 ${
                   plan.popular 
                     ? 'border-red-500 shadow-xl scale-105' 
-                    : 'border-gray-200'
+                    : 'border-gray-200 dark:border-gray-600'
                 }`}
               >
                 {plan.popular && (
@@ -377,10 +377,10 @@ export default function BusinessLandingPage() {
                 <CardHeader className="text-center">
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <div className="mt-4">
-                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                    <span className="text-gray-600">/{plan.duration}</span>
+                    <span className="text-4xl font-bold text-gray-900 dark:text-white">{plan.price}</span>
+                    <span className="text-gray-600 dark:text-gray-300">/{plan.duration}</span>
                   </div>
-                  <p className="text-gray-600 mt-2">{plan.description}</p>
+                  <p className="text-gray-600 dark:text-gray-300 mt-2">{plan.description}</p>
                 </CardHeader>
                 
                 <CardContent>
@@ -388,7 +388,7 @@ export default function BusinessLandingPage() {
                     {plan.features.map((feature, index) => (
                       <li key={index} className="flex items-center">
                         <CheckCircle className="w-5 h-5 text-green-600 mr-3 flex-shrink-0" />
-                        <span className="text-gray-600">{feature}</span>
+                        <span className="text-gray-600 dark:text-gray-300">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -397,7 +397,7 @@ export default function BusinessLandingPage() {
                     className={`w-full h-12 ${
                       plan.popular 
                         ? 'bg-red-600 hover:bg-red-700' 
-                        : 'bg-gray-900 hover:bg-gray-800'
+                        : 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500'
                     }`}
                   >
                     {plan.cta}
