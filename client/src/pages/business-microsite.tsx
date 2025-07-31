@@ -1,6 +1,7 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,8 @@ import { MicrositeSkeletonLoader } from "@/components/ui/skeleton";
 import BookingWidget from "@/components/booking-widget";
 import { categories } from "@/lib/constants";
 import { formatDatePeruvian } from "@/lib/utils";
+import { useMicrositeTheme } from "@/contexts/MicrositeThemeContext";
+import MicrositeThemeSelector from "@/components/microsite-theme-selector";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();

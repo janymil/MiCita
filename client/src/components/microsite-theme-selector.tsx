@@ -11,7 +11,7 @@ interface MicrositeThemeSelectorProps {
   onClose: () => void;
 }
 
-export const MicrositeThemeSelector: React.FC<MicrositeThemeSelectorProps> = ({ isOpen, onClose }) => {
+const MicrositeThemeSelector: React.FC<MicrositeThemeSelectorProps> = ({ isOpen, onClose }) => {
   const { theme: currentTheme, setTheme } = useMicrositeTheme();
 
   if (!isOpen) return null;
@@ -110,3 +110,5 @@ export const MicrositeThemeSelector: React.FC<MicrositeThemeSelectorProps> = ({ 
     </div>
   );
 };
+
+export default MicrositeThemeSelector;
