@@ -20,40 +20,46 @@
     display: none;  /* Safari and Chrome */
   }
   
-  /* Material Design Theme Styles */
-  .theme-material-card {
+  /* Material Design Theme Styles - Only applied when .theme-material class is on html */
+  .theme-material .theme-card,
+  .theme-material .card {
     box-shadow: 
       0 1px 3px hsl(var(--theme-shadow) / 0.12),
       0 1px 2px hsl(var(--theme-shadow) / 0.24);
     transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
   
-  .theme-material-card:hover {
+  .theme-material .theme-card:hover,
+  .theme-material .card:hover {
     box-shadow: 
       0 14px 28px hsl(var(--theme-shadow) / 0.25),
       0 10px 10px hsl(var(--theme-shadow) / 0.22);
     transform: translateY(-2px);
   }
   
-  .theme-material-button {
+  .theme-material .theme-btn,
+  .theme-material button {
     box-shadow: 0 2px 4px hsl(var(--theme-shadow) / 0.2);
     transition: all 0.2s ease;
+    border-radius: 4px;
   }
   
-  .theme-material-button:hover {
+  .theme-material .theme-btn:hover,
+  .theme-material button:hover {
     box-shadow: 0 4px 8px hsl(var(--theme-shadow) / 0.3);
     transform: translateY(-1px);
   }
   
-  .theme-material-fab {
+  .theme-material .theme-fab {
     box-shadow: 
       0 3px 5px -1px hsl(var(--theme-shadow) / 0.2),
       0 6px 10px 0 hsl(var(--theme-shadow) / 0.14),
       0 1px 18px 0 hsl(var(--theme-shadow) / 0.12);
+    border-radius: 50%;
   }
   
-  /* Glassmorphism Theme Styles */
-  .theme-glass-surface {
+  /* Glassmorphism Theme Styles - Only applied when .theme-glassmorphism class is on html */
+  .theme-glassmorphism .theme-surface {
     background: hsl(var(--theme-surface));
     backdrop-filter: blur(var(--theme-blur, 12px));
     border: 1px solid hsl(var(--theme-border));
@@ -62,7 +68,8 @@
       inset 0 1px 0 hsl(var(--theme-frost));
   }
   
-  .theme-glass-card {
+  .theme-glassmorphism .theme-card,
+  .theme-glassmorphism .card {
     background: hsl(var(--theme-elevated));
     backdrop-filter: blur(var(--theme-blur, 12px));
     border: 1px solid hsl(var(--theme-border));
@@ -70,9 +77,11 @@
       0 8px 32px hsl(var(--theme-shadow) / 0.15),
       inset 0 1px 0 hsl(var(--theme-frost));
     transition: all 0.3s ease;
+    border-radius: 16px;
   }
   
-  .theme-glass-card:hover {
+  .theme-glassmorphism .theme-card:hover,
+  .theme-glassmorphism .card:hover {
     background: hsl(var(--theme-elevated) / 0.9);
     box-shadow: 
       0 12px 40px hsl(var(--theme-shadow) / 0.2),
@@ -81,30 +90,36 @@
     transform: translateY(-2px);
   }
   
-  .theme-glass-button {
+  .theme-glassmorphism .theme-btn,
+  .theme-glassmorphism button {
     background: hsl(var(--theme-primary) / 0.8);
     backdrop-filter: blur(8px);
     border: 1px solid hsl(var(--theme-primary) / 0.3);
     box-shadow: 
       0 4px 16px hsl(var(--theme-primary) / 0.2),
       inset 0 1px 0 hsl(0 0% 100% / 0.2);
+    border-radius: 12px;
+    transition: all 0.3s ease;
   }
   
-  .theme-glass-button:hover {
+  .theme-glassmorphism .theme-btn:hover,
+  .theme-glassmorphism button:hover {
     background: hsl(var(--theme-primary) / 0.9);
     box-shadow: 
       0 6px 20px hsl(var(--theme-primary) / 0.3),
       inset 0 1px 0 hsl(0 0% 100% / 0.3);
+    transform: translateY(-1px);
   }
   
-  /* Bento Theme Styles */
-  .theme-bento-grid {
+  /* Bento Theme Styles - Only applied when .theme-bento class is on html */
+  .theme-bento .theme-grid {
     display: grid;
     gap: var(--theme-grid-gap, 16px);
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
   
-  .theme-bento-card {
+  .theme-bento .theme-card,
+  .theme-bento .card {
     background: hsl(var(--theme-surface));
     border-radius: var(--theme-radius-md, 16px);
     border: 2px solid hsl(var(--theme-border));
@@ -114,7 +129,8 @@
     overflow: hidden;
   }
   
-  .theme-bento-card::before {
+  .theme-bento .theme-card::before,
+  .theme-bento .card::before {
     content: '';
     position: absolute;
     top: 0;
@@ -128,7 +144,8 @@
     );
   }
   
-  .theme-bento-card:hover {
+  .theme-bento .theme-card:hover,
+  .theme-bento .card:hover {
     background: hsl(var(--theme-elevated));
     border-color: hsl(var(--theme-primary) / 0.5);
     transform: translateY(-4px);
@@ -137,17 +154,18 @@
       0 0 0 1px hsl(var(--theme-primary) / 0.1);
   }
   
-  .theme-bento-card-small {
+  .theme-bento .theme-card-small {
     border-radius: var(--theme-radius-sm, 8px);
     padding: 16px;
   }
   
-  .theme-bento-card-large {
+  .theme-bento .theme-card-large {
     border-radius: var(--theme-radius-lg, 24px);
     padding: 32px;
   }
   
-  .theme-bento-button {
+  .theme-bento .theme-btn,
+  .theme-bento button {
     background: hsl(var(--theme-primary));
     border-radius: var(--theme-radius-sm, 8px);
     border: none;
@@ -159,7 +177,8 @@
     overflow: hidden;
   }
   
-  .theme-bento-button::before {
+  .theme-bento .theme-btn::before,
+  .theme-bento button::before {
     content: '';
     position: absolute;
     top: 0;
@@ -174,11 +193,13 @@
     transition: left 0.5s ease;
   }
   
-  .theme-bento-button:hover::before {
+  .theme-bento .theme-btn:hover::before,
+  .theme-bento button:hover::before {
     left: 100%;
   }
   
-  .theme-bento-button:hover {
+  .theme-bento .theme-btn:hover,
+  .theme-bento button:hover {
     background: hsl(var(--theme-accent));
     transform: translateY(-2px);
     box-shadow: 0 8px 24px hsl(var(--theme-primary) / 0.3);

@@ -33,7 +33,7 @@ import {
   User,
   Users
 } from "lucide-react";
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 
 interface DashboardLayoutProps {
@@ -57,11 +57,17 @@ const navigation = [
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
   const { user, logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, setIsDashboard, currentTheme } = useTheme();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Set dashboard context when component mounts
+  useEffect(() => {
+    setIsDashboard(true);
+    return () => setIsDashboard(false);
+  }, [setIsDashboard]);
 
   // Fetch business data to get the business name
   const { data: businesses } = useQuery({

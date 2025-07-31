@@ -148,7 +148,7 @@ export const themes = {
 
 export type ThemeId = keyof typeof themes;
 
-export const applyTheme = (themeId: ThemeId, isDark: boolean = false) => {
+export const applyTheme = (themeId: ThemeId, isDark: boolean = false, isDashboard: boolean = false) => {
   const theme = themes[themeId];
   if (!theme) return;
 
@@ -164,10 +164,32 @@ export const applyTheme = (themeId: ThemeId, isDark: boolean = false) => {
   const primaryHsl = variables["--theme-primary"];
   root.style.setProperty('--primary', primaryHsl);
   
+  // Apply theme-specific body classes only for dashboard
+  if (isDashboard) {
+    // Remove all theme classes first
+    root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento');
+    
+    // Add appropriate theme class
+    switch (theme.style) {
+      case 'material':
+        root.classList.add('theme-material');
+        break;
+      case 'glassmorphism':
+        root.classList.add('theme-glassmorphism');
+        break;
+      case 'bento':
+        root.classList.add('theme-bento');
+        break;
+    }
+  } else {
+    // Remove theme classes for public pages
+    root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento');
+  }
+  
   // Store theme preference
   localStorage.setItem('selectedTheme', themeId);
   
-  console.log(`Applied theme: ${themeId} (${isDark ? 'dark' : 'light'})`);
+  console.log(`Applied theme: ${themeId} (${isDark ? 'dark' : 'light'}) - Dashboard: ${isDashboard}`);
 };
 
 export const applyPrimaryColor = (color: string) => {

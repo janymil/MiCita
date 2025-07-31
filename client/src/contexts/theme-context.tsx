@@ -7,9 +7,11 @@ interface ThemeContextType {
   currentTheme: ThemeId;
   primaryColor: string;
   isLoading: boolean;
+  isDashboard: boolean;
   toggleTheme: () => void;
   setTheme: (themeId: ThemeId) => void;
   setPrimaryColor: (color: string) => void;
+  setIsDashboard: (isDashboard: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -19,6 +21,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [currentTheme, setCurrentTheme] = useState<ThemeId>('clasico');
   const [primaryColor, setPrimaryColorState] = useState('#dc2626');
   const [isLoading, setIsLoading] = useState(true);
+  const [isDashboard, setIsDashboard] = useState(false);
 
   useEffect(() => {
     // Load user preferences from API
@@ -60,7 +63,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             document.documentElement.classList.remove("dark");
           }
           
-          applyTheme(themeId, dark);
+          applyTheme(themeId, dark, isDashboard);
           applyPrimaryColor(color);
         } else {
           // Fall back to localStorage if API fails
@@ -76,7 +79,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           
           setCurrentTheme(storedTheme);
           setPrimaryColorState(storedColor);
-          applyTheme(storedTheme, savedTheme === "dark" || (!savedTheme && prefersDark));
+          applyTheme(storedTheme, savedTheme === "dark" || (!savedTheme && prefersDark), isDashboard);
           applyPrimaryColor(storedColor);
         }
       } catch (error) {
@@ -90,7 +93,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           document.documentElement.classList.add("dark");
         }
         
-        applyTheme('clasico', savedTheme === "dark" || (!savedTheme && prefersDark));
+        applyTheme('clasico', savedTheme === "dark" || (!savedTheme && prefersDark), isDashboard);
         applyPrimaryColor('#dc2626');
       } finally {
         setIsLoading(false);
@@ -148,7 +151,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
     
     // Reapply theme with new dark mode setting
-    applyTheme(currentTheme, newIsDark);
+    applyTheme(currentTheme, newIsDark, isDashboard);
     
     // Save to database
     savePreferences(currentTheme, primaryColor, newIsDark);
@@ -156,7 +159,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = (themeId: ThemeId) => {
     setCurrentTheme(themeId);
-    applyTheme(themeId, isDark);
+    applyTheme(themeId, isDark, isDashboard);
     
     // Save to database
     savePreferences(themeId, primaryColor, isDark);
@@ -176,9 +179,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       currentTheme, 
       primaryColor, 
       isLoading,
+      isDashboard,
       toggleTheme, 
       setTheme, 
-      setPrimaryColor 
+      setPrimaryColor,
+      setIsDashboard
     }}>
       {children}
     </ThemeContext.Provider>
