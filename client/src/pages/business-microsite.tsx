@@ -1,7 +1,6 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
-import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare, Share2, Music } from "lucide-react";
+import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +12,6 @@ import { MicrositeSkeletonLoader } from "@/components/ui/skeleton";
 import BookingWidget from "@/components/booking-widget";
 import { categories } from "@/lib/constants";
 import { formatDatePeruvian } from "@/lib/utils";
-import { applyMicrositioTheme, type MicrositioThemeId } from "@/lib/micrositio-themes";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
@@ -53,24 +51,13 @@ export default function BusinessMicrosite() {
     );
   }
 
-  const { business, settings, services, gallery, reviews } = micrositeData || {};
+  const { business, settings, services, gallery, reviews } = micrositeData;
   const categoryInfo = categories.find(c => c.id === business.category);
 
-  // Apply the micrositio theme
-  useEffect(() => {
-    const theme = (settings?.micrositioTheme as MicrositioThemeId) || 'moderno';
-    applyMicrositioTheme(theme);
-    
-    // Cleanup function to reset theme when component unmounts
-    return () => {
-      document.documentElement.classList.remove('micrositio-modern', 'micrositio-flat', 'micrositio-glassmorphism', 'micrositio-cyberpunk');
-    };
-  }, [settings?.micrositioTheme]);
-
   return (
-    <div className="micrositio-container min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       {/* Header */}
-      <header className="micrositio-card border-0 border-b sticky top-0 z-50 rounded-none">
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200/50 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -103,16 +90,16 @@ export default function BusinessMicrosite() {
 
             <div className="flex items-center space-x-3">
               {settings?.publicPhone && (
-                <button className="micrositio-btn">
+                <Button size="sm" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                   <Phone className="w-4 h-4 mr-2" />
                   Llamar
-                </button>
+                </Button>
               )}
               {settings?.enablePublicBooking && (
-                <button className="micrositio-btn">
+                <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                   <Calendar className="w-4 h-4 mr-2" />
                   Reservar Cita
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -144,179 +131,200 @@ export default function BusinessMicrosite() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* About */}
-            <div className="micrositio-card p-6">
-              <h2 className="text-xl font-bold mb-4">
-                🏢 Acerca de nosotros
-              </h2>
-              <p className="micrositio-text-secondary leading-relaxed text-base">
-                {settings?.publicDescription || business.description || "Información no disponible."}
-              </p>
-            </div>
+            <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300">
+                  🏢 Acerca de nosotros
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700 leading-relaxed text-base">
+                  {settings?.publicDescription || business.description || "Información no disponible."}
+                </p>
+              </CardContent>
+            </Card>
 
             {/* Services */}
             {services && services.length > 0 && (
-              <div className="micrositio-card p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center">
-                  ⚡ Nuestros Servicios
-                  <Badge variant="outline" className="ml-3">
-                    {services.length} servicios
-                  </Badge>
-                </h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {services.map((service) => (
-                    <div key={service.id} className="micrositio-card p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold text-lg">{service.name}</h3>
-                        <span className="font-bold text-lg">
-                          S/ {service.price}
-                        </span>
+              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
+                    ⚡ Nuestros Servicios
+                    <Badge variant="outline" className="ml-3 bg-gradient-to-r from-blue-50 to-purple-50">
+                      {services.length} servicios
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {services.map((service) => (
+                      <div key={service.id} className="border border-gray-200/50 rounded-xl p-4 bg-white/60 backdrop-blur-sm hover:bg-white/80 hover:shadow-md transition-all duration-300 group/service">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold text-lg text-gray-900 group-hover/service:text-red-600 transition-colors duration-300">{service.name}</h3>
+                          <span className="text-red-600 font-bold text-lg bg-gradient-to-r from-red-50 to-pink-50 px-2 py-1 rounded-lg">
+                            S/ {service.price}
+                          </span>
+                        </div>
+                        {service.description && (
+                          <p className="text-gray-600 text-sm mb-3 leading-relaxed">{service.description}</p>
+                        )}
+                        <div className="flex items-center text-sm text-gray-500 bg-gray-50/50 rounded-lg px-2 py-1">
+                          <Clock className="w-4 h-4 mr-1 text-blue-500" />
+                          {service.duration} min
+                        </div>
                       </div>
-                      {service.description && (
-                        <p className="micrositio-text-secondary text-sm mb-3 leading-relaxed">{service.description}</p>
-                      )}
-                      <div className="flex items-center text-sm micrositio-text-secondary">
-                        <Clock className="w-4 h-4 mr-1" />
-                        {service.duration} min
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Gallery */}
             {settings?.enableGallery && gallery && gallery.length > 0 && (
-              <div className="micrositio-card p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center">
-                  <Camera className="w-5 h-5 mr-2" />
-                  📸 Galería de Trabajos
-                  <Badge variant="outline" className="ml-3">
-                    {gallery.length} fotos
-                  </Badge>
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {gallery.map((item) => (
-                    <div key={item.id} className="relative overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all duration-300 group">
-                      <img 
-                        src={item.imageUrl} 
-                        alt={item.title || "Trabajo"}
-                        className="w-full h-32 object-cover transition-transform duration-500 group-hover:scale-110"
-                        onError={(e) => {
-                          console.log('🚨 Gallery image failed to load:', item.imageUrl);
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                        onLoad={() => {
-                          console.log('✅ Gallery image loaded successfully:', item.imageUrl.substring(0, 50) + '...');
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      {item.title && (
-                        <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-xl">
-                          <p className="text-white text-sm font-medium text-center px-2">{item.title}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Reviews */}
-            {(settings?.enableReviews || (reviews && reviews.length > 0)) && (
-              <div className="micrositio-card p-6">
-                <h2 className="text-xl font-bold mb-4 flex items-center">
-                  ⭐ Reseñas de Clientes
-                  {reviews && reviews.length > 0 && (
-                    <Badge variant="outline" className="ml-3">
-                      {reviews.length} reseñas
+              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
+                    <Camera className="w-5 h-5 mr-2 text-blue-500" />
+                    📸 Galería de Trabajos
+                    <Badge variant="outline" className="ml-3 bg-gradient-to-r from-blue-50 to-purple-50">
+                      {gallery.length} fotos
                     </Badge>
-                  )}
-                </h2>
-                {/* Existing Reviews */}
-                {reviews && reviews.length > 0 && (
-                  <div className="space-y-4 mb-6">
-                    {reviews.map((review: any) => (
-                      <div key={review.id} className="micrositio-card p-4">
-                        <div className="flex items-center mb-3">
-                          <div className="flex mr-3">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} transition-colors duration-300`} 
-                              />
-                            ))}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {gallery.map((item) => (
+                      <div key={item.id} className="relative group/gallery overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all duration-300">
+                        <img 
+                          src={item.imageUrl} 
+                          alt={item.title || "Trabajo"}
+                          className="w-full h-32 object-cover transition-transform duration-500 group-hover/gallery:scale-110"
+                          onError={(e) => {
+                            console.log('🚨 Gallery image failed to load:', item.imageUrl);
+                            // Hide broken images
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            // You could also set a fallback image:
+                            // target.src = '/placeholder-image.jpg';
+                          }}
+                          onLoad={() => {
+                            console.log('✅ Gallery image loaded successfully:', item.imageUrl.substring(0, 50) + '...');
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-300" />
+                        {item.title && (
+                          <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-xl">
+                            <p className="text-white text-sm font-medium text-center px-2">{item.title}</p>
                           </div>
-                          <span className="font-medium">{review.clientName}</span>
-                          <div className="ml-auto text-xs micrositio-text-secondary px-2 py-1 rounded-full">
-                            {review.source === 'scraped' ? '🌐 Google Maps' : '💬 Micrositio'}
-                          </div>
-                        </div>
-                        {review.comment && (
-                          <p className="micrositio-text-secondary italic leading-relaxed">"{review.comment}"</p>
                         )}
                       </div>
                     ))}
                   </div>
-                )}
+                </CardContent>
+              </Card>
+            )}
 
-                {/* Review Submission Form */}
-                {settings?.enableReviews && (
-                  <div className="border-t border-gray-200/50 pt-6">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center">
-                      <Star className="w-5 h-5 mr-2 text-yellow-500" />
-                      Deja tu reseña
-                    </h3>
-                    <div className="space-y-4">
-                      <div>
-                        <Label htmlFor="review-name" className="font-medium">Tu nombre</Label>
-                        <Input 
-                          id="review-name" 
-                          placeholder="Tu nombre completo" 
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label className="font-medium mb-2 block">Calificación</Label>
-                        <div className="flex space-x-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <Star 
-                              key={star}
-                              className="w-6 h-6 cursor-pointer text-gray-300 hover:text-yellow-400 transition-colors duration-200"
-                            />
-                          ))}
+            {/* Reviews */}
+            {(settings?.enableReviews || (reviews && reviews.length > 0)) && (
+              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
+                    ⭐ Reseñas de Clientes
+                    {reviews && reviews.length > 0 && (
+                      <Badge variant="outline" className="ml-3 bg-gradient-to-r from-yellow-50 to-orange-50">
+                        {reviews.length} reseñas
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {/* Existing Reviews */}
+                  {reviews && reviews.length > 0 && (
+                    <div className="space-y-4 mb-6">
+                      {reviews.map((review) => (
+                        <div key={review.id} className="border-b border-gray-100/50 pb-4 last:border-b-0 bg-gradient-to-r from-gray-50/50 to-white/50 rounded-lg p-4 hover:shadow-md transition-all duration-300">
+                          <div className="flex items-center mb-3">
+                            <div className="flex mr-3">
+                              {[...Array(5)].map((_, i) => (
+                                <Star 
+                                  key={i} 
+                                  className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} transition-colors duration-300`} 
+                                />
+                              ))}
+                            </div>
+                            <span className="font-medium text-gray-900">{review.clientName}</span>
+                            <div className="ml-auto text-xs text-gray-500 bg-gray-100/50 px-2 py-1 rounded-full">
+                              {review.source === 'scraped' ? '🌐 Google Maps' : '💬 Micrositio'}
+                            </div>
+                          </div>
+                          {review.comment && (
+                            <p className="text-gray-600 italic leading-relaxed">"{review.comment}"</p>
+                          )}
                         </div>
-                      </div>
-                      <div>
-                        <Label htmlFor="review-comment" className="font-medium">Tu experiencia</Label>
-                        <Textarea 
-                          id="review-comment" 
-                          placeholder="Cuéntanos sobre tu experiencia con este negocio..." 
-                          rows={4} 
-                          className="mt-1"
-                        />
-                      </div>
-                      <button className="micrositio-btn w-full py-3">
-                        ⭐ Enviar Reseña
-                      </button>
+                      ))}
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+
+                  {/* Review Submission Form */}
+                  {settings?.enableReviews && (
+                    <div className="border-t border-gray-200/50 pt-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <Star className="w-5 h-5 mr-2 text-yellow-500" />
+                        Deja tu reseña
+                      </h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="review-name" className="text-gray-700 font-medium">Tu nombre</Label>
+                          <Input 
+                            id="review-name" 
+                            placeholder="Tu nombre completo" 
+                            className="mt-1 border-gray-300 focus:border-yellow-500 focus:ring-yellow-500 transition-colors duration-300"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-gray-700 font-medium mb-2 block">Calificación</Label>
+                          <div className="flex space-x-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star 
+                                key={star}
+                                className="w-6 h-6 cursor-pointer text-gray-300 hover:text-yellow-400 transition-colors duration-200"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="review-comment" className="text-gray-700 font-medium">Tu experiencia</Label>
+                          <Textarea 
+                            id="review-comment" 
+                            placeholder="Cuéntanos sobre tu experiencia con este negocio..." 
+                            rows={4} 
+                            className="mt-1 border-gray-300 focus:border-yellow-500 focus:ring-yellow-500 transition-colors duration-300"
+                          />
+                        </div>
+                        <Button className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 py-3">
+                          ⭐ Enviar Reseña
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Contact Info */}
-            <div className="micrositio-card p-6">
-              <h3 className="text-lg font-bold mb-4">
-                📞 Información de Contacto
-              </h3>
-              <div className="space-y-4">
-                {(settings?.publicPhone || business?.phone) && (
-                  <div className="flex items-center p-3 rounded-lg hover:shadow-md transition-all duration-300">
-                    <Phone className="w-4 h-4 mr-3" />
+            <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300">
+                  📞 Información de Contacto
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(settings?.publicPhone || business.phone) && (
+                  <div className="flex items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg hover:shadow-md transition-all duration-300 group/contact">
+                    <Phone className="w-4 h-4 mr-3 text-green-600" />
                     <span className="group-hover/contact:text-green-700 transition-colors duration-300">{settings?.publicPhone || business.phone}</span>
                   </div>
                 )}
@@ -389,22 +397,24 @@ export default function BusinessMicrosite() {
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Business Hours */}
-            <div className="micrositio-card p-6">
-              <h3 className="text-lg font-bold mb-4 flex items-center">
-                <Clock className="w-5 h-5 mr-2" />
-                🕐 Horarios
-              </h3>
-              <div>
+            <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-blue-500" />
+                  🕐 Horarios
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 {/* Priority 1: Use scraped business hours if available */}
-                {business?.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
+                {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
                   <div className="space-y-3">
                     {/* Handle both array format (legacy) and object format (new) */}
                     {Array.isArray(business.hours) 
-                      ? business.hours.map((hourString: any, index: any) => {
+                      ? business.hours.map((hourString, index) => {
                           // Parse hour strings like "Monday: 9:00 AM – 9:00 PM"
                           const parts = hourString.split(':');
                           if (parts.length < 2) return null;
@@ -431,17 +441,17 @@ export default function BusinessMicrosite() {
                           return (
                             <div key={index} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
                               isOpen 
-                                ? 'micrositio-text-secondary' 
-                                : 'micrositio-text-secondary opacity-50'
+                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
+                                : 'bg-gradient-to-r from-gray-50 to-gray-100'
                             }`}>
-                              <span className="capitalize font-medium flex items-center">
+                              <span className="capitalize font-medium flex items-center text-gray-900">
                                 <span className="mr-2">{dayInfo.emoji}</span>
                                 {dayInfo.label}:
                               </span>
                               <span className={`font-semibold px-2 py-1 rounded-md ${
                                 isOpen 
-                                  ? 'micrositio-text-secondary' 
-                                  : 'micrositio-text-secondary italic'
+                                  ? 'text-green-700 bg-green-100' 
+                                  : 'text-gray-500 bg-gray-200 italic'
                               }`}>
                                 {isOpen ? timeRange : 'Cerrado'}
                               </span>
@@ -473,17 +483,17 @@ export default function BusinessMicrosite() {
                           return (
                             <div key={dayKey} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
                               isOpen 
-                                ? 'micrositio-text-secondary' 
-                                : 'micrositio-text-secondary opacity-50'
+                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
+                                : 'bg-gradient-to-r from-gray-50 to-gray-100'
                             }`}>
-                              <span className="capitalize font-medium flex items-center">
+                              <span className="capitalize font-medium flex items-center text-gray-900">
                                 <span className="mr-2">{dayInfo.emoji}</span>
                                 {dayInfo.label}:
                               </span>
                               <span className={`font-semibold px-2 py-1 rounded-md ${
                                 isOpen 
-                                  ? 'micrositio-text-secondary' 
-                                  : 'micrositio-text-secondary italic'
+                                  ? 'text-green-700 bg-green-100' 
+                                  : 'text-gray-500 bg-gray-200 italic'
                               }`}>
                                 {isOpen ? `${schedule.open} - ${schedule.close}` : 'Cerrado'}
                               </span>
@@ -511,17 +521,17 @@ export default function BusinessMicrosite() {
                       return (
                         <div key={key} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
                           hours.enabled 
-                            ? 'micrositio-text-secondary' 
-                            : 'micrositio-text-secondary opacity-50'
+                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
+                            : 'bg-gradient-to-r from-gray-50 to-gray-100'
                         }`}>
-                          <span className="capitalize font-medium flex items-center">
+                          <span className="capitalize font-medium flex items-center text-gray-900">
                             <span className="mr-2">{emoji}</span>
                             {label}:
                           </span>
                           <span className={`font-semibold px-2 py-1 rounded-md ${
                             hours.enabled 
-                              ? 'micrositio-text-secondary' 
-                              : 'micrositio-text-secondary italic'
+                              ? 'text-green-700 bg-green-100' 
+                              : 'text-gray-500 bg-gray-200 italic'
                           }`}>
                             {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
                           </span>
@@ -530,143 +540,149 @@ export default function BusinessMicrosite() {
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-6 micrositio-text-secondary opacity-75">
-                    <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>Horarios no disponibles</p>
+                  <div className="text-center p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
+                    <p className="text-gray-600">⏰ Horarios no disponibles</p>
                   </div>
                 )}
 
                 {settings?.scheduleNotes && (
-                  <div className="mt-4 p-3 micrositio-card rounded-lg">
-                    <p className="text-sm micrositio-text-secondary">{settings.scheduleNotes}</p>
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">{settings.scheduleNotes}</p>
                   </div>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Social Media Links */}
+            {/* Social Media */}
             {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
-              <div className="micrositio-card p-6">
-                <h3 className="text-lg font-bold mb-4 flex items-center">
-                  <Share2 className="w-5 h-5 mr-2" />
-                  🌐 Síguenos
-                </h3>
-                <div className="flex space-x-4 justify-center">
-                  {settings?.facebookUrl && (
-                    <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" 
-                       className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
-                      <Facebook className="w-5 h-5" />
-                    </a>
-                  )}
-                  {settings?.instagramUrl && (
-                    <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" 
-                       className="p-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl hover:from-pink-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
-                      <Instagram className="w-5 h-5" />
-                    </a>
-                  )}
-                  {settings?.tiktokUrl && (
-                    <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer" 
-                       className="p-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
-                      <Music className="w-5 h-5" />
-                    </a>
-                  )}
-                  {settings?.youtubeUrl && (
-                    <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer" 
-                       className="p-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
-                      <Youtube className="w-5 h-5" />
-                    </a>
-                  )}
-                </div>
-              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Síguenos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex space-x-4">
+                    {settings?.facebookUrl && (
+                      <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Facebook className="w-4 h-4" />
+                        </Button>
+                      </a>
+                    )}
+                    {settings?.instagramUrl && (
+                      <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Instagram className="w-4 h-4" />
+                        </Button>
+                      </a>
+                    )}
+                    {settings?.tiktokUrl && (
+                      <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Twitter className="w-4 h-4" />
+                        </Button>
+                      </a>
+                    )}
+                    {settings?.youtubeUrl && (
+                      <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">
+                          <Youtube className="w-4 h-4" />
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             )}
 
             {/* Booking Widget */}
-            {settings?.enablePublicBooking && (
-              <div className="micrositio-card p-6">
-                <h3 className="text-lg font-bold mb-4 flex items-center">
-                  <Calendar className="w-5 h-5 mr-2" />
-                  📅 Reserva tu Cita
-                </h3>
-                <BookingWidget businessId={business?.id} />
-              </div>
+            {settings?.enablePublicBooking && services && services.length > 0 && (
+              <BookingWidget 
+                services={services} 
+                businessId={business.id}
+                workingHours={settings?.workingHours}
+                blockedDates={settings?.blockedDates}
+                blockedHours={settings?.blockedHours}
+              />
             )}
 
             {/* Contact Form */}
             {settings?.enableContactForm && (
-              <div className="micrositio-card p-6">
-                <h3 className="text-lg font-bold mb-4 flex items-center">
-                  <MessageSquare className="w-5 h-5 mr-2" />
-                  💬 Enviar Mensaje
-                </h3>
-                <div className="space-y-4">
+              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
+                    <MessageSquare className="w-5 h-5 mr-2 text-blue-500" />
+                    💬 Enviar Mensaje
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="contact-name" className="font-medium">Nombre</Label>
+                    <Label htmlFor="contact-name" className="text-gray-700 font-medium">Nombre</Label>
                     <Input 
                       id="contact-name" 
                       placeholder="Tu nombre" 
-                      className="mt-1"
+                      className="mt-1 border-gray-300 focus:border-red-500 focus:ring-red-500 transition-colors duration-300"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="contact-email" className="font-medium">Email</Label>
+                    <Label htmlFor="contact-email" className="text-gray-700 font-medium">Email</Label>
                     <Input 
                       id="contact-email" 
                       type="email" 
                       placeholder="tu@email.com" 
-                      className="mt-1"
+                      className="mt-1 border-gray-300 focus:border-red-500 focus:ring-red-500 transition-colors duration-300"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="contact-message" className="font-medium">Mensaje</Label>
+                    <Label htmlFor="contact-message" className="text-gray-700 font-medium">Mensaje</Label>
                     <Textarea 
                       id="contact-message" 
                       placeholder="Escribe tu mensaje..." 
                       rows={4} 
-                      className="mt-1"
+                      className="mt-1 border-gray-300 focus:border-red-500 focus:ring-red-500 transition-colors duration-300"
                     />
                   </div>
-                  <button className="micrositio-btn w-full py-3">
+                  <Button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 py-3">
                     📧 Enviar Mensaje
-                  </button>
-                </div>
-              </div>
+                  </Button>
+                </CardContent>
+              </Card>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Footer */}
-        <footer className="micrositio-card mt-12 rounded-none border-x-0 border-b-0">
-          <div className="container mx-auto px-4 py-8">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-4">
-                {settings?.profileImage ? (
-                  <img 
-                    src={settings.profileImage} 
-                    alt={business?.name}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-opacity-20 mr-3"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg mr-3">
-                    {business?.name?.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <h3 className="text-xl font-bold">{business?.name}</h3>
-              </div>
-              <p className="micrositio-text-secondary mb-4">
-                {settings?.professionalTitle || "Servicio profesional de calidad"}
+      {/* Footer */}
+      <footer className="bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 text-white py-8 mt-12">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <div className="flex items-center justify-center mb-4">
+              {settings?.profileImage ? (
+                <img 
+                  src={settings.profileImage} 
+                  alt={business.name}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-white/20 mr-3"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg mr-3">
+                  {business.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <h3 className="text-xl font-bold">{business.name}</h3>
+            </div>
+            <p className="text-gray-300 mb-4">
+              {settings?.professionalTitle || "Servicio profesional de calidad"}
+            </p>
+            <div className="border-t border-gray-700 pt-4">
+              <p className="text-gray-400 text-sm">
+                © 2025 {business.name}. Todos los derechos reservados.
               </p>
-              <div className="border-t border-opacity-20 pt-4">
-                <p className="micrositio-text-secondary text-sm">
-                  © 2025 {business?.name}. Todos los derechos reservados.
-                </p>
-                <p className="micrositio-text-secondary text-xs mt-1 opacity-75">
-                  ⚡ Powered by MiCita
-                </p>
-              </div>
+              <p className="text-gray-500 text-xs mt-1">
+                ⚡ Powered by BusinessSearchPlatform
+              </p>
             </div>
           </div>
-        </footer>
-      </div>
+        </div>
+      </footer>
     </div>
   );
 }
