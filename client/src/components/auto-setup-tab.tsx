@@ -366,41 +366,7 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-        <CardHeader>
-          <CardTitle className="flex items-center text-xl text-purple-800">
-            <Sparkles className="w-6 h-6 mr-3" />
-            🤖 Auto-Configuración Inteligente
-          </CardTitle>
-          <p className="text-purple-700">
-            Completa automáticamente tu micrositio extrayendo información de tus redes sociales y Google
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button 
-              onClick={() => setShowModal(true)}
-              className="flex-1 h-12 text-base bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-              size="lg"
-            >
-              <Wand2 className="w-5 h-5 mr-2" />
-              Nueva Extracción Inteligente
-            </Button>
-            <Button 
-              onClick={() => setShowVisualBuilder(true)}
-              className="flex-1 h-12 text-base bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700"
-              size="lg"
-            >
-              <Layout className="w-5 h-5 mr-2" />
-              Constructor Visual IA
-            </Button>
-          </div>
-          <div className="mt-3 text-sm text-purple-700 flex items-center justify-center px-4 py-2 bg-white rounded border">
-            ✨ Extracción incremental + Constructor visual con inteligencia artificial
-          </div>
-        </CardContent>
-      </Card>
+
 
       {/* Source Input */}
       <Card>
@@ -540,21 +506,13 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
       {/* Action Buttons */}
       <div className="flex justify-center">
         <Button 
-          onClick={handleStartScraping}
+          onClick={() => setShowModal(true)}
           className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 text-lg"
-          disabled={startScrapingMutation.isPending || (!!sources.googleMapsUrl && !validateGoogleMapsUrl(sources.googleMapsUrl))}
         >
-          {startScrapingMutation.isPending ? (
-            <>
-              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              Iniciando...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-5 h-5 mr-2" />
-              🚀 Iniciar Auto-Configuración
-            </>
-          )}
+          <>
+            <Sparkles className="w-5 h-5 mr-2" />
+            🚀 Iniciar Auto-Configuración
+          </>
         </Button>
       </div>
 
@@ -714,20 +672,6 @@ function ScrapingResults({ data, onStartOver }: { data: any; onStartOver: () => 
         </Button>
       </div>
       
-      {/* Scraping Modal Integration */}
-      <ScrapingModal 
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        businessId={Number(businessId)}
-        onSuccess={() => {
-          toast({
-            title: "¡Datos aplicados!",
-            description: "Tu negocio ha sido actualizado con los datos extraídos",
-          });
-          onDataFetched({ success: true });
-        }}
-      />
-
       {/* Scraping Modal - Simple Popup for Data Collection */}
       <ScrapingModal 
         isOpen={showModal}
