@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -140,26 +141,27 @@ export default function BusinessLandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-900">
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white/95 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center space-x-3">
               <div className="w-10 h-10 peru-gradient rounded-xl flex items-center justify-center">
                 <Search className="text-white w-5 h-5" />
               </div>
-              <span className="text-2xl font-bold text-gray-900">MiCita</span>
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">MiCita</span>
               <Badge variant="secondary" className="ml-2">Negocio</Badge>
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-600 hover:text-gray-900">Características</a>
-              <a href="#pricing" className="text-gray-600 hover:text-gray-900">Precios</a>
-              <a href="#testimonials" className="text-gray-600 hover:text-gray-900">Testimonios</a>
+              <a href="#features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Características</a>
+              <a href="#pricing" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Precios</a>
+              <a href="#testimonials" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Testimonios</a>
             </nav>
 
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               <Link href="/login">
                 <Button variant="ghost">Iniciar sesión</Button>
               </Link>
@@ -174,22 +176,22 @@ export default function BusinessLandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4 bg-gradient-to-br from-gray-50 to-white">
+      <section className="py-20 px-4 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <Badge className="mb-6 bg-green-100 text-green-800 px-4 py-2">
+              <Badge className="mb-6 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-4 py-2">
                 <Zap className="w-4 h-4 mr-2" />
                 Prueba gratuita de 30 días
               </Badge>
               
-              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
+              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
                 Haz crecer tu 
                 <span className="text-red-600"> negocio</span> con 
                 <span className="text-orange-500"> Mi Cita</span>
               </h1>
               
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+              <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
                 La plataforma todo-en-uno para gestionar tu negocio de servicios. 
                 Agenda citas, gestiona clientes y acepta pagos desde un solo lugar.
               </p>
@@ -208,26 +210,26 @@ export default function BusinessLandingPage() {
 
               <div className="grid grid-cols-3 gap-6 text-center">
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">15K+</div>
-                  <div className="text-gray-600">Negocios activos</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">15K+</div>
+                  <div className="text-gray-600 dark:text-gray-300">Negocios activos</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">500K+</div>
-                  <div className="text-gray-600">Citas gestionadas</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">500K+</div>
+                  <div className="text-gray-600 dark:text-gray-300">Citas gestionadas</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-gray-900">4.9/5</div>
-                  <div className="text-gray-600">Satisfacción</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">4.9/5</div>
+                  <div className="text-gray-600 dark:text-gray-300">Satisfacción</div>
                 </div>
               </div>
             </div>
 
             <div className="relative">
               <div className="bg-gradient-to-r from-red-600 to-orange-600 rounded-3xl p-8 shadow-2xl">
-                <div className="bg-white rounded-2xl p-6 space-y-4">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-900">Citas de hoy</h3>
-                    <Badge className="bg-green-100 text-green-800">12 confirmadas</Badge>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Citas de hoy</h3>
+                    <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">12 confirmadas</Badge>
                   </div>
                   
                   <div className="space-y-3">
@@ -236,13 +238,13 @@ export default function BusinessLandingPage() {
                       { name: "Carlos López", service: "Barba + Bigote", time: "11:30 AM" },
                       { name: "Ana Morales", service: "Tratamiento facial", time: "2:00 PM" }
                     ].map((appointment, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div>
-                          <div className="font-medium text-gray-900">{appointment.name}</div>
-                          <div className="text-sm text-gray-600">{appointment.service}</div>
+                          <div className="font-medium text-gray-900 dark:text-white">{appointment.name}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-300">{appointment.service}</div>
                         </div>
                         <div className="text-right">
-                          <div className="font-medium text-gray-900">{appointment.time}</div>
+                          <div className="font-medium text-gray-900 dark:text-white">{appointment.time}</div>
                           <div className="text-xs text-green-600">Confirmada</div>
                         </div>
                       </div>
@@ -252,17 +254,17 @@ export default function BusinessLandingPage() {
               </div>
               
               {/* Floating elements */}
-              <div className="absolute -top-4 -right-4 bg-white rounded-xl p-4 shadow-lg">
+              <div className="absolute -top-4 -right-4 bg-white dark:bg-gray-700 rounded-xl p-4 shadow-lg">
                 <div className="flex items-center space-x-2">
                   <TrendingUp className="w-5 h-5 text-green-600" />
-                  <span className="text-sm font-medium">+43% este mes</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">+43% este mes</span>
                 </div>
               </div>
               
-              <div className="absolute -bottom-4 -left-4 bg-white rounded-xl p-4 shadow-lg">
+              <div className="absolute -bottom-4 -left-4 bg-white dark:bg-gray-700 rounded-xl p-4 shadow-lg">
                 <div className="flex items-center space-x-2">
                   <Star className="w-5 h-5 text-yellow-500" />
-                  <span className="text-sm font-medium">4.9 puntuación</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">4.9 puntuación</span>
                 </div>
               </div>
             </div>
@@ -271,13 +273,13 @@ export default function BusinessLandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 bg-gray-50">
+      <section id="features" className="py-20 px-4 bg-gray-50 dark:bg-gray-800">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
               Todo lo que necesitas para gestionar tu negocio
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
               Herramientas profesionales diseñadas específicamente para negocios de servicios en Perú
             </p>
           </div>
@@ -286,13 +288,13 @@ export default function BusinessLandingPage() {
             {features.map((feature, index) => (
               <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-shadow duration-300">
                 <CardHeader>
-                  <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-red-600 mb-4">
+                  <div className="w-12 h-12 bg-red-100 dark:bg-red-900 rounded-xl flex items-center justify-center text-red-600 dark:text-red-400 mb-4">
                     {feature.icon}
                   </div>
                   <CardTitle className="text-xl">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600">{feature.description}</p>
+                  <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>
                 </CardContent>
               </Card>
             ))}

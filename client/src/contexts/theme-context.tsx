@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { applyTheme, getCurrentTheme, getCurrentPrimaryColor, applyPrimaryColor, type ThemeId } from "@/lib/themes";
+import { stackClientApp } from "../../../stack/client";
 
 interface ThemeContextType {
   isDark: boolean;
