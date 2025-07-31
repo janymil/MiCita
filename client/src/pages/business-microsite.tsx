@@ -104,14 +104,14 @@ export default function BusinessMicrosite() {
                 Temas
               </Button>
               {settings?.publicPhone && (
-                <Button size="sm" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <Phone className="w-4 h-4 mr-2" />
-                  Llamar
+                <Button size="lg" className="bg-gradient-to-r from-emerald-500 via-green-600 to-emerald-700 hover:from-emerald-600 hover:via-green-700 hover:to-emerald-800 text-white shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-110 rounded-2xl px-6 py-3">
+                  <Phone className="w-5 h-5 mr-2" />
+                  Llamar Ahora
                 </Button>
               )}
               {settings?.enablePublicBooking && (
-                <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                  <Calendar className="w-4 h-4 mr-2" />
+                <Button size="lg" className="bg-gradient-to-r from-purple-500 via-pink-600 to-red-600 hover:from-purple-600 hover:via-pink-700 hover:to-red-700 text-white shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-110 rounded-2xl px-6 py-3">
+                  <Calendar className="w-5 h-5 mr-2" />
                   Reservar Cita
                 </Button>
               )}
@@ -141,18 +141,18 @@ export default function BusinessMicrosite() {
       )}
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* About */}
-            <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300">
+            <Card className="bg-gradient-to-br from-white/90 to-gray-50/80 backdrop-blur-xl border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 group rounded-3xl overflow-hidden">
+              <CardHeader className="pb-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
+                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all duration-500">
                   🏢 Acerca de nosotros
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <p className="text-gray-700 leading-relaxed text-base">
+              <CardContent className="p-8">
+                <p className="text-gray-700 leading-relaxed text-lg font-medium">
                   {settings?.publicDescription || business.description || "Información no disponible."}
                 </p>
               </CardContent>
@@ -160,19 +160,19 @@ export default function BusinessMicrosite() {
 
             {/* Services */}
             {services && services.length > 0 && (
-              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
+              <Card className="bg-gradient-to-br from-white/90 to-gray-50/80 backdrop-blur-xl border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 group rounded-3xl overflow-hidden">
+                <CardHeader className="pb-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
+                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-teal-600 group-hover:to-cyan-600 transition-all duration-500 flex items-center">
                     ⚡ Nuestros Servicios
-                    <Badge variant="outline" className="ml-3 bg-gradient-to-r from-blue-50 to-purple-50">
+                    <Badge variant="outline" className="ml-4 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-emerald-200 px-3 py-1 text-sm font-semibold">
                       {services.length} servicios
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {services.map((service) => (
-                      <div key={service.id} className="border border-gray-200/50 rounded-xl p-4 bg-white/60 backdrop-blur-sm hover:bg-white/80 hover:shadow-md transition-all duration-300 group/service">
+                      <div key={service.id} className="border-0 rounded-2xl p-6 bg-gradient-to-br from-white/80 to-gray-50/60 backdrop-blur-md hover:from-white/90 hover:to-gray-50/80 hover:shadow-xl transition-all duration-400 group/service transform hover:scale-105">
                         <div className="flex justify-between items-start mb-2">
                           <h3 className="font-semibold text-lg text-gray-900 group-hover/service:text-red-600 transition-colors duration-300">{service.name}</h3>
                           <span className="text-red-600 font-bold text-lg bg-gradient-to-r from-red-50 to-pink-50 px-2 py-1 rounded-lg">
@@ -415,14 +415,14 @@ export default function BusinessMicrosite() {
             </Card>
 
             {/* Business Hours */}
-            <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
-                  <Clock className="w-5 h-5 mr-2 text-blue-500" />
+            <Card className="bg-gradient-to-br from-white/90 to-gray-50/80 backdrop-blur-xl border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 group rounded-3xl overflow-hidden">
+              <CardHeader className="pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
+                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent group-hover:from-indigo-600 group-hover:to-purple-600 transition-all duration-500 flex items-center">
+                  <Clock className="w-6 h-6 mr-3 text-blue-500" />
                   🕐 Horarios
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-8">
                 {/* Priority 1: Use scraped business hours if available */}
                 {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
                   <div className="space-y-3">
@@ -533,19 +533,19 @@ export default function BusinessMicrosite() {
                       if (!hours) return null;
                       
                       return (
-                        <div key={dayIndex} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
+                        <div key={dayIndex} className={`flex justify-between items-center p-4 rounded-2xl transition-all duration-400 transform hover:scale-102 ${
                           hours.enabled 
-                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
-                            : 'bg-gradient-to-r from-gray-50 to-gray-100'
+                            ? 'bg-gradient-to-r from-green-50/80 to-emerald-50/80 hover:shadow-lg border border-green-100' 
+                            : 'bg-gradient-to-r from-gray-50/80 to-gray-100/80 border border-gray-200'
                         }`}>
-                          <span className="capitalize font-medium flex items-center text-gray-900">
-                            <span className="mr-2">{emoji}</span>
+                          <span className="capitalize font-semibold flex items-center text-gray-900 text-lg">
+                            <span className="mr-3 text-xl">{emoji}</span>
                             {label}:
                           </span>
-                          <span className={`font-semibold px-2 py-1 rounded-md ${
+                          <span className={`font-bold px-4 py-2 rounded-xl text-lg ${
                             hours.enabled 
-                              ? 'text-green-700 bg-green-100' 
-                              : 'text-gray-500 bg-gray-200 italic'
+                              ? 'text-green-700 bg-gradient-to-r from-green-100 to-emerald-100' 
+                              : 'text-gray-500 bg-gradient-to-r from-gray-100 to-gray-200 italic'
                           }`}>
                             {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
                           </span>
