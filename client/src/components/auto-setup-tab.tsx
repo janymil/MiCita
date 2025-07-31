@@ -347,24 +347,7 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
     setScrapingStatus({ status: 'idle', progress: 0, currentStep: '' });
   };
 
-  if (scrapingStatus.status === 'running') {
-    return <ScrapingProgress status={scrapingStatus} sources={sources} />;
-  }
-
-  if (scrapingStatus.status === 'preview') {
-    return (
-      <ScrapedDataPreview 
-        data={scrapingStatus.data || {}}
-        onApprove={() => applyDataMutation.mutate(scrapingStatus.data)}
-        onReject={handleCancelPreview}
-        isApplying={applyDataMutation.isPending}
-      />
-    );
-  }
-
-  if (scrapingStatus.status === 'completed') {
-    return <ScrapingResults data={scrapingStatus.data || {}} onStartOver={handleStartOver} />;
-  }
+  // Always show the main form - progress happens in popup
 
   return (
     <div className="space-y-6">
@@ -537,7 +520,7 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
       {/* Scraping Modal - Shows Progress and Results */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             {scrapingStatus.status === 'running' && (
               <ScrapingProgress status={scrapingStatus} sources={sources} />
             )}
@@ -550,13 +533,36 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
               />
             )}
             {scrapingStatus.status === 'completed' && (
-              <ScrapingResults 
-                data={scrapingStatus.data || {}} 
-                onStartOver={() => {
-                  setShowModal(false);
-                  handleStartOver();
-                }} 
-              />
+              <div className="space-y-6">
+                <div className="text-center">
+                  <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-green-800">¡Auto-configuración completada!</h3>
+                  <p className="text-green-700 mt-2">
+                    Tu micrositio se ha configurado automáticamente. Los datos se han aplicado exitosamente.
+                  </p>
+                </div>
+                
+                <div className="flex justify-center space-x-4">
+                  <Button 
+                    onClick={() => {
+                      setShowModal(false);
+                      handleStartOver();
+                    }}
+                    variant="outline"
+                  >
+                    Ejecutar nuevamente
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setShowModal(false);
+                      onDataFetched({ success: true });
+                    }}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    Finalizar
+                  </Button>
+                </div>
+              </div>
             )}
             <div className="mt-4 flex justify-end">
               <Button 
