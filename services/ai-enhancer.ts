@@ -210,4 +210,42 @@ export class AIContentEnhancer {
     
     return `${description} Nos especializamos en ofrecer servicios de ${businessType} de alta calidad, con atención personalizada y la mejor experiencia para nuestros clientes en Lima, Perú.`;
   }
+
+  /**
+   * COMPREHENSIVE CONTENT ENHANCEMENT
+   * Enhances all scraped business data with AI improvements
+   */
+  async enhanceContent(businessData: any): Promise<any> {
+    console.log('🤖 Enhancing comprehensive business data with AI...');
+    
+    try {
+      const enhanced = { ...businessData };
+
+      // Enhance description if available
+      if (businessData.description && businessData.category) {
+        const enhancedDesc = await this.enhanceBusinessDescription(
+          businessData.description, 
+          businessData.category
+        );
+        enhanced.description = enhancedDesc.enhanced;
+      }
+
+      // Extract services from description if not already available
+      if (!businessData.services || businessData.services.length === 0) {
+        if (businessData.description && businessData.category) {
+          enhanced.services = await this.extractServices(
+            businessData.description, 
+            businessData.category
+          );
+        }
+      }
+
+      console.log('✅ Comprehensive content enhancement completed');
+      return enhanced;
+
+    } catch (error) {
+      console.error('❌ Error enhancing content:', error);
+      return businessData; // Return original data if enhancement fails
+    }
+  }
 }

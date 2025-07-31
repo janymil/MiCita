@@ -1,4 +1,4 @@
-import { ApifyScrapingService, ScrapingSources, FacebookBusinessData, InstagramBusinessData, GooglePlacesData } from '../lib/apify-scraping-service';
+import { ApifyScrapingService, ScrapingSources, FacebookBusinessData, InstagramBusinessData, GooglePlacesData, ComprehensiveBusinessData } from '../lib/apify-scraping-service';
 import { DataMergingService } from './data-merger';
 import { DataCleaningService } from './data-processor';
 import { AIContentEnhancer } from './ai-enhancer';
@@ -74,6 +74,7 @@ export class ScrapingOrchestrator {
       instagram?: string;
       googleMaps?: string;
       website?: string;
+      kagiSearchQuery?: string;
     };
     metadata?: {
       businessName?: string;
@@ -92,10 +93,12 @@ export class ScrapingOrchestrator {
       businessId: config.businessId,
       status: 'pending',
       sources: {
+        businessName: config.metadata?.businessName,
         facebookUrl: config.urls.facebook,
         instagramUrl: config.urls.instagram,
         googleMapsUrl: config.urls.googleMaps,
         websiteUrl: config.urls.website,
+        kagiSearchQuery: config.urls.kagiSearchQuery,
       },
       progress: 0,
       currentStep: 'Inicializando...',
@@ -111,7 +114,7 @@ export class ScrapingOrchestrator {
   }
 
   async startScraping(jobId: string): Promise<void> {
-    console.log(`🚀 Starting scraping job: ${jobId}`);
+    console.log(`🚀 Starting comprehensive scraping job: ${jobId}`);
     
     try {
       // Get job from database
@@ -121,27 +124,31 @@ export class ScrapingOrchestrator {
       }
 
       // Update status to running
-      await this.updateJobStatus(jobId, 'running', 10, 'Iniciando proceso de extracción...');
+      await this.updateJobStatus(jobId, 'running', 10, 'Extrayendo TODOS los datos disponibles...');
 
-      // Execute scraping pipeline
-      const rawData = await this.executeScraping(job.sources, jobId);
-      await this.updateJobStatus(jobId, 'running', 50, 'Procesando y limpiando datos...');
+      // Use the NEW COMPREHENSIVE SCRAPING METHOD
+      const businessIdNum = parseInt(job.businessId);
+      const comprehensiveData = await this.apifyService.scrapeAllBusinessData(job.sources, businessIdNum);
+      
+      await this.updateJobStatus(jobId, 'running', 70, 'Datos guardados automáticamente. Mejorando contenido...');
 
-      const processedData = await this.processData(rawData, jobId);
-      await this.updateJobStatus(jobId, 'running', 80, 'Mejorando contenido con IA...');
+      // Data is already automatically saved to database by scrapeAllBusinessData
+      // Now just enhance and finalize
+      const cleanedData = this.dataCleaner.cleanBusinessData(comprehensiveData);
+      await this.updateJobStatus(jobId, 'running', 85, 'Aplicando mejoras de IA...');
 
-      const enhancedData = await this.enhanceWithAI(processedData, jobId);
+      const enhancedData = await this.enhanceWithAI(cleanedData, jobId);
       await this.updateJobStatus(jobId, 'running', 95, 'Finalizando configuración...');
 
-      // Calculate quality score
-      const qualityScore = this.calculateQualityScore(enhancedData);
-
-      // Save results
+      // Save comprehensive results
       await this.completeJob(jobId, {
-        rawData,
+        rawData: comprehensiveData,
         processedData: enhancedData,
-        qualityScore
+        qualityScore: comprehensiveData.qualityScore
       });
+
+      console.log(`✅ COMPREHENSIVE scraping completed: ${jobId}`);
+      console.log(`📊 Quality: ${comprehensiveData.qualityScore}% | 📸 Images: ${comprehensiveData.galleryImages.length} | ⭐ Reviews: ${comprehensiveData.reviews.length}`);
 
       console.log(`✅ Scraping job completed: ${jobId}`);
       

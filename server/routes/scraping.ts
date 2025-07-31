@@ -11,6 +11,7 @@ const StartScrapingSchema = z.object({
   instagramUrl: z.string().transform(val => val === '' ? undefined : val).optional().refine(val => !val || z.string().url().safeParse(val).success, 'Invalid URL'),
   googleMapsUrl: z.string().transform(val => val === '' ? undefined : val).optional().refine(val => !val || z.string().url().safeParse(val).success, 'Invalid URL'),
   websiteUrl: z.string().transform(val => val === '' ? undefined : val).optional().refine(val => !val || z.string().url().safeParse(val).success, 'Invalid URL'),
+  kagiSearchQuery: z.string().transform(val => val === '' ? undefined : val).optional(),
   category: z.string().optional(),
   address: z.string().optional(),
 });
@@ -29,7 +30,7 @@ router.post('/start', async (req: Request, res: Response) => {
 
     const orchestrator = new ScrapingOrchestrator();
 
-    // Start the scraping process
+    // Start the comprehensive scraping process
     const result = await orchestrator.createAndStartScraping({
       businessId: validatedData.businessId,
       urls: {
@@ -37,6 +38,7 @@ router.post('/start', async (req: Request, res: Response) => {
         instagram: validatedData.instagramUrl,
         googleMaps: validatedData.googleMapsUrl,
         website: validatedData.websiteUrl,
+        kagiSearchQuery: validatedData.kagiSearchQuery,
       },
       metadata: {
         businessName: validatedData.businessName || 'Mi Negocio',

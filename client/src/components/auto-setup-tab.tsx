@@ -15,6 +15,10 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  Search,
+  Database,
+  Zap,
+  TrendingUp,
   Clock,
   Brain,
   Rocket,
@@ -27,11 +31,12 @@ interface AutoSetupTabProps {
 }
 
 interface ScrapingSources {
+  businessName?: string;
   facebookUrl?: string;
   instagramUrl?: string;
   googleMapsUrl?: string;
   websiteUrl?: string;
-  businessName?: string;
+  kagiSearchQuery?: string;
 }
 
 interface ScrapingStatus {
@@ -367,6 +372,22 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
                 💡 <strong>Súper fácil:</strong> Solo busca tu negocio, haz clic y copia la URL de arriba
               </p>
             </div>
+          </div>
+
+          <div>
+            <Label className="flex items-center font-semibold">
+              <Search className="w-4 h-4 mr-2 text-purple-600" />
+              Búsqueda Inteligente Kagi (opcional)
+            </Label>
+            <Input
+              placeholder="Búsqueda adicional: nombre del negocio, servicios, etc."
+              value={sources.kagiSearchQuery || ''}
+              onChange={(e) => setSources(prev => ({ ...prev, kagiSearchQuery: e.target.value }))}
+              className="mt-1"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Búsqueda adicional para encontrar más información sobre tu negocio
+            </p>
           </div>
 
           <div>

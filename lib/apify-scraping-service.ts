@@ -1,12 +1,14 @@
 import { ApifyClient } from 'apify-client';
 import { eq, and } from 'drizzle-orm';
-import * as schema from '../migrations/schema';
+import * as schema from '../shared/schema';
 
 export interface ScrapingSources {
+  businessName?: string;
   facebookUrl?: string;
   instagramUrl?: string;
   googleMapsUrl?: string;
   websiteUrl?: string;
+  kagiSearchQuery?: string; // Added Kagi search support
 }
 
 export interface FacebookBusinessData {
@@ -61,10 +63,88 @@ export interface GooglePlacesData {
     rating: number;
     comment?: string;
     date?: string;
+    source?: string;
   }>;
   images: string[];
   coordinates?: [number, number];
   priceLevel?: number;
+}
+
+export interface KagiSearchData {
+  name?: string;
+  description?: string;
+  website?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  socialMedia?: {
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    tiktok?: string;
+  };
+  images?: string[];
+  additionalInfo?: string[];
+}
+
+export interface ComprehensiveBusinessData {
+  // Basic Info
+  name: string;
+  description?: string;
+  category?: string;
+  
+  // Contact Information
+  phone?: string;
+  email?: string;
+  website?: string;
+  address?: string;
+  
+  // Location Details
+  streetAddress?: string;
+  neighborhood?: string;
+  city?: string;
+  postalCode?: string;
+  state?: string;
+  country?: string;
+  coordinates?: [number, number];
+  
+  // Business Hours
+  hours?: Record<string, { open: string; close: string; closed?: boolean }>;
+  
+  // Media Assets
+  profileImage?: string;
+  coverImage?: string;
+  galleryImages: string[];
+  
+  // Reviews and Ratings
+  rating?: number;
+  reviewCount?: number;
+  reviews: Array<{
+    author: string;
+    rating: number;
+    comment?: string;
+    date?: string;
+    source: string;
+  }>;
+  
+  // Social Media
+  socialMedia: {
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    tiktok?: string;
+  };
+  
+  // Services and Features
+  services?: string[];
+  priceLevel?: number;
+  priceRange?: string;
+  
+  // Source tracking
+  sources: string[];
+  qualityScore: number;
 }
 
 export class ApifyScrapingService {
@@ -76,6 +156,82 @@ export class ApifyScrapingService {
       token: process.env.APIFY_API_TOKEN,
     });
     this.db = db;
+  }
+
+  /**
+   * COMPREHENSIVE SCRAPING SYSTEM
+   * Extracts ALL possible data from all sources and automatically saves to database
+   */
+  async scrapeAllBusinessData(sources: ScrapingSources, businessId?: number): Promise<ComprehensiveBusinessData> {
+    console.log('🚀 Starting comprehensive business data scraping...');
+    console.log('📋 Sources provided:', Object.keys(sources).filter(key => sources[key as keyof ScrapingSources]));
+    
+    const results: {
+      google?: GooglePlacesData;
+      facebook?: FacebookBusinessData;
+      instagram?: InstagramBusinessData;
+      kagi?: KagiSearchData;
+    } = {};
+
+    const promises: Promise<void>[] = [];
+
+    // Google Maps scraping
+    if (sources.googleMapsUrl) {
+      console.log('🗺️ Scraping Google Maps data...');
+      promises.push(
+        this.scrapeGooglePlacesBusiness(sources.googleMapsUrl)
+          .then(data => { results.google = data; })
+          .catch(error => console.error('❌ Google Maps scraping failed:', error))
+      );
+    }
+
+    // Facebook scraping
+    if (sources.facebookUrl) {
+      console.log('📘 Scraping Facebook data...');
+      promises.push(
+        this.scrapeFacebookBusiness(sources.facebookUrl)
+          .then(data => { results.facebook = data; })
+          .catch(error => console.error('❌ Facebook scraping failed:', error))
+      );
+    }
+
+    // Instagram scraping
+    if (sources.instagramUrl) {
+      console.log('📸 Scraping Instagram data...');
+      promises.push(
+        this.scrapeInstagramBusiness(sources.instagramUrl)
+          .then(data => { results.instagram = data; })
+          .catch(error => console.error('❌ Instagram scraping failed:', error))
+      );
+    }
+
+    // Kagi search scraping
+    if (sources.kagiSearchQuery || sources.businessName) {
+      const searchQuery = sources.kagiSearchQuery || sources.businessName || 'business';
+      console.log('🔍 Scraping Kagi search data...');
+      promises.push(
+        this.scrapeKagiSearch(searchQuery)
+          .then(data => { results.kagi = data; })
+          .catch(error => console.error('❌ Kagi search scraping failed:', error))
+      );
+    }
+
+    // Wait for all scraping to complete
+    await Promise.allSettled(promises);
+
+    // Merge all scraped data into comprehensive format
+    const mergedData = this.mergeAllScrapedData(results, sources);
+
+    // Automatically save to database if businessId provided
+    if (businessId && this.db) {
+      console.log('💾 Automatically saving scraped data to database...');
+      await this.saveScrapedDataToDatabase(mergedData, businessId);
+    }
+
+    console.log('✅ Comprehensive scraping completed successfully');
+    console.log('📊 Final data quality score:', mergedData.qualityScore);
+    
+    return mergedData;
   }
 
   async scrapeFacebookBusiness(facebookUrl: string): Promise<FacebookBusinessData> {
@@ -256,10 +412,10 @@ export class ApifyScrapingService {
       countryCode: rawData.countryCode || '',
       phone: rawData.phoneUnformatted || rawData.phone || rawData.phoneNumber || '',
       website: rawData.website || rawData.url || rawData.websiteUrl || '',
-      hours: undefined, // Excluded from scraping - users set manually
+      hours: this.parseGoogleHours(rawData.openingHours || rawData.hours || rawData.regularOpeningHours), // Now extract hours from Google
       rating: parseFloat(rawData.totalScore) || parseFloat(rawData.rating) || parseFloat(rawData.averageRating) || undefined,
       reviewCount: parseInt(rawData.reviewsCount) || parseInt(rawData.reviewCount) || parseInt(rawData.userRatingCount) || 0,
-      reviews: this.parseReviews(rawData.reviews || []),
+      reviews: this.parseReviews(rawData.reviews || []), // Enhanced review parsing
       images: this.extractImages([
         ...(rawData.imageUrls || []),
         ...(rawData.images || []),
@@ -523,6 +679,481 @@ export class ApifyScrapingService {
     });
   }
 
+  /**
+   * KAGI SEARCH INTEGRATION
+   * Comprehensive web search for business information
+   */
+  async scrapeKagiSearch(query: string): Promise<KagiSearchData> {
+    try {
+      console.log('🔍 Starting Kagi search for:', query);
+      
+      // Enhanced search queries for comprehensive business data
+      const searchQueries = [
+        `${query} negocio Peru contacto telefono`,
+        `${query} business contact information`,
+        `${query} redes sociales facebook instagram`,
+        `${query} direccion ubicacion maps`,
+      ];
+
+      const searchResults: any[] = [];
+      
+      for (const searchQuery of searchQueries) {
+        try {
+          console.log(`🔍 Searching: "${searchQuery}"`);
+          
+          // Use web search actors from Apify that can perform comprehensive searches
+          const run = await this.client.actor("apify/web-scraper").call({
+            startUrls: [`https://kagi.com/search?q=${encodeURIComponent(searchQuery)}`],
+            linkSelector: 'a[href]',
+            pageFunction: function(context: any) {
+              const { page, request } = context;
+              return {
+                url: request.url,
+                title: page.title,
+                content: page.content,
+                links: page.$$eval('a', (links: any) => links.map((link: any) => ({
+                  text: link.textContent,
+                  href: link.href
+                })))
+              };
+            }
+          });
+
+          const dataset = await this.client.dataset(run.defaultDatasetId).listItems();
+          searchResults.push(...dataset.items);
+          
+        } catch (searchError) {
+          console.warn(`🔍 Search query failed: "${searchQuery}"`, searchError);
+        }
+      }
+
+      // Extract business information from search results
+      const extractedData = this.extractBusinessDataFromKagiResults(searchResults, query);
+      
+      console.log('✅ Kagi search completed successfully');
+      return extractedData;
+      
+    } catch (error) {
+      console.error('❌ Error in Kagi search:', error);
+      throw new Error(`Failed to perform Kagi search: ${(error as Error).message}`);
+    }
+  }
+
+  private extractBusinessDataFromKagiResults(results: any[], originalQuery: string): KagiSearchData {
+    console.log('🔍 Extracting business data from Kagi search results...');
+    
+    const extracted: KagiSearchData = {
+      name: originalQuery,
+      socialMedia: {},
+      images: [],
+      additionalInfo: []
+    };
+
+    results.forEach(result => {
+      if (!result.content) return;
+      
+      const content = result.content.toLowerCase();
+      const title = result.title || '';
+      
+      // Extract phone numbers
+      const phoneRegex = /(\+?51\s?)?(\d{3}\s?\d{3}\s?\d{3}|\d{9})/g;
+      const phones = content.match(phoneRegex);
+      if (phones && !extracted.phone) {
+        extracted.phone = phones[0];
+      }
+      
+      // Extract emails
+      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+      const emails = content.match(emailRegex);
+      if (emails && !extracted.email) {
+        extracted.email = emails[0];
+      }
+      
+      // Extract social media links
+      if (content.includes('facebook.com/') && !extracted.socialMedia?.facebook) {
+        const fbMatch = content.match(/facebook\.com\/([a-zA-Z0-9.]+)/);
+        if (fbMatch) extracted.socialMedia!.facebook = `https://facebook.com/${fbMatch[1]}`;
+      }
+      
+      if (content.includes('instagram.com/') && !extracted.socialMedia?.instagram) {
+        const igMatch = content.match(/instagram\.com\/([a-zA-Z0-9_.]+)/);
+        if (igMatch) extracted.socialMedia!.instagram = `https://instagram.com/${igMatch[1]}`;
+      }
+      
+      if (content.includes('youtube.com/') && !extracted.socialMedia?.youtube) {
+        const ytMatch = content.match(/youtube\.com\/([a-zA-Z0-9_.-]+)/);
+        if (ytMatch) extracted.socialMedia!.youtube = `https://youtube.com/${ytMatch[1]}`;
+      }
+      
+      if (content.includes('tiktok.com/') && !extracted.socialMedia?.tiktok) {
+        const ttMatch = content.match(/tiktok\.com\/([a-zA-Z0-9_.]+)/);
+        if (ttMatch) extracted.socialMedia!.tiktok = `https://tiktok.com/${ttMatch[1]}`;
+      }
+      
+      // Extract addresses (Peru-specific patterns)
+      const addressRegex = /(av\.|avenida|calle|jr\.|jiron|psje\.|pasaje)\s+[a-z\sñáéíóú]+\s+\d+/gi;
+      const addresses = content.match(addressRegex);
+      if (addresses && !extracted.address) {
+        extracted.address = addresses[0];
+      }
+      
+      // Extract business descriptions from titles and content
+      if (title.toLowerCase().includes(originalQuery.toLowerCase()) && !extracted.description) {
+        extracted.description = title.substring(0, 200);
+      }
+      
+      // Store additional useful information
+      if (result.title && result.title.length > 10) {
+        extracted.additionalInfo?.push(result.title);
+      }
+    });
+
+    console.log('🔍 Kagi extraction completed:', Object.keys(extracted).length, 'fields found');
+    return extracted;
+  }
+
+  /**
+   * COMPREHENSIVE DATA MERGER
+   * Intelligently merges data from all sources with priority system
+   */
+  private mergeAllScrapedData(results: any, sources: ScrapingSources): ComprehensiveBusinessData {
+    console.log('🔄 Merging comprehensive business data from all sources...');
+    
+    const merged: ComprehensiveBusinessData = {
+      name: sources.businessName || 'Mi Negocio',
+      description: '',
+      galleryImages: [],
+      reviews: [],
+      socialMedia: {},
+      sources: [],
+      qualityScore: 0
+    };
+
+    // Track sources that provided data
+    const availableSources = Object.keys(results).filter(key => results[key]);
+    merged.sources = availableSources.map(key => {
+      switch(key) {
+        case 'google': return 'Google Maps';
+        case 'facebook': return 'Facebook';
+        case 'instagram': return 'Instagram';
+        case 'kagi': return 'Kagi Search';
+        default: return key;
+      }
+    });
+
+    // Priority-based merging for each field
+    const priorityOrder = ['google', 'facebook', 'kagi', 'instagram'];
+    
+    // Merge basic information
+    merged.name = this.getFirstValidValue('name', results, priorityOrder) || merged.name;
+    merged.description = this.getFirstValidValue('description', results, priorityOrder) || 
+                        this.getFirstValidValue('biography', results, priorityOrder) || '';
+    merged.category = this.getFirstValidValue('category', results, priorityOrder) || '';
+    
+    // Merge contact information
+    merged.phone = this.getFirstValidValue('phone', results, priorityOrder) || '';
+    merged.email = this.getFirstValidValue('email', results, priorityOrder) || '';
+    merged.website = this.getFirstValidValue('website', results, priorityOrder) || '';
+    merged.address = this.getFirstValidValue('address', results, priorityOrder) || '';
+    
+    // Merge location details
+    merged.streetAddress = this.getFirstValidValue('streetAddress', results, priorityOrder) || '';
+    merged.neighborhood = this.getFirstValidValue('neighborhood', results, priorityOrder) || '';
+    merged.city = this.getFirstValidValue('city', results, priorityOrder) || 'Lima';
+    merged.postalCode = this.getFirstValidValue('postalCode', results, priorityOrder) || '';
+    merged.state = this.getFirstValidValue('state', results, priorityOrder) || '';
+    merged.country = 'Perú';
+    merged.coordinates = this.getFirstValidValue('coordinates', results, priorityOrder);
+    
+    // Merge business hours
+    merged.hours = this.getFirstValidValue('hours', results, priorityOrder) || {};
+    
+    // Merge images (combine from all sources)
+    const allImages: string[] = [];
+    availableSources.forEach(source => {
+      const sourceData = results[source];
+      if (sourceData.images) allImages.push(...sourceData.images);
+      if (sourceData.galleryImages) allImages.push(...sourceData.galleryImages);
+    });
+    merged.galleryImages = [...new Set(allImages)].slice(0, 30); // Remove duplicates, limit to 30
+    
+    // Select best profile and cover images
+    merged.profileImage = this.getFirstValidValue('profileImage', results, priorityOrder) || 
+                         merged.galleryImages[0] || '';
+    merged.coverImage = this.getFirstValidValue('coverImage', results, priorityOrder) || 
+                       merged.galleryImages[1] || merged.galleryImages[0] || '';
+    
+    // Merge reviews (combine from all sources)
+    availableSources.forEach(source => {
+      const sourceData = results[source];
+      if (sourceData.reviews && Array.isArray(sourceData.reviews)) {
+        merged.reviews.push(...sourceData.reviews);
+      }
+    });
+    
+    // Merge ratings
+    merged.rating = this.getFirstValidValue('rating', results, priorityOrder);
+    merged.reviewCount = this.getFirstValidValue('reviewCount', results, priorityOrder) || merged.reviews.length;
+    
+    // Merge social media (combine all available)
+    availableSources.forEach(source => {
+      const sourceData = results[source];
+      if (sourceData.socialMedia) {
+        Object.assign(merged.socialMedia, sourceData.socialMedia);
+      }
+    });
+    
+    // Add source URLs to social media if they were scraped directly
+    if (sources.facebookUrl) merged.socialMedia.facebook = sources.facebookUrl;
+    if (sources.instagramUrl) merged.socialMedia.instagram = sources.instagramUrl;
+    
+    // Merge services and pricing
+    merged.services = this.getFirstValidValue('services', results, priorityOrder) || [];
+    merged.priceLevel = this.getFirstValidValue('priceLevel', results, priorityOrder);
+    merged.priceRange = this.getFirstValidValue('priceRange', results, priorityOrder) || '';
+    
+    // Calculate quality score
+    merged.qualityScore = this.calculateComprehensiveQualityScore(merged);
+    
+    console.log(`✅ Comprehensive data merged from ${merged.sources.length} sources`);
+    console.log(`📊 Quality score: ${merged.qualityScore}%`);
+    console.log(`📸 Gallery images: ${merged.galleryImages.length}`);
+    console.log(`⭐ Reviews: ${merged.reviews.length}`);
+    
+    return merged;
+  }
+
+  private getFirstValidValue(field: string, results: any, priorityOrder: string[]): any {
+    for (const source of priorityOrder) {
+      if (results[source] && results[source][field] && this.isValidValue(results[source][field])) {
+        return results[source][field];
+      }
+    }
+    return null;
+  }
+
+  private isValidValue(value: any): boolean {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string' && value.trim() === '') return false;
+    if (Array.isArray(value) && value.length === 0) return false;
+    return true;
+  }
+
+  private calculateComprehensiveQualityScore(data: ComprehensiveBusinessData): number {
+    let score = 0;
+    const maxScore = 100;
+    
+    // Basic information (30 points)
+    if (data.name && data.name !== 'Mi Negocio') score += 10;
+    if (data.description && data.description.length > 20) score += 10;
+    if (data.category) score += 10;
+    
+    // Contact information (25 points) 
+    if (data.phone) score += 10;
+    if (data.email) score += 8;
+    if (data.website) score += 7;
+    
+    // Location (15 points)
+    if (data.address) score += 10;
+    if (data.coordinates) score += 5;
+    
+    // Media (20 points)
+    if (data.profileImage) score += 5;
+    if (data.coverImage) score += 5;
+    if (data.galleryImages.length > 0) score += Math.min(10, data.galleryImages.length);
+    
+    // Social presence (10 points)
+    const socialCount = Object.keys(data.socialMedia).filter(key => data.socialMedia[key]).length;
+    score += Math.min(10, socialCount * 2.5);
+    
+    return Math.min(maxScore, Math.round(score));
+  }
+
+  /**
+   * AUTOMATIC DATABASE SAVING
+   * Saves all scraped data to respective database tables
+   */
+  async saveScrapedDataToDatabase(data: ComprehensiveBusinessData, businessId: number): Promise<void> {
+    if (!this.db) {
+      console.log('💾 No database instance provided, skipping save');
+      return;
+    }
+
+    console.log('💾 Saving comprehensive scraped data to database...');
+    
+    try {
+      // Update business basic information
+      await this.updateBusinessBasicInfo(data, businessId);
+      
+      // Update business settings (micrositio configuration)
+      await this.updateBusinessSettings(data, businessId);
+      
+      // Save gallery images
+      if (data.galleryImages.length > 0) {
+        await this.saveGalleryImages(data.galleryImages, businessId);
+      }
+      
+      // Save reviews
+      if (data.reviews.length > 0) {
+        await this.saveReviews(data.reviews, businessId);
+      }
+      
+      console.log('✅ All scraped data saved to database successfully');
+      
+    } catch (error) {
+      console.error('❌ Error saving scraped data to database:', error);
+      throw new Error(`Failed to save scraped data: ${(error as Error).message}`);
+    }
+  }
+
+  private async updateBusinessBasicInfo(data: ComprehensiveBusinessData, businessId: number): Promise<void> {
+    console.log('💾 Updating business basic information...');
+    
+    try {
+      const updateData: any = {};
+      
+      if (data.name && data.name !== 'Mi Negocio') updateData.name = data.name;
+      if (data.description) updateData.description = data.description;
+      if (data.category) updateData.category = data.category;
+      if (data.phone) updateData.phone = data.phone;
+      if (data.email) updateData.email = data.email;
+      if (data.website) updateData.website = data.website;
+      if (data.address) updateData.address = data.address;
+      if (data.rating) updateData.rating = data.rating.toString();
+      if (data.reviewCount) updateData.reviewCount = data.reviewCount;
+      if (data.coordinates) {
+        updateData.latitude = data.coordinates[0].toString();
+        updateData.longitude = data.coordinates[1].toString();
+      }
+      
+      if (Object.keys(updateData).length > 0) {
+        await this.db.update(schema.businesses)
+          .set(updateData)
+          .where(eq(schema.businesses.id, businessId));
+        
+        console.log('✅ Business basic info updated');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error updating business basic info:', error);
+    }
+  }
+
+  private async updateBusinessSettings(data: ComprehensiveBusinessData, businessId: number): Promise<void> {
+    console.log('💾 Updating business settings (micrositio)...');
+    
+    try {
+      const settingsData: any = {};
+      
+      if (data.description) settingsData.publicDescription = data.description;
+      if (data.phone) settingsData.publicPhone = data.phone;
+      if (data.email) settingsData.publicEmail = data.email;
+      if (data.address) settingsData.streetAddress = data.address;
+      if (data.profileImage) settingsData.profileImage = data.profileImage;
+      if (data.coverImage) settingsData.coverImage = data.coverImage;
+      
+      // Social media links
+      if (data.socialMedia.facebook) settingsData.facebookUrl = data.socialMedia.facebook;
+      if (data.socialMedia.instagram) settingsData.instagramUrl = data.socialMedia.instagram;
+      if (data.socialMedia.youtube) settingsData.youtubeUrl = data.socialMedia.youtube;
+      if (data.socialMedia.tiktok) settingsData.tiktokUrl = data.socialMedia.tiktok;
+      
+      // Working hours
+      if (data.hours && Object.keys(data.hours).length > 0) {
+        settingsData.workingHours = data.hours;
+      }
+      
+      if (Object.keys(settingsData).length > 0) {
+        // Check if settings exist, update or create
+        const existingSettings = await this.db.select().from(schema.businessSettings)
+          .where(eq(schema.businessSettings.businessId, businessId));
+        
+        if (existingSettings.length > 0) {
+          await this.db.update(schema.businessSettings)
+            .set(settingsData)
+            .where(eq(schema.businessSettings.businessId, businessId));
+        } else {
+          await this.db.insert(schema.businessSettings)
+            .values({
+              businessId: businessId,
+              ...settingsData
+            });
+        }
+        
+        console.log('✅ Business settings updated');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error updating business settings:', error);
+    }
+  }
+
+  private async saveGalleryImages(images: string[], businessId: number): Promise<void> {
+    console.log(`💾 Saving ${images.length} gallery images...`);
+    
+    try {
+      for (let i = 0; i < images.length; i++) {
+        const imageUrl = images[i];
+        
+        if (!imageUrl || !imageUrl.startsWith('http')) continue;
+        
+        // Check if image already exists
+        const existing = await this.db.select().from(schema.gallery)
+          .where(and(
+            eq(schema.gallery.businessId, businessId),
+            eq(schema.gallery.imageUrl, imageUrl)
+          ));
+        
+        if (existing.length === 0) {
+          await this.db.insert(schema.gallery).values({
+            businessId: businessId,
+            imageUrl: imageUrl,
+            caption: `Imagen ${i + 1} - Extraída automáticamente`,
+            isMain: i === 0 // First image as main
+          });
+        }
+      }
+      
+      console.log('✅ Gallery images saved');
+      
+    } catch (error) {
+      console.error('❌ Error saving gallery images:', error);
+    }
+  }
+
+  private async saveReviews(reviews: any[], businessId: number): Promise<void> {
+    console.log(`💾 Saving ${reviews.length} reviews...`);
+    
+    try {
+      for (const review of reviews) {
+        if (!review.author || !review.rating) continue;
+        
+        // Check if review already exists (by author and content)
+        const existing = await this.db.select().from(schema.reviews)
+          .where(and(
+            eq(schema.reviews.businessId, businessId),
+            eq(schema.reviews.clientName, review.author),
+            eq(schema.reviews.comment, review.comment || '')
+          ));
+        
+        if (existing.length === 0) {
+          await this.db.insert(schema.reviews).values({
+            businessId: businessId,
+            clientName: review.author,
+            rating: review.rating,
+            comment: review.comment || '',
+            source: review.source || 'Extraído automáticamente'
+          });
+        }
+      }
+      
+      console.log('✅ Reviews saved');
+      
+    } catch (error) {
+      console.error('❌ Error saving reviews:', error);
+    }
+  }
+
   private extractInstagramImages(posts: any[]): string[] {
     if (!Array.isArray(posts)) return [];
     
@@ -553,6 +1184,7 @@ export class ApifyScrapingService {
     rating: number;
     comment?: string;
     date?: string;
+    source?: string;
   }> {
     if (!Array.isArray(reviews)) return [];
     
@@ -561,10 +1193,11 @@ export class ApifyScrapingService {
         author: review.author || review.name || 'Usuario',
         rating: parseInt(review.rating) || parseInt(review.stars) || 5,
         comment: review.comment || review.text || review.review || '',
-        date: review.date || review.publishedAt || ''
+        date: review.date || review.publishedAt || review.time || '',
+        source: 'Google Maps' // Add source tracking
       }))
       .filter(review => review.author)
-      .slice(0, 10);
+      .slice(0, 20); // Increased from 10 to 20 reviews
   }
 
 }
