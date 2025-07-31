@@ -170,7 +170,8 @@ router.post('/businesses/:businessId/apply-scraped-data', requireAuth, async (re
       console.log('📸 Adding gallery images:', scrapedData.galleryImages.length);
       for (const imageUrl of scrapedData.galleryImages.slice(0, 20)) { // Limit to 20 images
         try {
-          await storage.createGalleryItem(businessId, {
+          await storage.createGalleryItem({
+            businessId,
             imageUrl,
             caption: 'Imagen extraída automáticamente',
             isActive: true

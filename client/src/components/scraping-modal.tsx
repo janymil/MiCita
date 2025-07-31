@@ -251,18 +251,14 @@ export default function ScrapingModal({ isOpen, onClose, businessId, onSuccess }
     setCurrentStep('apply');
     
     try {
-      const response = await fetch('/api/incremental-scraping/apply-incremental', {
+      const response = await fetch(`/api/dashboard/businesses/${businessId}/apply-scraped-data`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || ''}`,
-          'x-stack-access-token': localStorage.getItem('stack-access-token') || ''
+          'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || sessionStorage.getItem('stack-access-token') || ''}`,
+          'x-stack-access-token': localStorage.getItem('stack-access-token') || sessionStorage.getItem('stack-access-token') || ''
         },
-        body: JSON.stringify({
-          businessId,
-          scrapedData,
-          source: selectedSource
-        })
+        body: JSON.stringify(scrapedData)
       });
 
       if (!response.ok) {
