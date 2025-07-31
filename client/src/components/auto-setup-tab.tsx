@@ -523,6 +523,28 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
           ✨ <strong>Funciona con una sola fuente:</strong> Si tu negocio solo tiene Google Maps, ¡perfecto! El sistema funciona igual de bien.
         </p>
       </div>
+
+      {/* Scraping Modal - Simple Popup for Data Collection */}
+      <ScrapingModal 
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        businessId={Number(businessId)}
+        onSuccess={() => {
+          toast({
+            title: "¡Datos aplicados exitosamente!",
+            description: "Información extraída y aplicada a tu negocio",
+          });
+          onDataFetched({ success: true });
+        }}
+      />
+
+      {/* Visual Micrositio Builder */}
+      {showVisualBuilder && (
+        <VisualMicrositioBuilder 
+          businessId={Number(businessId)}
+          onClose={() => setShowVisualBuilder(false)}
+        />
+      )}
     </div>
   );
 }
@@ -671,28 +693,7 @@ function ScrapingResults({ data, onStartOver }: { data: any; onStartOver: () => 
           Ver micrositio
         </Button>
       </div>
-      
-      {/* Scraping Modal - Simple Popup for Data Collection */}
-      <ScrapingModal 
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        businessId={Number(businessId)}
-        onSuccess={() => {
-          toast({
-            title: "¡Datos aplicados exitosamente!",
-            description: "Información extraída y aplicada a tu negocio",
-          });
-          onDataFetched({ success: true });
-        }}
-      />
 
-      {/* Visual Micrositio Builder */}
-      {showVisualBuilder && (
-        <VisualMicrositioBuilder 
-          businessId={Number(businessId)}
-          onClose={() => setShowVisualBuilder(false)}
-        />
-      )}
     </div>
   );
 }
