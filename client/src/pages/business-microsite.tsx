@@ -1,7 +1,7 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
+import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare, Share2, Music } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -400,11 +400,11 @@ export default function BusinessMicrosite() {
               </h3>
               <div>
                 {/* Priority 1: Use scraped business hours if available */}
-                {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
+                {business?.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
                   <div className="space-y-3">
                     {/* Handle both array format (legacy) and object format (new) */}
                     {Array.isArray(business.hours) 
-                      ? business.hours.map((hourString, index) => {
+                      ? business.hours.map((hourString: any, index: any) => {
                           // Parse hour strings like "Monday: 9:00 AM – 9:00 PM"
                           const parts = hourString.split(':');
                           if (parts.length < 2) return null;
@@ -431,17 +431,17 @@ export default function BusinessMicrosite() {
                           return (
                             <div key={index} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
                               isOpen 
-                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
-                                : 'bg-gradient-to-r from-gray-50 to-gray-100'
+                                ? 'micrositio-text-secondary' 
+                                : 'micrositio-text-secondary opacity-50'
                             }`}>
-                              <span className="capitalize font-medium flex items-center text-gray-900">
+                              <span className="capitalize font-medium flex items-center">
                                 <span className="mr-2">{dayInfo.emoji}</span>
                                 {dayInfo.label}:
                               </span>
                               <span className={`font-semibold px-2 py-1 rounded-md ${
                                 isOpen 
-                                  ? 'text-green-700 bg-green-100' 
-                                  : 'text-gray-500 bg-gray-200 italic'
+                                  ? 'micrositio-text-secondary' 
+                                  : 'micrositio-text-secondary italic'
                               }`}>
                                 {isOpen ? timeRange : 'Cerrado'}
                               </span>
@@ -473,17 +473,17 @@ export default function BusinessMicrosite() {
                           return (
                             <div key={dayKey} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
                               isOpen 
-                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
-                                : 'bg-gradient-to-r from-gray-50 to-gray-100'
+                                ? 'micrositio-text-secondary' 
+                                : 'micrositio-text-secondary opacity-50'
                             }`}>
-                              <span className="capitalize font-medium flex items-center text-gray-900">
+                              <span className="capitalize font-medium flex items-center">
                                 <span className="mr-2">{dayInfo.emoji}</span>
                                 {dayInfo.label}:
                               </span>
                               <span className={`font-semibold px-2 py-1 rounded-md ${
                                 isOpen 
-                                  ? 'text-green-700 bg-green-100' 
-                                  : 'text-gray-500 bg-gray-200 italic'
+                                  ? 'micrositio-text-secondary' 
+                                  : 'micrositio-text-secondary italic'
                               }`}>
                                 {isOpen ? `${schedule.open} - ${schedule.close}` : 'Cerrado'}
                               </span>
@@ -511,17 +511,17 @@ export default function BusinessMicrosite() {
                       return (
                         <div key={key} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
                           hours.enabled 
-                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
-                            : 'bg-gradient-to-r from-gray-50 to-gray-100'
+                            ? 'micrositio-text-secondary' 
+                            : 'micrositio-text-secondary opacity-50'
                         }`}>
-                          <span className="capitalize font-medium flex items-center text-gray-900">
+                          <span className="capitalize font-medium flex items-center">
                             <span className="mr-2">{emoji}</span>
                             {label}:
                           </span>
                           <span className={`font-semibold px-2 py-1 rounded-md ${
                             hours.enabled 
-                              ? 'text-green-700 bg-green-100'
-                              : 'text-gray-500 bg-gray-200 italic'
+                              ? 'micrositio-text-secondary' 
+                              : 'micrositio-text-secondary italic'
                           }`}>
                             {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
                           </span>
@@ -530,13 +530,55 @@ export default function BusinessMicrosite() {
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-6 text-gray-500">
+                  <div className="text-center py-6 micrositio-text-secondary opacity-75">
                     <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
                     <p>Horarios no disponibles</p>
                   </div>
                 )}
+
+                {settings?.scheduleNotes && (
+                  <div className="mt-4 p-3 micrositio-card rounded-lg">
+                    <p className="text-sm micrositio-text-secondary">{settings.scheduleNotes}</p>
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* Social Media Links */}
+            {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
+              <div className="micrositio-card p-6">
+                <h3 className="text-lg font-bold mb-4 flex items-center">
+                  <Share2 className="w-5 h-5 mr-2" />
+                  🌐 Síguenos
+                </h3>
+                <div className="flex space-x-4 justify-center">
+                  {settings?.facebookUrl && (
+                    <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" 
+                       className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
+                      <Facebook className="w-5 h-5" />
+                    </a>
+                  )}
+                  {settings?.instagramUrl && (
+                    <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" 
+                       className="p-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl hover:from-pink-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
+                      <Instagram className="w-5 h-5" />
+                    </a>
+                  )}
+                  {settings?.tiktokUrl && (
+                    <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer" 
+                       className="p-3 bg-black text-white rounded-xl hover:bg-gray-800 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
+                      <Music className="w-5 h-5" />
+                    </a>
+                  )}
+                  {settings?.youtubeUrl && (
+                    <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer" 
+                       className="p-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
+                      <Youtube className="w-5 h-5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Booking Widget */}
             {settings?.enablePublicBooking && (
@@ -548,8 +590,82 @@ export default function BusinessMicrosite() {
                 <BookingWidget businessId={business?.id} />
               </div>
             )}
+
+            {/* Contact Form */}
+            {settings?.enableContactForm && (
+              <div className="micrositio-card p-6">
+                <h3 className="text-lg font-bold mb-4 flex items-center">
+                  <MessageSquare className="w-5 h-5 mr-2" />
+                  💬 Enviar Mensaje
+                </h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="contact-name" className="font-medium">Nombre</Label>
+                    <Input 
+                      id="contact-name" 
+                      placeholder="Tu nombre" 
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contact-email" className="font-medium">Email</Label>
+                    <Input 
+                      id="contact-email" 
+                      type="email" 
+                      placeholder="tu@email.com" 
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="contact-message" className="font-medium">Mensaje</Label>
+                    <Textarea 
+                      id="contact-message" 
+                      placeholder="Escribe tu mensaje..." 
+                      rows={4} 
+                      className="mt-1"
+                    />
+                  </div>
+                  <button className="micrositio-btn w-full py-3">
+                    📧 Enviar Mensaje
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Footer */}
+        <footer className="micrositio-card mt-12 rounded-none border-x-0 border-b-0">
+          <div className="container mx-auto px-4 py-8">
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-4">
+                {settings?.profileImage ? (
+                  <img 
+                    src={settings.profileImage} 
+                    alt={business?.name}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-opacity-20 mr-3"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg mr-3">
+                    {business?.name?.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <h3 className="text-xl font-bold">{business?.name}</h3>
+              </div>
+              <p className="micrositio-text-secondary mb-4">
+                {settings?.professionalTitle || "Servicio profesional de calidad"}
+              </p>
+              <div className="border-t border-opacity-20 pt-4">
+                <p className="micrositio-text-secondary text-sm">
+                  © 2025 {business?.name}. Todos los derechos reservados.
+                </p>
+                <p className="micrositio-text-secondary text-xs mt-1 opacity-75">
+                  ⚡ Powered by MiCita
+                </p>
+              </div>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );
