@@ -215,6 +215,13 @@ Successfully transformed the micrositio configuration from a complex, outdated i
 - **Deployment Ready**: Complete package.json, configuration files, and deployment guide
 - **Result**: Standalone public search platform ready for new repository deployment
 
+#### 🧹 **MAIN APP CLEANUP** - Removed Public Search Components ✅ **COMPLETED**
+- **Removed Components**: All public search UI components (PublicHeader, ModernSearchBar, BusinessCard, etc.)
+- **Updated Landing**: Now uses existing business-landing.tsx as main homepage focused on business owners
+- **Routing Updated**: Main app routes to BusinessLandingPage for business registration/login
+- **Focus Shift**: Main MiCita app now purely focused on business owners and CRM functionality
+- **Clean Architecture**: Separated public discovery from business management completely
+
 ### 🔄 Previous Changes (January 2025)
 
 #### CRITICAL SECURITY FIX - User Data Isolation ✅ **COMPLETED**

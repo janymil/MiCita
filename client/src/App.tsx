@@ -10,7 +10,7 @@ import { stackClientApp } from "../../stack/client";
 import { queryClient } from "./lib/queryClient";
 
 // Public pages  
-import Home from "@/pages/home";
+import BusinessLandingPage from "@/pages/business-landing";
 import BusinessMicrosite from "@/pages/business-microsite";
 
 // Auth pages
@@ -49,8 +49,8 @@ function Router() {
   return (
     <Switch>
       {/* Public routes */}
-      <Route path="/" component={Home} />
-      <Route path="/business" component={Home} />
+      <Route path="/" component={BusinessLandingPage} />
+      <Route path="/business" component={BusinessLandingPage} />
 
       {/* Auth routes */}
       <Route path="/login" component={Login} />
