@@ -238,12 +238,24 @@ export class ApifyScrapingService {
     try {
       console.log('🔍 Scraping Facebook business page:', facebookUrl);
       
-      const run = await this.client.actor("cleansyntax/facebook-pages-scraper").call({
-        urls: [facebookUrl]
+      // Use the proven Facebook Pages Scraper with proper configuration
+      const run = await this.client.actor("4Hv5RhChiaDk6iwad").call({
+        startUrls: [{ url: facebookUrl }],
+        maxPages: 1,
+        language: "es",
+        includeReviews: true,
+        maxReviews: 10,
+        includeContacts: true,
+        includeImages: true,
+        maxImages: 20
+      }, {
+        timeout: 300000 // 5 minutes timeout
       });
       
       const dataset = await this.client.dataset(run.defaultDatasetId).listItems();
       const rawData = dataset.items[0];
+      
+      console.log('📘 Facebook raw data received:', rawData ? Object.keys(rawData) : 'No data');
       
       if (!rawData) {
         throw new Error('No data found for Facebook page');
@@ -260,20 +272,23 @@ export class ApifyScrapingService {
     try {
       console.log('🔍 Scraping Instagram business profile:', instagramUrl);
       
-      const run = await this.client.actor("apify/instagram-scraper").call({
-        addParentData: false,
+      // Use the proven Instagram Scraper with proper configuration for business profiles
+      const run = await this.client.actor("shu8hvrXbJbY3Eb9W").call({
         directUrls: [instagramUrl],
-        enhanceUserSearchWithFacebookPage: false,
-        isUserReelFeedURL: false,
-        isUserTaggedFeedURL: false,
-        resultsLimit: 5,
         resultsType: "posts",
+        resultsLimit: 20,
         searchLimit: 1,
-        searchType: "hashtag"
+        addParentData: true,
+        enhanceUserSearchWithFacebookPage: false,
+        language: "es"
+      }, {
+        timeout: 300000 // 5 minutes timeout
       });
       
       const dataset = await this.client.dataset(run.defaultDatasetId).listItems();
       const rawData = dataset.items[0];
+      
+      console.log('📸 Instagram raw data received:', rawData ? Object.keys(rawData) : 'No data');
       
       if (!rawData) {
         throw new Error('No data found for Instagram profile');
@@ -317,8 +332,10 @@ export class ApifyScrapingService {
       
       console.log('📋 Apify input structure:', JSON.stringify(runInput, null, 2));
       
-      console.log(' Starting Apify actor: compass/crawler-google-places');
-      const run = await this.client.actor("compass/crawler-google-places").call(runInput);
+      console.log('🚀 Starting PROVEN Google Places actor: compass/crawler-google-places');
+      const run = await this.client.actor("compass/crawler-google-places").call(runInput, {
+        timeout: 300000 // 5 minutes timeout for proper data extraction
+      });
       
       console.log('✅ Apify actor started successfully');
       console.log('📊 Run details:', { 
@@ -363,40 +380,7 @@ export class ApifyScrapingService {
     }
   }
 
-  private transformFacebookData(rawData: any): FacebookBusinessData {
-    return {
-      name: rawData.name || '',
-      description: rawData.about || rawData.description || '',
-      category: rawData.category || rawData.categories?.[0] || '',
-      phone: rawData.phone || rawData.phoneNumber || '',
-      email: rawData.email || '',
-      website: rawData.website || rawData.websiteUrl || '',
-      address: rawData.location?.formatted_address || rawData.address || '',
-      hours: this.parseBusinessHours(rawData.hours || rawData.openingHours),
-      profileImage: rawData.profilePicture || rawData.avatar || '',
-      coverImage: rawData.coverPhoto || rawData.cover?.source || '',
-      galleryImages: this.extractImages(rawData.photos || rawData.images || []),
-      rating: parseFloat(rawData.rating) || undefined,
-      reviewCount: parseInt(rawData.reviewCount) || parseInt(rawData.ratingsCount) || 0,
-      services: rawData.services || [],
-      priceRange: rawData.priceRange || ''
-    };
-  }
 
-  private transformInstagramData(rawData: any): InstagramBusinessData {
-    return {
-      username: rawData.username || '',
-      fullName: rawData.fullName || rawData.displayName || '',
-      biography: rawData.biography || rawData.bio || '',
-      website: rawData.externalUrl || rawData.website || '',
-      profileImage: rawData.profilePicUrl || rawData.avatar || '',
-      postsCount: parseInt(rawData.postsCount) || 0,
-      followersCount: parseInt(rawData.followersCount) || 0,
-      galleryImages: this.extractInstagramImages(rawData.latestPosts || []),
-      hashtags: this.extractHashtags(rawData.latestPosts || []),
-      location: rawData.location || ''
-    };
-  }
 
   private transformGooglePlacesData(rawData: any): GooglePlacesData {
     return {
@@ -875,7 +859,7 @@ export class ApifyScrapingService {
       if (sourceData.images) allImages.push(...sourceData.images);
       if (sourceData.galleryImages) allImages.push(...sourceData.galleryImages);
     });
-    merged.galleryImages = [...new Set(allImages)].slice(0, 30); // Remove duplicates, limit to 30
+    merged.galleryImages = Array.from(new Set(allImages)).slice(0, 30); // Remove duplicates, limit to 30
     
     // Select best profile and cover images
     merged.profileImage = this.getFirstValidValue('profileImage', results, priorityOrder) || 
@@ -963,7 +947,7 @@ export class ApifyScrapingService {
     if (data.galleryImages.length > 0) score += Math.min(10, data.galleryImages.length);
     
     // Social presence (10 points)
-    const socialCount = Object.keys(data.socialMedia).filter(key => data.socialMedia[key]).length;
+    const socialCount = Object.keys(data.socialMedia).filter(key => data.socialMedia[key as keyof typeof data.socialMedia]).length;
     score += Math.min(10, socialCount * 2.5);
     
     return Math.min(maxScore, Math.round(score));
@@ -1198,6 +1182,193 @@ export class ApifyScrapingService {
       }))
       .filter(review => review.author)
       .slice(0, 20); // Increased from 10 to 20 reviews
+  }
+
+  /**
+   * REAL DATA TRANSFORMATION METHODS FOR ACTUAL APIFY ACTORS
+   */
+  
+  private transformFacebookData(rawData: any): FacebookBusinessData {
+    console.log('🔄 Transforming Facebook data from REAL actor response...');
+    console.log('📘 Facebook raw data keys:', rawData ? Object.keys(rawData) : 'No data');
+    
+    if (!rawData) {
+      throw new Error('No Facebook data to transform');
+    }
+
+    // Real Facebook Pages Scraper (4Hv5RhChiaDk6iwad) response format
+    const transformed: FacebookBusinessData = {
+      name: rawData.name || rawData.title || rawData.pageName || 'Facebook Business',
+      description: rawData.about || rawData.description || rawData.bio || '',
+      category: rawData.category || rawData.categoryList?.[0] || '',
+      phone: rawData.phone || rawData.phoneNumber || '',
+      email: rawData.email || rawData.contactEmail || '',
+      website: rawData.website || rawData.link || rawData.url || '',
+      address: rawData.address || rawData.location?.address || rawData.location?.name || '',
+      hours: this.parseFacebookHours(rawData.hours || rawData.openingHours || {}),
+      profileImage: rawData.profilePicture || rawData.picture || rawData.profilePic || '',
+      coverImage: rawData.coverPhoto || rawData.cover || rawData.coverImage || '',
+      galleryImages: this.extractFacebookImages(rawData.photos || rawData.images || []),
+      rating: parseFloat(rawData.rating) || parseFloat(rawData.overallStarRating) || 0,
+      reviewCount: parseInt(rawData.reviewCount) || parseInt(rawData.ratingCount) || 0,
+      services: this.extractFacebookServices(rawData.services || rawData.offerings || []),
+      priceRange: rawData.priceRange || rawData.price || ''
+    };
+
+    console.log('✅ Facebook data transformed:', Object.keys(transformed).length, 'fields populated');
+    return transformed;
+  }
+
+  private transformInstagramData(rawData: any): InstagramBusinessData {
+    console.log('🔄 Transforming Instagram data from REAL actor response...');
+    console.log('📸 Instagram raw data keys:', rawData ? Object.keys(rawData) : 'No data');
+    
+    if (!rawData) {
+      throw new Error('No Instagram data to transform');
+    }
+
+    // Real Instagram Scraper (shu8hvrXbJbY3Eb9W) response format
+    const transformed: InstagramBusinessData = {
+      username: rawData.username || rawData.handle || '',
+      fullName: rawData.fullName || rawData.name || rawData.displayName || '',
+      biography: rawData.biography || rawData.bio || rawData.description || '',
+      website: rawData.externalUrl || rawData.website || rawData.url || '',
+      profileImage: rawData.profilePicUrl || rawData.profilePic || rawData.avatar || '',
+      postsCount: parseInt(rawData.postsCount) || parseInt(rawData.mediaCount) || 0,
+      followersCount: parseInt(rawData.followersCount) || parseInt(rawData.followers) || 0,
+      galleryImages: this.extractInstagramImages(rawData.posts || rawData.media || []),
+      hashtags: this.extractHashtags(rawData.posts || rawData.media || []),
+      location: rawData.location || rawData.address || ''
+    };
+
+    console.log('✅ Instagram data transformed:', Object.keys(transformed).length, 'fields populated');
+    return transformed;
+  }
+
+  private transformGoogleData(rawData: any): GooglePlacesData {
+    console.log('🔄 Transforming Google Maps data from REAL actor response...');
+    console.log('🗺️ Google raw data keys:', rawData ? Object.keys(rawData) : 'No data');
+    
+    if (!rawData) {
+      throw new Error('No Google Maps data to transform');
+    }
+
+    // Real Google Maps Crawler (compass/crawler-google-places) response format
+    const transformed: GooglePlacesData = {
+      name: rawData.title || rawData.name || rawData.placeName || 'Business',
+      description: rawData.description || rawData.about || '',
+      category: rawData.categoryName || rawData.category || rawData.primaryType || '',
+      address: rawData.address || rawData.formattedAddress || '',
+      streetAddress: rawData.streetAddress || rawData.street || '',
+      neighborhood: rawData.neighborhood || rawData.area || '',
+      city: rawData.city || rawData.locality || 'Lima',
+      postalCode: rawData.postalCode || rawData.zipCode || '',
+      state: rawData.state || rawData.region || '',
+      countryCode: rawData.countryCode || 'PE',
+      phone: rawData.phoneUnformatted || rawData.phone || rawData.phoneNumber || '',
+      website: rawData.website || rawData.url || '',
+      hours: this.parseGoogleHours(rawData.openingHours || rawData.hours || []),
+      rating: parseFloat(rawData.totalScore) || parseFloat(rawData.rating) || 0,
+      reviewCount: parseInt(rawData.reviewsCount) || parseInt(rawData.totalReviews) || 0,
+      reviews: this.parseReviews(rawData.reviews || []),
+      images: this.extractGoogleImages(rawData),
+      coordinates: this.extractCoordinates(rawData.location || rawData.coordinates),
+      priceLevel: parseInt(rawData.priceLevel) || 0
+    };
+
+    console.log('✅ Google Maps data transformed:', Object.keys(transformed).length, 'fields populated');
+    return transformed;
+  }
+
+  private parseFacebookHours(hours: any): Record<string, { open: string; close: string; closed?: boolean }> {
+    if (!hours || typeof hours !== 'object') return {};
+    
+    const parsedHours: Record<string, { open: string; close: string; closed?: boolean }> = {};
+    
+    Object.keys(hours).forEach(day => {
+      const dayHours = hours[day];
+      if (typeof dayHours === 'string') {
+        const match = dayHours.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+        if (match) {
+          parsedHours[day.toLowerCase()] = {
+            open: `${match[1].padStart(2, '0')}:${match[2]}`,
+            close: `${match[3].padStart(2, '0')}:${match[4]}`
+          };
+        } else if (dayHours.toLowerCase().includes('closed')) {
+          parsedHours[day.toLowerCase()] = { open: '', close: '', closed: true };
+        }
+      }
+    });
+    
+    return parsedHours;
+  }
+
+  private extractFacebookImages(photos: any[]): string[] {
+    if (!Array.isArray(photos)) return [];
+    
+    return photos
+      .map(photo => photo.url || photo.source || photo.link || '')
+      .filter(url => url && url.startsWith('http'))
+      .slice(0, 20);
+  }
+
+  private extractFacebookServices(services: any[]): string[] {
+    if (!Array.isArray(services)) return [];
+    
+    return services
+      .map(service => service.name || service.title || service)
+      .filter(name => name && typeof name === 'string')
+      .slice(0, 10);
+  }
+
+  private extractGoogleImages(rawData: any): string[] {
+    console.log('📸 Raw image data investigation:');
+    console.log('📸 rawData.imageUrls length:', rawData.imageUrls?.length || 0);
+    console.log('📸 rawData.images length:', rawData.images?.length || 0);
+    console.log('📸 rawData.photos length:', rawData.photos?.length || 0);
+    console.log('📸 rawData.photoUrl:', rawData.photoUrl ? 'present' : 'missing');
+    console.log('📸 All image keys in rawData:', Object.keys(rawData).filter(key => key.toLowerCase().includes('image') || key.toLowerCase().includes('photo')));
+    
+    const images: string[] = [];
+    
+    if (Array.isArray(rawData.imageUrls)) {
+      images.push(...rawData.imageUrls);
+    }
+    
+    if (Array.isArray(rawData.images)) {
+      images.push(...rawData.images.map((img: any) => img.url || img.src || img));
+    }
+    
+    if (Array.isArray(rawData.photos)) {
+      images.push(...rawData.photos.map((photo: any) => photo.url || photo.src || photo));
+    }
+    
+    if (rawData.photoUrl) {
+      images.push(rawData.photoUrl);
+    }
+    
+    if (rawData.imageUrl) {
+      images.push(rawData.imageUrl);
+    }
+    
+    const validImages = images
+      .filter(img => img && typeof img === 'string' && img.startsWith('http'))
+      .filter(img => !img.includes('streetviewpixels-pa.googleapis.com'))
+      .slice(0, 30);
+    
+    console.log(`📸 Transformed images count: ${validImages.length}`);
+    return validImages;
+  }
+
+  private extractCoordinates(location: any): [number, number] | undefined {
+    if (!location) return undefined;
+    
+    const lat = parseFloat(location.lat || location.latitude);
+    const lng = parseFloat(location.lng || location.longitude);
+    
+    if (isNaN(lat) || isNaN(lng)) return undefined;
+    
+    return [lat, lng];
   }
 
 }
