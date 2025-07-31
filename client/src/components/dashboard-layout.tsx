@@ -7,6 +7,7 @@ import {
   BarChart3,
   Calendar,
   DollarSign,
+  Eye,
   Globe,
   LayoutDashboard,
   LogOut,
@@ -53,6 +54,37 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const currentBusiness = businesses && Array.isArray(businesses) ? businesses[0] : null;
   const businessName = currentBusiness?.name || "Mi Cita";
 
+  // Fetch business settings to get micrositio customUrl and profileImage
+  const { data: businessSettings } = useQuery({
+    queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`],
+    enabled: Boolean(currentBusiness?.id),
+  }) as { data?: { customUrl?: string; profileImage?: string } | undefined };
+
+  // Get today's date and day
+  const today = new Date();
+  const dayName = today.toLocaleDateString('es-ES', { weekday: 'long' });
+  const formattedDate = today.toLocaleDateString('es-ES', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  });
+
+  // Helper function to get user initials
+  const getUserInitials = () => {
+    if (user?.displayName) {
+      return user.displayName
+        .split(' ')
+        .map(name => name.charAt(0))
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return '?';
+  };
+
   return (
     <div className="flex h-screen theme-bg">
       {/* Sidebar */}
@@ -92,23 +124,83 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex-shrink-0 flex border-t theme-border p-4">
-            <div className="flex-shrink-0 w-full group block">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="inline-block h-8 w-8 rounded-full theme-primary flex items-center justify-center">
-                    <span className="text-sm font-medium leading-none text-white">
-                      {user?.displayName?.charAt(0) || user?.email?.charAt(0) || '?'}
-                    </span>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium theme-text-primary">
-                      {user?.displayName || user?.email}
-                    </p>
-                    <p className="text-xs font-medium theme-text-secondary">
-                      Ver perfil
-                    </p>
-                  </div>
+            {/* Removed user profile from sidebar - now in header */}
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex flex-col w-0 flex-1 overflow-hidden">
+        {/* Enhanced Header */}
+        <div className="theme-card border-b theme-border px-6 py-4">
+          <div className="flex items-center justify-between">
+            {/* Left side - empty for now */}
+            <div></div>
+            
+            {/* Center - Today's date */}
+            <div className="text-center">
+              <p className="text-sm font-medium theme-text-primary capitalize">
+                {dayName}
+              </p>
+              <p className="text-xs theme-text-secondary">
+                {formattedDate}
+              </p>
+            </div>
+
+            {/* Right side - Profile and Actions */}
+            <div className="flex items-center space-x-3">
+              {/* Ver Micrositio Button - only show if customUrl exists */}
+              {businessSettings?.customUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    window.open(`/${businessSettings.customUrl}`, '_blank');
+                  }}
+                  className="theme-text-secondary hover:theme-text-primary"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Ver Micrositio
+                </Button>
+              )}
+
+              {/* Theme Toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleTheme}
+                className="theme-text-secondary hover:theme-text-primary"
+              >
+                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+
+              {/* User Profile */}
+              <div className="flex items-center space-x-3">
+                {/* Profile Avatar */}
+                <div className="relative">
+                  {businessSettings?.profileImage ? (
+                    <img
+                      src={businessSettings.profileImage}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full theme-primary flex items-center justify-center">
+                      <span className="text-sm font-medium leading-none text-white">
+                        {getUserInitials()}
+                      </span>
+                    </div>
+                  )}
                 </div>
+
+                {/* User Info - Hidden on mobile */}
+                <div className="hidden sm:block">
+                  <p className="text-sm font-medium theme-text-primary">
+                    {user?.displayName || user?.email}
+                  </p>
+                </div>
+
+                {/* Logout Button */}
                 <Button
                   variant="ghost"
                   size="sm"
@@ -119,23 +211,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 </Button>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="flex flex-col w-0 flex-1 overflow-hidden">
-        {/* Header */}
-        <div className="theme-card border-b theme-border px-6 py-4">
-          <div className="flex items-center justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              className="theme-text-secondary hover:theme-text-primary"
-            >
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
           </div>
         </div>
 
