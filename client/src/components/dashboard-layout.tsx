@@ -9,6 +9,8 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/contexts/theme-context";
 import { cn } from "@/lib/utils";
+import type { ChatMessage } from "@/services/ai-assistant";
+import { aiAssistant, ChatContext } from "@/services/ai-assistant";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
@@ -31,11 +33,8 @@ import {
   User,
   Users
 } from "lucide-react";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
-import { aiAssistant, ChatContext } from "@/services/ai-assistant";
-import type { ChatMessage } from "@/services/ai-assistant";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -81,10 +80,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   // Get today's date and day
   const today = new Date();
   const dayName = today.toLocaleDateString('es-ES', { weekday: 'long' });
-  const formattedDate = today.toLocaleDateString('es-ES', { 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric' 
+  const formattedDate = today.toLocaleDateString('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
   });
 
   // Helper function to get user initials
@@ -204,7 +203,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center justify-between">
             {/* Left side - empty for now */}
             <div></div>
-            
+
             {/* Center - Today's date */}
             <div className="text-center">
               <p className="text-sm font-medium theme-text-primary capitalize">

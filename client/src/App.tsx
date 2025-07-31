@@ -23,13 +23,13 @@ import Appointments from "@/pages/dashboard/appointments";
 import Calendar from "@/pages/dashboard/calendar";
 import Clients from "@/pages/dashboard/clients";
 import CreateBusiness from "@/pages/dashboard/create-business";
-import Documentation from "@/pages/documentation";
 import Finanzas from "@/pages/dashboard/finanzas";
 import Dashboard from "@/pages/dashboard/index";
 import MicrositioBuilder from "@/pages/dashboard/micrositio";
 import Reviews from "@/pages/dashboard/reviews";
 import Services from "@/pages/dashboard/services";
 import Settings from "@/pages/dashboard/settings";
+import Documentation from "@/pages/documentation";
 import Networking from "@/pages/networking";
 
 // Admin pages

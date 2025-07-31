@@ -3,6 +3,13 @@
 ## Overview
 MiCita is a comprehensive full-stack appointment management platform for Spanish-speaking small to medium businesses. It offers an internal dashboard for appointment scheduling, client management, and analytics, alongside public business microsites for discovery and online booking. The platform aims to provide a culturally appropriate solution for appointment-based service businesses using modern web technologies and Spanish localization.
 
+## Recent Changes (January 31, 2025)
+- **Fixed Authentication Issues**: Resolved 401 errors in scraped data application by correcting API endpoint and enhancing token handling
+- **Enhanced Image Scraping**: Significantly improved Facebook, Instagram, and Google Maps image extraction with comprehensive logging and better Apify configuration
+- **AI Model Optimization**: Changed from GPT-4o to GPT-4o-mini for cost efficiency in content generation
+- **Comprehensive Logging**: Added detailed debugging logs to track image extraction process and identify data flow issues
+- **Improved Apify Configuration**: Enhanced scraper settings for better image capture (Facebook: 50 images, Instagram: 30 posts with highlights/reels)
+
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
