@@ -50,7 +50,7 @@ export default function BusinessMicrosite() {
     );
   }
 
-  const { business, settings, services, gallery, reviews } = micrositeData;
+  const { business, settings, services, gallery, reviews } = micrositeData as any;
   const categoryInfo = categories.find((c: any) => c.id === business.category);
 
   // Render different layouts based on theme
@@ -139,6 +139,83 @@ export default function BusinessMicrosite() {
               </div>
             </div>
           )}
+
+          {/* Working Hours Card */}
+          <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
+            <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">HORARIOS</h2>
+            <div className="space-y-4">
+              {/* Priority 1: Use scraped business hours if available */}
+              {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
+                <div className="space-y-3">
+                  {/* Handle both array format (legacy) and object format (new) */}
+                  {Array.isArray(business.hours) 
+                    ? business.hours.map((hourString: string, index: number) => {
+                        const parts = hourString.split(':');
+                        if (parts.length < 2) return null;
+                        
+                        const day = parts[0].trim();
+                        const timeRange = parts.slice(1).join(':').trim();
+                        const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
+                        
+                        return (
+                          <div key={index} className={`${isOpen ? 'bg-green-400' : 'bg-gray-400'} border-4 border-black p-4`}>
+                            <div className="flex justify-between items-center">
+                              <span className="text-lg font-black text-black uppercase">{day}</span>
+                              <span className="text-lg font-black text-black uppercase">{isOpen ? timeRange : 'CERRADO'}</span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    : Object.entries(business.hours).map(([day, schedule]: [string, any]) => {
+                        const isOpen = schedule?.isOpen !== false;
+                        return (
+                          <div key={day} className={`${isOpen ? 'bg-green-400' : 'bg-gray-400'} border-4 border-black p-4`}>
+                            <div className="flex justify-between items-center">
+                              <span className="text-lg font-black text-black uppercase">{day}</span>
+                              <span className="text-lg font-black text-black uppercase">
+                                {isOpen ? `${schedule.open} - ${schedule.close}` : 'CERRADO'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              ) : 
+              /* Priority 2: Fallback to microsite working hours settings */
+              settings?.workingHours ? (
+                <div className="space-y-3">
+                  {[
+                    { key: '1', label: 'LUNES' },
+                    { key: '2', label: 'MARTES' },
+                    { key: '3', label: 'MIÉRCOLES' },
+                    { key: '4', label: 'JUEVES' },
+                    { key: '5', label: 'VIERNES' },
+                    { key: '6', label: 'SÁBADO' },
+                    { key: '0', label: 'DOMINGO' }
+                  ].map(({ key, label }) => {
+                    const hours = settings.workingHours[key];
+                    if (!hours) return null;
+                    
+                    return (
+                      <div key={key} className={`${hours.enabled ? 'bg-green-400' : 'bg-gray-400'} border-4 border-black p-4`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-black text-black uppercase">{label}</span>
+                          <span className="text-lg font-black text-black uppercase">
+                            {hours.enabled ? `${hours.start} - ${hours.end}` : 'CERRADO'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-red-400 border-4 border-black p-6 text-center">
+                  <p className="text-xl font-black text-black uppercase">HORARIOS NO DISPONIBLES</p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Contact Card */}
           <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
@@ -299,16 +376,58 @@ export default function BusinessMicrosite() {
           {/* Hours Panel */}
           <div className={`${themeConfig.card} ${themeConfig.effects} p-6`}>
             <h3 className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest mb-4">// RUNTIME</h3>
-            {business.hours && Object.keys(business.hours).length > 0 ? (
+            {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
               <div className="space-y-2">
-                {Object.entries(business.hours).map(([day, schedule]: [string, any]) => (
-                  <div key={day} className="flex justify-between font-mono text-sm">
-                    <span className="text-cyan-200">{day}:</span>
-                    <span className={schedule?.open ? "text-green-400" : "text-red-400"}>
-                      {schedule?.open ? `${schedule.open}-${schedule.close}` : "OFFLINE"}
-                    </span>
-                  </div>
-                ))}
+                {Array.isArray(business.hours) 
+                  ? business.hours.map((hourString: string, index: number) => {
+                      const parts = hourString.split(':');
+                      if (parts.length < 2) return null;
+                      const day = parts[0].trim();
+                      const timeRange = parts.slice(1).join(':').trim();
+                      const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
+                      
+                      return (
+                        <div key={index} className="flex justify-between font-mono text-sm">
+                          <span className="text-cyan-200">{day}:</span>
+                          <span className={isOpen ? "text-green-400" : "text-red-400"}>
+                            {isOpen ? timeRange : "OFFLINE"}
+                          </span>
+                        </div>
+                      );
+                    })
+                  : Object.entries(business.hours).map(([day, schedule]: [string, any]) => (
+                      <div key={day} className="flex justify-between font-mono text-sm">
+                        <span className="text-cyan-200">{day}:</span>
+                        <span className={schedule?.open ? "text-green-400" : "text-red-400"}>
+                          {schedule?.open ? `${schedule.open}-${schedule.close}` : "OFFLINE"}
+                        </span>
+                      </div>
+                    ))
+                }
+              </div>
+            ) : settings?.workingHours ? (
+              <div className="space-y-2">
+                {[
+                  { key: '1', label: 'MON' },
+                  { key: '2', label: 'TUE' },
+                  { key: '3', label: 'WED' },
+                  { key: '4', label: 'THU' },
+                  { key: '5', label: 'FRI' },
+                  { key: '6', label: 'SAT' },
+                  { key: '0', label: 'SUN' }
+                ].map(({ key, label }) => {
+                  const hours = settings.workingHours[key];
+                  if (!hours) return null;
+                  
+                  return (
+                    <div key={key} className="flex justify-between font-mono text-sm">
+                      <span className="text-cyan-200">{label}:</span>
+                      <span className={hours.enabled ? "text-green-400" : "text-red-400"}>
+                        {hours.enabled ? `${hours.start}-${hours.end}` : "OFFLINE"}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="font-mono text-red-400">// NO DATA</p>
@@ -528,16 +647,54 @@ export default function BusinessMicrosite() {
           <div className={`${themeConfig.card} ${themeConfig.effects}`}>
             <div className="p-6">
               <h3 className="text-lg font-semibold text-stone-800 mb-4">Horarios</h3>
-              {business.hours && Object.keys(business.hours).length > 0 ? (
+              {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
                 <div className="space-y-2">
-                  {Object.entries(business.hours).slice(0, 3).map(([day, schedule]: [string, any]) => (
-                    <div key={day} className="flex justify-between text-sm">
-                      <span className="text-stone-600 capitalize">{day}:</span>
-                      <span className={schedule?.open ? "text-green-600" : "text-red-600"}>
-                        {schedule?.open ? `${schedule.open}-${schedule.close}` : "Cerrado"}
-                      </span>
-                    </div>
-                  ))}
+                  {Array.isArray(business.hours) 
+                    ? business.hours.slice(0, 3).map((hourString: string, index: number) => {
+                        const parts = hourString.split(':');
+                        if (parts.length < 2) return null;
+                        const day = parts[0].trim();
+                        const timeRange = parts.slice(1).join(':').trim();
+                        const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
+                        
+                        return (
+                          <div key={index} className="flex justify-between text-sm">
+                            <span className="text-stone-600 capitalize">{day}:</span>
+                            <span className={isOpen ? "text-green-600" : "text-red-600"}>
+                              {isOpen ? timeRange : "Cerrado"}
+                            </span>
+                          </div>
+                        );
+                      })
+                    : Object.entries(business.hours).slice(0, 3).map(([day, schedule]: [string, any]) => (
+                        <div key={day} className="flex justify-between text-sm">
+                          <span className="text-stone-600 capitalize">{day}:</span>
+                          <span className={schedule?.open ? "text-green-600" : "text-red-600"}>
+                            {schedule?.open ? `${schedule.open}-${schedule.close}` : "Cerrado"}
+                          </span>
+                        </div>
+                      ))
+                  }
+                </div>
+              ) : settings?.workingHours ? (
+                <div className="space-y-2">
+                  {[
+                    { key: '1', label: 'Lunes' },
+                    { key: '2', label: 'Martes' },
+                    { key: '3', label: 'Miércoles' }
+                  ].map(({ key, label }) => {
+                    const hours = settings.workingHours[key];
+                    if (!hours) return null;
+                    
+                    return (
+                      <div key={key} className="flex justify-between text-sm">
+                        <span className="text-stone-600">{label}:</span>
+                        <span className={hours.enabled ? "text-green-600" : "text-red-600"}>
+                          {hours.enabled ? `${hours.start} - ${hours.end}` : "Cerrado"}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-stone-600 text-sm">No disponible</p>
