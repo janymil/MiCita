@@ -202,18 +202,24 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
           const resultsData = await resultsResponse.json();
           console.log('📊 Results fetched:', resultsData);
           
-          if (resultsData.success && resultsData.data && resultsData.data.processedData) {
+          if (resultsData.success && resultsData.data) {
+            console.log('✅ RAW API Response:', JSON.stringify(resultsData, null, 2));
             console.log('✅ Setting preview data:', resultsData.data.processedData);
+            
+            // Force the UI to show preview state with the actual data
+            const previewData = resultsData.data.processedData;
+            console.log('🎯 FORCING PREVIEW STATE WITH DATA:', previewData);
+            
             setScrapingStatus({
               status: 'preview',
               progress: 100,
               currentStep: 'Datos listos para revisar',
-              data: resultsData.data.processedData
+              data: previewData || resultsData.data // Fallback to full data if processedData is missing
             });
             
             toast({
               title: "¡Datos Extraídos!",
-              description: `Se encontraron datos con ${resultsData.data.qualityScore}% completitud. Revisa y aplica.`,
+              description: `Se encontraron datos con ${resultsData.data.qualityScore || 0}% completitud. Revisa y aplica.`,
               variant: "default"
             });
           } else {
