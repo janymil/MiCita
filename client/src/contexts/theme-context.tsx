@@ -23,7 +23,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Load user preferences from API
     const loadUserPreferences = async () => {
       try {
+        // Get Stack Auth token for authenticated requests
+        const headers: HeadersInit = {};
+        try {
+          const user = await stackClientApp.getUser();
+          if (user) {
+            const { accessToken } = await user.getAuthJson();
+            if (accessToken) {
+              headers["x-stack-access-token"] = accessToken;
+            }
+          }
+        } catch (error) {
+          console.log('No authenticated user for theme preferences');
+        }
+
         const response = await fetch('/api/user/preferences', {
+          headers,
           credentials: 'include'
         });
         
@@ -86,11 +101,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const savePreferences = async (theme: ThemeId, color: string, dark: boolean) => {
     try {
+      // Get Stack Auth token for authenticated requests
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      try {
+        const user = await stackClientApp.getUser();
+        if (user) {
+          const { accessToken } = await user.getAuthJson();
+          if (accessToken) {
+            headers["x-stack-access-token"] = accessToken;
+          }
+        }
+      } catch (error) {
+        console.log('No authenticated user for saving theme preferences');
+      }
+
       await fetch('/api/user/preferences', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         credentials: 'include',
         body: JSON.stringify({
           dashboardTheme: theme,

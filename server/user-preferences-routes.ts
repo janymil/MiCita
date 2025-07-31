@@ -3,14 +3,18 @@ import { z } from 'zod';
 import { db } from './db.js';
 import { userPreferences, insertUserPreferencesSchema } from '../shared/schema.js';
 import { eq } from 'drizzle-orm';
+import { requireAuth, type AuthenticatedRequest } from './auth-middleware.js';
+import { getAuthenticatedUser } from './auth-helpers.js';
 
 const router = express.Router();
 
 // Get user preferences
-router.get('/api/user/preferences', async (req, res) => {
+router.get('/api/user/preferences', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    // For development: use a default user ID (in production, this should come from authenticated session)
-    const userId = 1;
+    const dbUser = await getAuthenticatedUser(req, res);
+    if (!dbUser) return; // Response already sent
+    
+    const userId = dbUser.id;
 
     const preferences = await db
       .select()
@@ -41,10 +45,12 @@ router.get('/api/user/preferences', async (req, res) => {
 });
 
 // Update user preferences
-router.put('/api/user/preferences', async (req, res) => {
+router.put('/api/user/preferences', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    // For development: use a default user ID (in production, this should come from authenticated session)
-    const userId = 1;
+    const dbUser = await getAuthenticatedUser(req, res);
+    if (!dbUser) return; // Response already sent
+    
+    const userId = dbUser.id;
 
     const updateSchema = z.object({
       dashboardTheme: z.string().optional(),

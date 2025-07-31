@@ -8,8 +8,6 @@ export const stackClientApp = new StackClientApp({
   urls: {
     afterSignIn: "/dashboard",
     afterSignUp: "/dashboard/create-business",
-    signIn: "/login",
-    signUp: "/registro",
   },
   redirectMethod: {
     useNavigate: () => {

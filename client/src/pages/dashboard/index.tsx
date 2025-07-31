@@ -23,23 +23,7 @@ export default function Dashboard() {
   const { user, isLoading } = useAuth();
   const [revenueChartView, setRevenueChartView] = useState("weekly");
 
-  // Show loading while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando autenticación...</p>
-        </div>
-      </div>
-    );
-  }
 
-  // Redirect to login if not authenticated
-  if (!user) {
-    window.location.href = "/login";
-    return null;
-  }
   const { data: businesses, isLoading: businessesLoading } = useQuery({
     queryKey: ["/api/dashboard/businesses"],
   });
