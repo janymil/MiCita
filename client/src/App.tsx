@@ -9,11 +9,9 @@ import { Route, Switch, useLocation } from "wouter";
 import { stackClientApp } from "../../stack/client";
 import { queryClient } from "./lib/queryClient";
 
-// Public pages
-import BusinessLandingPage from "@/pages/business-landing";
-import BusinessMicrosite from "@/pages/business-microsite";
+// Public pages  
 import Home from "@/pages/home";
-import Search from "@/pages/search";
+import BusinessMicrosite from "@/pages/business-microsite";
 
 // Auth pages
 import Login from "@/pages/auth/login";
@@ -52,8 +50,7 @@ function Router() {
     <Switch>
       {/* Public routes */}
       <Route path="/" component={Home} />
-      <Route path="/business" component={BusinessLandingPage} />
-      <Route path="/buscar" component={Search} />
+      <Route path="/business" component={Home} />
 
       {/* Auth routes */}
       <Route path="/login" component={Login} />
