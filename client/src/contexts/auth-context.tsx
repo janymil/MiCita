@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     displayName: stackUser.displayName
   } : null;
 
-  const isLoading = false; // Stack manages loading state internally
+  const isLoading = stackUser === undefined; // Stack manages loading state internally
 
   const logout = async () => {
     try {
