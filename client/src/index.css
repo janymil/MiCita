@@ -205,6 +205,131 @@
     box-shadow: 0 8px 24px hsl(var(--theme-primary) / 0.3);
   }
   
+  /* Neo-Brutalism Theme Styles - Only applied when .theme-neobrutalism class is on html */
+  .theme-neobrutalism .theme-card,
+  .theme-neobrutalism .card {
+    background: hsl(var(--theme-surface));
+    border: var(--theme-border-width, 4px) solid hsl(var(--theme-border));
+    box-shadow: var(--theme-shadow-brutal, 6px 6px 0px) hsl(var(--theme-shadow));
+    border-radius: 0; /* No rounded corners */
+    transition: all 0.1s ease-out; /* Snappy transitions */
+    transform: rotate(-0.5deg); /* Slight asymmetry */
+  }
+  
+  .theme-neobrutalism .theme-card:nth-child(even),
+  .theme-neobrutalism .card:nth-child(even) {
+    transform: rotate(0.3deg); /* Alternate rotation */
+  }
+  
+  .theme-neobrutalism .theme-card:hover,
+  .theme-neobrutalism .card:hover {
+    background: hsl(var(--theme-elevated));
+    transform: rotate(0deg) translateY(-2px);
+    box-shadow: 8px 8px 0px hsl(var(--theme-shadow));
+  }
+  
+  .theme-neobrutalism .theme-btn,
+  .theme-neobrutalism button {
+    background: hsl(var(--theme-primary));
+    border: var(--theme-border-width, 4px) solid hsl(var(--theme-border));
+    box-shadow: var(--theme-shadow-brutal, 6px 6px 0px) hsl(var(--theme-shadow));
+    border-radius: 0;
+    color: hsl(var(--theme-accent));
+    font-weight: 900; /* Extra bold */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 16px 24px;
+    transition: all 0.1s ease-out;
+    transform: rotate(-1deg);
+  }
+  
+  .theme-neobrutalism .theme-btn:hover,
+  .theme-neobrutalism button:hover {
+    background: hsl(var(--theme-secondary));
+    transform: rotate(0deg) translateY(-3px);
+    box-shadow: 8px 8px 0px hsl(var(--theme-shadow));
+  }
+  
+  .theme-neobrutalism .theme-btn:active,
+  .theme-neobrutalism button:active {
+    transform: rotate(0deg) translateY(2px);
+    box-shadow: 2px 2px 0px hsl(var(--theme-shadow));
+  }
+  
+  .theme-neobrutalism .theme-input,
+  .theme-neobrutalism input,
+  .theme-neobrutalism textarea,
+  .theme-neobrutalism select {
+    background: hsl(var(--theme-background));
+    border: var(--theme-border-width, 4px) solid hsl(var(--theme-border));
+    box-shadow: inset 4px 4px 0px hsl(var(--theme-shadow) / 0.1);
+    border-radius: 0;
+    padding: 16px;
+    font-weight: 700;
+    transform: rotate(0.2deg);
+  }
+  
+  .theme-neobrutalism .theme-input:focus,
+  .theme-neobrutalism input:focus,
+  .theme-neobrutalism textarea:focus,
+  .theme-neobrutalism select:focus {
+    outline: none;
+    border-color: hsl(var(--theme-primary));
+    box-shadow: inset 4px 4px 0px hsl(var(--theme-primary) / 0.2);
+    transform: rotate(0deg);
+  }
+  
+  .theme-neobrutalism h1,
+  .theme-neobrutalism h2,
+  .theme-neobrutalism h3,
+  .theme-neobrutalism h4,
+  .theme-neobrutalism h5,
+  .theme-neobrutalism h6 {
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: hsl(var(--theme-text));
+    text-shadow: 3px 3px 0px hsl(var(--theme-shadow) / 0.3);
+    transform: rotate(-0.3deg);
+  }
+  
+  .theme-neobrutalism .theme-sidebar {
+    border-right: var(--theme-border-width, 4px) solid hsl(var(--theme-border));
+    box-shadow: 4px 0px 0px hsl(var(--theme-shadow) / 0.2);
+  }
+  
+  .theme-neobrutalism .theme-header {
+    border-bottom: var(--theme-border-width, 4px) solid hsl(var(--theme-border));
+    box-shadow: 0px 4px 0px hsl(var(--theme-shadow) / 0.2);
+  }
+  
+  .theme-neobrutalism .theme-nav-item {
+    border: 2px solid transparent;
+    margin: 2px 0;
+    transform: rotate(-0.2deg);
+    transition: all 0.1s ease-out;
+  }
+  
+  .theme-neobrutalism .theme-nav-item:hover {
+    background: hsl(var(--theme-nav-hover));
+    border-color: hsl(var(--theme-border));
+    transform: rotate(0deg);
+    box-shadow: 2px 2px 0px hsl(var(--theme-shadow) / 0.3);
+  }
+  
+  .theme-neobrutalism .theme-nav-item.active {
+    background: hsl(var(--theme-nav-active));
+    border-color: hsl(var(--theme-border));
+    color: hsl(var(--theme-accent));
+    transform: rotate(0deg);
+    box-shadow: 3px 3px 0px hsl(var(--theme-shadow));
+  }
+  
+  /* Brutalist typography override */
+  .theme-neobrutalism * {
+    font-family: 'Arial Black', 'Arial', sans-serif !important;
+  }
+  
   @keyframes fadeIn {
     from {
       opacity: 0;

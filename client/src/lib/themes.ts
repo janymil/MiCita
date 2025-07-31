@@ -143,6 +143,54 @@ export const themes = {
       "--theme-radius-lg": "24px",
       "--theme-grid-gap": "16px",
     }
+  },
+  brutalist: {
+    id: "brutalist",
+    name: "Neo-Brutal Inca",
+    description: "Neo-Brutalism con actitud peruana - Bordes gruesos, contrastes extremos y tipografía cruda",
+    gradient: "from-yellow-400 via-red-600 to-black",
+    primaryColor: "#dc2626", // Bold red
+    style: "neobrutalism",
+    cssVariables: {
+      "--theme-primary": "0 84% 60%", // Brutal red
+      "--theme-secondary": "45 93% 55%", // Brutal yellow
+      "--theme-accent": "0 0% 0%", // Pure black
+      "--theme-tertiary": "120 100% 50%", // Brutal green
+      "--theme-background": "0 0% 98%", // Off-white
+      "--theme-surface": "0 0% 95%", // Light gray surface
+      "--theme-elevated": "0 0% 92%", // Elevated gray
+      "--theme-text": "0 0% 0%", // Pure black text
+      "--theme-text-secondary": "0 0% 20%", // Dark gray
+      "--theme-border": "0 0% 0%", // Black borders
+      "--theme-sidebar": "45 93% 55%", // Yellow sidebar
+      "--theme-header": "0 84% 60%", // Red header
+      "--theme-nav-hover": "0 0% 85%", // Gray hover
+      "--theme-nav-active": "0 84% 60%", // Red active
+      "--theme-shadow": "0 0% 0%", // Harsh black shadows
+      "--theme-glow": "45 93% 55%", // Yellow glow
+      "--theme-border-width": "4px", // Thick borders
+      "--theme-shadow-brutal": "6px 6px 0px", // Harsh drop shadow
+    },
+    darkVariables: {
+      "--theme-primary": "0 84% 65%",
+      "--theme-secondary": "45 93% 60%",
+      "--theme-accent": "0 0% 100%", // Pure white in dark
+      "--theme-tertiary": "120 100% 60%",
+      "--theme-background": "0 0% 8%", // Dark background
+      "--theme-surface": "0 0% 12%", // Dark surface
+      "--theme-elevated": "0 0% 16%", // Dark elevated
+      "--theme-text": "0 0% 100%", // Pure white text
+      "--theme-text-secondary": "0 0% 80%", // Light gray
+      "--theme-border": "0 0% 100%", // White borders in dark
+      "--theme-sidebar": "0 0% 10%", // Dark sidebar
+      "--theme-header": "0 0% 12%", // Dark header
+      "--theme-nav-hover": "0 0% 20%", // Dark hover
+      "--theme-nav-active": "0 84% 65%", // Red active
+      "--theme-shadow": "0 0% 0%", // Black shadows
+      "--theme-glow": "45 93% 60%", // Brighter yellow glow
+      "--theme-border-width": "4px",
+      "--theme-shadow-brutal": "6px 6px 0px",
+    }
   }
 };
 
@@ -180,10 +228,13 @@ export const applyTheme = (themeId: ThemeId, isDark: boolean = false, isDashboar
       case 'bento':
         root.classList.add('theme-bento');
         break;
+      case 'neobrutalism':
+        root.classList.add('theme-neobrutalism');
+        break;
     }
   } else {
     // Remove theme classes for public pages
-    root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento');
+    root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento', 'theme-neobrutalism');
   }
   
   // Store theme preference

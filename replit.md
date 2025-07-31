@@ -9,6 +9,8 @@ MiCita is a comprehensive full-stack appointment management platform for Spanish
 - **AI Model Optimization**: Changed from GPT-4o to GPT-4o-mini for cost efficiency in content generation
 - **Comprehensive Logging**: Added detailed debugging logs to track image extraction process and identify data flow issues
 - **Improved Apify Configuration**: Enhanced scraper settings for better image capture (Facebook: 50 images, Instagram: 30 posts with highlights/reels)
+- **Added Neo-Brutalism Theme**: Created fourth appearance theme "Neo-Brutal Inca" with thick borders, harsh shadows, bold colors, and intentionally raw aesthetic
+- **Enhanced Theme System**: All 4 themes now have distinctive visual styles and only apply to authenticated dashboard pages, not public microsites
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -45,7 +47,7 @@ Preferred communication style: Simple, everyday language.
 - **Micrositio Configuration**: Redesigned with a tabbed interface for `Básico`, `Marca`, `Contacto`, `Redes`, `Galería`, `Funciones`, and `Bloqueos` settings.
 - **Reviews Management System**: Dual-source (scraped and customer submitted) review system with a dedicated dashboard for analytics and management.
 - **Security**: Critical user data isolation enforced with authentication and business ownership verification on all sensitive endpoints.
-- **Theme System Architecture**: Separated CRM dashboard themes from microsite configuration for modularity and maintainability.
+- **Theme System Architecture**: Four distinctive dashboard themes (Material Inca, Cristal Andino, Bento Amazónico, Neo-Brutal Inca) that only apply to authenticated dashboard pages for modularity and maintainability.
 - **Business Hours Synchronization**: Dual-save system ensures consistency between CRM and public microsite displays.
 - **Smart Scheduling Algorithm**: Advanced time overlap detection, real-time availability checking, and buffer time management.
 - **Peruvian Market Specialization**: Complete Spanish localization, specialized business categories, Lima (Perú) default location, and Peru-inspired design.
