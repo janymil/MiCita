@@ -118,7 +118,7 @@ export class AIContentGenerator {
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o-mini", // the newest OpenAI model is "gpt-4o-mini" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
           {
             role: "system",
@@ -154,7 +154,7 @@ export class AIContentGenerator {
 
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o-mini", // the newest OpenAI model is "gpt-4o-mini" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
           {
             role: "system",
@@ -347,7 +347,7 @@ Responde ÚNICAMENTE con un objeto JSON válido con esta estructura:
   async enhanceBusinessDescription(description: string, category: string): Promise<string> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o-mini", // the newest OpenAI model is "gpt-4o-mini" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
           {
             role: "system",
@@ -382,7 +382,7 @@ Crea una descripción mejorada que sea:
   async generateServices(businessData: BusinessData): Promise<Array<{name: string, description: string}>> {
     try {
       const response = await this.openai.chat.completions.create({
-        model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+        model: "gpt-4o-mini", // the newest OpenAI model is "gpt-4o-mini" which was released May 13, 2024. do not change this unless explicitly requested by the user
         messages: [
           {
             role: "system",
