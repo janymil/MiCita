@@ -1196,26 +1196,36 @@ export class ApifyScrapingService {
       throw new Error('No Facebook data to transform');
     }
 
-    // Real Facebook Pages Scraper (4Hv5RhChiaDk6iwad) response format
+    // ACTUAL Facebook Pages Scraper response fields from logs:
+    // 'facebookUrl', 'categories', 'info', 'likes', 'messenger', 'title', 'address', 
+    // 'pageId', 'pageName', 'pageUrl', 'intro', 'websites', 'website', 'rating', 
+    // 'followers', 'profilePictureUrl', 'coverPhotoUrl', 'profilePhoto', 'ratingOverall', 
+    // 'ratingCount', 'creation_date', 'ad_status', 'facebookId', 'pageAdLibrary'
+    
     const transformed: FacebookBusinessData = {
-      name: rawData.name || rawData.title || rawData.pageName || 'Facebook Business',
-      description: rawData.about || rawData.description || rawData.bio || '',
-      category: rawData.category || rawData.categoryList?.[0] || '',
+      name: rawData.title || rawData.pageName || rawData.name || 'Facebook Business',
+      description: rawData.intro || rawData.info || rawData.about || '',
+      category: rawData.categories?.[0] || rawData.category || '',
       phone: rawData.phone || rawData.phoneNumber || '',
-      email: rawData.email || rawData.contactEmail || '',
-      website: rawData.website || rawData.link || rawData.url || '',
-      address: rawData.address || rawData.location?.address || rawData.location?.name || '',
+      email: rawData.email || '',
+      website: rawData.website || rawData.websites?.[0] || '',
+      address: rawData.address || '',
       hours: this.parseFacebookHours(rawData.hours || rawData.openingHours || {}),
-      profileImage: rawData.profilePicture || rawData.picture || rawData.profilePic || '',
-      coverImage: rawData.coverPhoto || rawData.cover || rawData.coverImage || '',
+      profileImage: rawData.profilePictureUrl || rawData.profilePhoto || '',
+      coverImage: rawData.coverPhotoUrl || rawData.coverPhoto || '',
       galleryImages: this.extractFacebookImages(rawData.photos || rawData.images || []),
-      rating: parseFloat(rawData.rating) || parseFloat(rawData.overallStarRating) || 0,
-      reviewCount: parseInt(rawData.reviewCount) || parseInt(rawData.ratingCount) || 0,
-      services: this.extractFacebookServices(rawData.services || rawData.offerings || []),
-      priceRange: rawData.priceRange || rawData.price || ''
+      rating: parseFloat(rawData.ratingOverall) || parseFloat(rawData.rating) || 0,
+      reviewCount: parseInt(rawData.ratingCount) || parseInt(rawData.reviewCount) || 0,
+      services: this.extractFacebookServices(rawData.services || []),
+      priceRange: rawData.priceRange || ''
     };
 
     console.log('✅ Facebook data transformed:', Object.keys(transformed).length, 'fields populated');
+    console.log('📝 Name:', transformed.name);
+    console.log('📝 Description:', transformed.description?.substring(0, 100) + '...');
+    console.log('📸 Profile Image:', transformed.profileImage ? 'Found' : 'Missing');
+    console.log('📸 Cover Image:', transformed.coverImage ? 'Found' : 'Missing');
+    
     return transformed;
   }
 
@@ -1227,21 +1237,29 @@ export class ApifyScrapingService {
       throw new Error('No Instagram data to transform');
     }
 
-    // Real Instagram Scraper (shu8hvrXbJbY3Eb9W) response format
+    // ACTUAL Instagram Scraper response fields from documentation:
+    // 'username', 'fullName', 'bio', 'profilePicUrl', 'followersCount', 
+    // 'followingCount', 'postsCount', 'isVerified', 'isPrivate', 'url', 'posts'
+    
     const transformed: InstagramBusinessData = {
-      username: rawData.username || rawData.handle || '',
-      fullName: rawData.fullName || rawData.name || rawData.displayName || '',
-      biography: rawData.biography || rawData.bio || rawData.description || '',
-      website: rawData.externalUrl || rawData.website || rawData.url || '',
-      profileImage: rawData.profilePicUrl || rawData.profilePic || rawData.avatar || '',
-      postsCount: parseInt(rawData.postsCount) || parseInt(rawData.mediaCount) || 0,
-      followersCount: parseInt(rawData.followersCount) || parseInt(rawData.followers) || 0,
-      galleryImages: this.extractInstagramImages(rawData.posts || rawData.media || []),
-      hashtags: this.extractHashtags(rawData.posts || rawData.media || []),
-      location: rawData.location || rawData.address || ''
+      username: rawData.username || '',
+      fullName: rawData.fullName || rawData.displayName || '',
+      biography: rawData.bio || rawData.biography || '',
+      website: rawData.externalUrl || rawData.website || '',
+      profileImage: rawData.profilePicUrl || rawData.avatar || '',
+      postsCount: parseInt(rawData.postsCount) || 0,
+      followersCount: parseInt(rawData.followersCount) || 0,
+      galleryImages: this.extractInstagramImages(rawData.posts || rawData.latestPosts || []),
+      hashtags: this.extractHashtags(rawData.posts || rawData.latestPosts || []),
+      location: rawData.location || ''
     };
 
     console.log('✅ Instagram data transformed:', Object.keys(transformed).length, 'fields populated');
+    console.log('📝 Username:', transformed.username);
+    console.log('📝 Full Name:', transformed.fullName);
+    console.log('📝 Bio:', transformed.biography?.substring(0, 100) + '...');
+    console.log('📸 Gallery Images:', transformed.galleryImages.length);
+    
     return transformed;
   }
 
@@ -1253,30 +1271,42 @@ export class ApifyScrapingService {
       throw new Error('No Google Maps data to transform');
     }
 
-    // Real Google Maps Crawler (compass/crawler-google-places) response format
+    // ACTUAL Google Maps Scraper response fields from documentation:
+    // 'title', 'description', 'address', 'coordinates', 'phone', 'website', 'email',
+    // 'categories', 'rating', 'totalScore', 'reviews', 'images', 'openingHours',
+    // 'popularTimes', 'priceLevel', 'menu', 'placeId', 'url'
+    
     const transformed: GooglePlacesData = {
-      name: rawData.title || rawData.name || rawData.placeName || 'Business',
+      name: rawData.title || rawData.name || 'Business',
       description: rawData.description || rawData.about || '',
-      category: rawData.categoryName || rawData.category || rawData.primaryType || '',
-      address: rawData.address || rawData.formattedAddress || '',
-      streetAddress: rawData.streetAddress || rawData.street || '',
-      neighborhood: rawData.neighborhood || rawData.area || '',
-      city: rawData.city || rawData.locality || 'Lima',
-      postalCode: rawData.postalCode || rawData.zipCode || '',
-      state: rawData.state || rawData.region || '',
+      category: rawData.categories?.[0] || rawData.category || '',
+      address: rawData.address || '',
+      streetAddress: rawData.streetAddress || '',
+      neighborhood: rawData.neighborhood || '',
+      city: rawData.city || 'Lima',
+      postalCode: rawData.postalCode || '',
+      state: rawData.state || '',
       countryCode: rawData.countryCode || 'PE',
-      phone: rawData.phoneUnformatted || rawData.phone || rawData.phoneNumber || '',
-      website: rawData.website || rawData.url || '',
-      hours: this.parseGoogleHours(rawData.openingHours || rawData.hours || []),
-      rating: parseFloat(rawData.totalScore) || parseFloat(rawData.rating) || 0,
-      reviewCount: parseInt(rawData.reviewsCount) || parseInt(rawData.totalReviews) || 0,
+      phone: rawData.phone || '',
+      website: rawData.website || '',
+      hours: this.parseGoogleHours(rawData.openingHours || []),
+      rating: parseFloat(rawData.rating) || parseFloat(rawData.totalScore) || 0,
+      reviewCount: parseInt(rawData.totalScore) || parseInt(rawData.reviewsCount) || 0,
       reviews: this.parseReviews(rawData.reviews || []),
       images: this.extractGoogleImages(rawData),
-      coordinates: this.extractCoordinates(rawData.location || rawData.coordinates),
+      coordinates: this.extractCoordinates(rawData.coordinates),
       priceLevel: parseInt(rawData.priceLevel) || 0
     };
 
     console.log('✅ Google Maps data transformed:', Object.keys(transformed).length, 'fields populated');
+    console.log('📝 Name:', transformed.name);
+    console.log('📝 Address:', transformed.address);
+    console.log('📞 Phone:', transformed.phone || 'Missing');
+    console.log('🌐 Website:', transformed.website || 'Missing');
+    console.log('⭐ Rating:', transformed.rating);
+    console.log('📸 Images:', transformed.images.length);
+    console.log('💬 Reviews:', transformed.reviews.length);
+    
     return transformed;
   }
 

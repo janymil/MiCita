@@ -1,284 +1,308 @@
 import { ApifyScrapingService } from '../lib/apify-scraping-service';
 import { storage } from '../server/storage';
 
+export interface OnboardingScrapingInput {
+  businessName: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  googleMapsUrl?: string;
+  websiteUrl?: string;
+  kagiSearchQuery?: string;
+}
+
+export interface OnboardingResult {
+  success: boolean;
+  businessData: any;
+  scrapingResults: any;
+  qualityScore: number;
+  fieldsPopulated: string[];
+  errors?: string[];
+}
+
 /**
- * ONBOARDING SCRAPER SERVICE
- * Integrates scraping system with new user registration process
- * Automatically creates micrositio from business URLs during signup
+ * STAGE 4: Onboarding Integration
+ * Integrates scraping system into new business registration flow
  */
 export class OnboardingScrapingService {
   private scrapingService: ApifyScrapingService;
-  private storage: any;
 
   constructor() {
     this.scrapingService = new ApifyScrapingService();
-    this.storage = storage;
   }
 
   /**
-   * AUTO-SCRAPE DURING REGISTRATION
-   * Called when new user registers and provides business URLs
+   * Complete onboarding with automatic data scraping
+   * This is called during new business registration
    */
-  async autoScrapeOnRegistration(userId: number, businessData: {
-    businessName: string;
-    facebookUrl?: string;
-    instagramUrl?: string;
-    googleMapsUrl?: string;
-    websiteUrl?: string;
-    category?: string;
-  }): Promise<{
-    businessId: number;
-    scrapingJobId: string;
-    qualityScore: number;
-    message: string;
-  }> {
-    console.log('🚀 Starting auto-scraping for new user registration...');
-    console.log('👤 User ID:', userId);
-    console.log('🏢 Business Name:', businessData.businessName);
+  async completeOnboardingWithScraping(
+    userId: number,
+    basicBusinessInfo: {
+      name: string;
+      category?: string;
+      address?: string;
+    },
+    scrapingInput: OnboardingScrapingInput
+  ): Promise<OnboardingResult> {
+    console.log('🚀 Starting onboarding with auto-scraping for:', basicBusinessInfo.name);
 
     try {
-      // 1. Create the business record first
-      const business = await this.storage.createBusiness({
-        userId: userId,
-        name: businessData.businessName,
-        category: businessData.category || 'Servicios',
-        description: 'Configuración automática en progreso...',
-        address: '',
+      const errors: string[] = [];
+      let scrapingResults: any = {};
+
+      // Create basic business first
+      const business = await storage.createBusiness({
+        userId,
+        name: basicBusinessInfo.name,
+        category: basicBusinessInfo.category || 'General',
+        description: '',
+        address: basicBusinessInfo.address || '',
         phone: '',
         email: '',
-        website: businessData.websiteUrl || ''
+        website: ''
       });
 
-      console.log('✅ Business created with ID:', business.id);
+      console.log('✅ Created business:', business.id);
 
-      // 2. Start comprehensive scraping immediately
-      const scrapedData = await this.scrapingService.scrapeAllBusinessData({
-        businessName: businessData.businessName,
-        facebookUrl: businessData.facebookUrl,
-        instagramUrl: businessData.instagramUrl,
-        googleMapsUrl: businessData.googleMapsUrl,
-        websiteUrl: businessData.websiteUrl
-      }, business.id);
-
-      console.log('✅ Auto-scraping completed during registration');
-      console.log('📊 Quality Score:', scrapedData.qualityScore);
-      console.log('📸 Images Found:', scrapedData.galleryImages.length);
-      console.log('⭐ Reviews Found:', scrapedData.reviews.length);
-
-      // 3. Generate automatic custom URL for micrositio
-      const customUrl = this.generateBusinessSlug(businessData.businessName);
-      
-      // 4. Update business settings with scraped data and custom URL
-      await this.updateBusinessSettingsFromScrapedData(scrapedData, business.id, customUrl);
-
-      return {
+      // Create default business settings
+      const settings = await storage.createBusinessSettings({
         businessId: business.id,
-        scrapingJobId: `onboarding_${Date.now()}_${business.id}`,
-        qualityScore: scrapedData.qualityScore || 0,
-        message: `Micrositio creado exitosamente con ${scrapedData.qualityScore}% de información completa`
-      };
-
-    } catch (error) {
-      console.error('❌ Auto-scraping during registration failed:', error);
-      
-      // Create basic business even if scraping fails
-      const business = await this.storage.createBusiness({
-        userId: userId,
-        name: businessData.businessName,
-        category: businessData.category || 'Servicios',
-        description: 'Negocio registrado sin información automática',
-        address: '',
-        phone: '',
-        email: '',
-        website: businessData.websiteUrl || ''
+        customUrl: basicBusinessInfo.name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        professionalTitle: basicBusinessInfo.name,
+        publicDescription: '',
+        publicPhone: '',
+        publicEmail: '',
+        streetAddress: basicBusinessInfo.address || '',
+        district: '',
+        region: 'Lima',
+        postalCode: '',
+        facebookUrl: scrapingInput.facebookUrl || '',
+        instagramUrl: scrapingInput.instagramUrl || '',
+        youtubeUrl: '',
+        tiktokUrl: '',
+        enablePublicBooking: true,
+        enableContactForm: true,
+        enableGallery: true,
+        enableReviews: true,
+        profileImage: '',
+        coverImage: '',
+        workingHours: {},
+        blockedDates: [],
+        blockedHours: [],
+        scheduleNotes: ''
       });
 
-      return {
-        businessId: business.id,
-        scrapingJobId: 'failed',
-        qualityScore: 0,
-        message: 'Negocio creado. Configure manualmente su información.'
-      };
-    }
-  }
+      console.log('✅ Created business settings');
 
-  /**
-   * RETRY SCRAPING FOR EXISTING BUSINESS
-   * Allow users to retry scraping after registration
-   */
-  async retryScraping(businessId: number, urls: {
-    facebookUrl?: string;
-    instagramUrl?: string;
-    googleMapsUrl?: string;
-    websiteUrl?: string;
-    kagiSearchQuery?: string;
-  }): Promise<{
-    success: boolean;
-    qualityScore: number;
-    message: string;
-  }> {
-    console.log('🔄 Retrying scraping for business ID:', businessId);
+      // Perform comprehensive scraping if URLs provided
+      if (scrapingInput.facebookUrl || scrapingInput.instagramUrl || scrapingInput.googleMapsUrl) {
+        try {
+          console.log('🔄 Starting comprehensive data scraping...');
+          
+          scrapingResults = await this.scrapingService.scrapeAllBusinessData({
+            businessName: scrapingInput.businessName,
+            facebookUrl: scrapingInput.facebookUrl,
+            instagramUrl: scrapingInput.instagramUrl,
+            googleMapsUrl: scrapingInput.googleMapsUrl,
+            websiteUrl: scrapingInput.websiteUrl,
+            kagiSearchQuery: scrapingInput.kagiSearchQuery
+          });
 
-    try {
-      // Get business info
-      const business = await this.storage.getBusinessById(businessId);
-      if (!business) {
-        throw new Error('Business not found');
+          console.log('✅ Scraping completed with quality score:', scrapingResults.qualityScore);
+
+          // Apply scraped data automatically during onboarding
+          await this.applyScrapedDataToNewBusiness(business.id, scrapingResults);
+
+        } catch (scrapingError) {
+          console.error('⚠️ Scraping failed during onboarding:', scrapingError);
+          errors.push(`Scraping error: ${(scrapingError as Error).message}`);
+        }
       }
 
-      // Perform comprehensive scraping
-      const scrapedData = await this.scrapingService.scrapeAllBusinessData({
-        businessName: business.name,
-        ...urls
-      }, businessId);
+      // Calculate final quality score and populated fields
+      const updatedBusiness = await storage.getBusiness(business.id);
+      const updatedSettings = await storage.getBusinessSettings(business.id);
+      
+      const fieldsPopulated = this.calculatePopulatedFields(updatedBusiness, updatedSettings);
+      const qualityScore = this.calculateQualityScore(updatedBusiness, updatedSettings, scrapingResults);
 
-      // Update business settings
-      const customUrl = this.generateBusinessSlug(business.name);
-      await this.updateBusinessSettingsFromScrapedData(scrapedData, businessId, customUrl);
-
-      console.log('✅ Retry scraping completed successfully');
+      console.log('✅ Onboarding completed successfully');
+      console.log('📊 Quality score:', qualityScore, '| Fields populated:', fieldsPopulated.length);
 
       return {
         success: true,
-        qualityScore: scrapedData.qualityScore || 0,
-        message: `Información actualizada con ${scrapedData.qualityScore}% de completitud`
+        businessData: {
+          business: updatedBusiness,
+          settings: updatedSettings
+        },
+        scrapingResults,
+        qualityScore,
+        fieldsPopulated,
+        errors: errors.length > 0 ? errors : undefined
       };
 
     } catch (error) {
-      console.error('❌ Retry scraping failed:', error);
+      console.error('❌ Onboarding failed:', error);
+      
       return {
         success: false,
+        businessData: null,
+        scrapingResults: {},
         qualityScore: 0,
-        message: 'Error al actualizar información automáticamente'
+        fieldsPopulated: [],
+        errors: [`Onboarding failed: ${(error as Error).message}`]
       };
     }
   }
 
   /**
-   * UPDATE BUSINESS SETTINGS FROM SCRAPED DATA
-   * Populates micrositio configuration with scraped information
+   * Apply scraped data to newly created business
    */
-  private async updateBusinessSettingsFromScrapedData(
-    scrapedData: any, 
-    businessId: number, 
-    customUrl: string
-  ): Promise<void> {
-    console.log('💾 Updating business settings from scraped data...');
+  private async applyScrapedDataToNewBusiness(businessId: number, scrapingResults: any): Promise<void> {
+    console.log('🔄 Applying scraped data to new business:', businessId);
 
-    try {
-      // Prepare comprehensive settings data
-      const settingsData: any = {
-        customUrl: customUrl,
-        publicDescription: scrapedData.description || '',
-        profileImageUrl: scrapedData.profileImage || '',
-        bannerImageUrl: scrapedData.coverImage || '',
-        
-        // Contact information
-        phone: scrapedData.phone || '',
-        email: scrapedData.email || '',
-        websiteUrl: scrapedData.website || '',
-        address: scrapedData.address || '',
-        district: scrapedData.neighborhood || '',
-        
-        // Social media
-        facebookUrl: scrapedData.socialMedia?.facebook || '',
-        instagramUrl: scrapedData.socialMedia?.instagram || '',
-        youtubeUrl: scrapedData.socialMedia?.youtube || '',
-        tiktokUrl: scrapedData.socialMedia?.tiktok || '',
-        
-        // Features (enable all for scraped businesses)
-        enablePublicBooking: true,
-        enableContactForm: true,
-        enableGallery: scrapedData.galleryImages.length > 0,
-        enableReviews: scrapedData.reviews.length > 0,
-        
-        // Business hours
-        workingHours: scrapedData.hours || {},
-        
-        // Quality metadata
-        lastScrapedAt: new Date(),
-        scrapingQualityScore: scrapedData.qualityScore || 0
-      };
+    const businessUpdates: any = {};
+    const settingsUpdates: any = {};
 
-      // Update or create business settings
-      const existingSettings = await this.storage.getBusinessSettings(businessId);
-      
-      if (existingSettings) {
-        await this.storage.updateBusinessSettings(businessId, settingsData);
-      } else {
-        await this.storage.createBusinessSettings({
-          businessId: businessId,
-          ...settingsData
-        });
+    // Apply business-level updates
+    if (scrapingResults.name && scrapingResults.name !== 'Business') {
+      businessUpdates.name = scrapingResults.name;
+    }
+    if (scrapingResults.description) {
+      businessUpdates.description = scrapingResults.description;
+    }
+    if (scrapingResults.phone) {
+      businessUpdates.phone = scrapingResults.phone;
+    }
+    if (scrapingResults.email) {
+      businessUpdates.email = scrapingResults.email;
+    }
+    if (scrapingResults.website) {
+      businessUpdates.website = scrapingResults.website;
+    }
+    if (scrapingResults.address) {
+      businessUpdates.address = scrapingResults.address;
+    }
+
+    // Apply settings-level updates
+    if (scrapingResults.name) {
+      settingsUpdates.professionalTitle = scrapingResults.name;
+    }
+    if (scrapingResults.description) {
+      settingsUpdates.publicDescription = scrapingResults.description;
+    }
+    if (scrapingResults.phone) {
+      settingsUpdates.publicPhone = scrapingResults.phone;
+    }
+    if (scrapingResults.email) {
+      settingsUpdates.publicEmail = scrapingResults.email;
+    }
+    if (scrapingResults.address) {
+      settingsUpdates.streetAddress = scrapingResults.address;
+    }
+    if (scrapingResults.profileImage) {
+      settingsUpdates.profileImage = scrapingResults.profileImage;
+    }
+    if (scrapingResults.coverImage) {
+      settingsUpdates.coverImage = scrapingResults.coverImage;
+    }
+    if (scrapingResults.socialMedia?.facebook) {
+      settingsUpdates.facebookUrl = scrapingResults.socialMedia.facebook;
+    }
+    if (scrapingResults.socialMedia?.instagram) {
+      settingsUpdates.instagramUrl = scrapingResults.socialMedia.instagram;
+    }
+    if (scrapingResults.hours && Object.keys(scrapingResults.hours).length > 0) {
+      settingsUpdates.workingHours = scrapingResults.hours;
+    }
+
+    // Update business and settings
+    if (Object.keys(businessUpdates).length > 0) {
+      await storage.updateBusiness(businessId, businessUpdates);
+      console.log('✅ Updated business with fields:', Object.keys(businessUpdates));
+    }
+
+    if (Object.keys(settingsUpdates).length > 0) {
+      await storage.updateBusinessSettings(businessId, settingsUpdates);
+      console.log('✅ Updated settings with fields:', Object.keys(settingsUpdates));
+    }
+
+    // Add gallery images
+    if (scrapingResults.galleryImages && scrapingResults.galleryImages.length > 0) {
+      console.log('📸 Adding gallery images:', scrapingResults.galleryImages.length);
+      for (const imageUrl of scrapingResults.galleryImages.slice(0, 15)) {
+        try {
+          await storage.createGalleryItem(businessId, {
+            imageUrl,
+            caption: 'Imagen extraída automáticamente',
+            isActive: true
+          });
+        } catch (error) {
+          console.log('⚠️ Skipping duplicate image');
+        }
       }
-
-      console.log('✅ Business settings updated from scraped data');
-
-    } catch (error) {
-      console.error('❌ Error updating business settings:', error);
-      throw error;
     }
+
+    // Add reviews
+    if (scrapingResults.reviews && scrapingResults.reviews.length > 0) {
+      console.log('💬 Adding reviews:', scrapingResults.reviews.length);
+      for (const review of scrapingResults.reviews.slice(0, 5)) {
+        try {
+          await storage.createReview({
+            businessId,
+            clientName: review.author || 'Cliente',
+            rating: review.rating || 5,
+            comment: review.comment || ''
+          });
+        } catch (error) {
+          console.log('⚠️ Skipping duplicate review');
+        }
+      }
+    }
+
+    console.log('✅ Scraped data applied to new business');
   }
 
   /**
-   * GENERATE BUSINESS SLUG FOR CUSTOM URL
-   * Creates SEO-friendly URL from business name
+   * Calculate which fields have been populated
    */
-  private generateBusinessSlug(businessName: string): string {
-    const slug = businessName
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // Remove accents
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-') // Replace spaces with hyphens
-      .replace(/-+/g, '-') // Remove multiple hyphens
-      .substring(0, 50) // Limit length
-      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  private calculatePopulatedFields(business: any, settings: any): string[] {
+    const fields: string[] = [];
 
-    // Add random suffix to ensure uniqueness
-    const timestamp = Date.now().toString().slice(-4);
-    return `${slug}-${timestamp}`;
+    if (business?.name && business.name !== 'New Business') fields.push('name');
+    if (business?.description) fields.push('description');
+    if (business?.phone) fields.push('phone');
+    if (business?.email) fields.push('email');
+    if (business?.website) fields.push('website');
+    if (business?.address) fields.push('address');
+
+    if (settings?.professionalTitle && settings.professionalTitle !== business?.name) fields.push('professionalTitle');
+    if (settings?.publicDescription) fields.push('publicDescription');
+    if (settings?.publicPhone) fields.push('publicPhone');
+    if (settings?.publicEmail) fields.push('publicEmail');
+    if (settings?.streetAddress) fields.push('streetAddress');
+    if (settings?.profileImage) fields.push('profileImage');
+    if (settings?.coverImage) fields.push('coverImage');
+    if (settings?.facebookUrl) fields.push('facebookUrl');
+    if (settings?.instagramUrl) fields.push('instagramUrl');
+    if (settings?.workingHours && Object.keys(settings.workingHours).length > 0) fields.push('workingHours');
+
+    return fields;
   }
 
   /**
-   * GET ONBOARDING STATUS
-   * Check if scraping completed successfully for a business
+   * Calculate overall quality score
    */
-  async getOnboardingStatus(businessId: number): Promise<{
-    completed: boolean;
-    qualityScore: number;
-    hasGallery: boolean;
-    hasReviews: boolean;
-    message: string;
-  }> {
-    try {
-      const settings = await this.storage.getBusinessSettings(businessId);
-      const gallery = await this.storage.getGalleryImages(businessId);
-      const reviews = await this.storage.getBusinessReviews(businessId);
+  private calculateQualityScore(business: any, settings: any, scrapingResults: any): number {
+    const fieldsPopulated = this.calculatePopulatedFields(business, settings);
+    const totalPossibleFields = 15;
+    
+    let baseScore = (fieldsPopulated.length / totalPossibleFields) * 70;
+    
+    // Bonus points for rich content
+    if (scrapingResults.galleryImages?.length > 0) baseScore += 15;
+    if (scrapingResults.reviews?.length > 0) baseScore += 10;
+    if (scrapingResults.rating > 0) baseScore += 5;
 
-      const qualityScore = settings?.scrapingQualityScore || 0;
-      const hasGallery = gallery && gallery.length > 0;
-      const hasReviews = reviews && reviews.length > 0;
-
-      return {
-        completed: qualityScore > 0,
-        qualityScore: qualityScore,
-        hasGallery: hasGallery,
-        hasReviews: hasReviews,
-        message: qualityScore > 70 ? 
-          'Micrositio configurado exitosamente' : 
-          'Configuración parcial - puede mejorar agregando más información'
-      };
-
-    } catch (error) {
-      console.error('❌ Error checking onboarding status:', error);
-      return {
-        completed: false,
-        qualityScore: 0,
-        hasGallery: false,
-        hasReviews: false,
-        message: 'Error verificando estado de configuración'
-      };
-    }
+    return Math.min(Math.round(baseScore), 100);
   }
 }

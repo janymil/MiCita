@@ -71,6 +71,54 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
     return patterns.some(pattern => pattern.test(url));
   };
 
+  const applyDataMutation = useMutation({
+    mutationFn: async (data: any) => {
+      console.log('🔄 Applying scraped data to micrositio...');
+      
+      // Apply data to business settings
+      const response = await fetch(`/api/dashboard/businesses/${businessId}/apply-scraped-data`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-stack-access-token': localStorage.getItem('stack-access-token') || ''
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to apply scraped data');
+      }
+
+      return response.json();
+    },
+    onSuccess: (result) => {
+      console.log('✅ Data applied successfully:', result);
+      toast({
+        title: "Datos Aplicados",
+        description: `Micrositio actualizado exitosamente con ${result.fieldsUpdated} campos.`,
+        variant: "default"
+      });
+      
+      // Notify parent component
+      onDataFetched(result);
+      
+      // Reset to idle state
+      setScrapingStatus({
+        status: 'idle',
+        progress: 0,
+        currentStep: ''
+      });
+    },
+    onError: (error) => {
+      console.error('❌ Failed to apply data:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron aplicar los datos automáticamente",
+        variant: "destructive"
+      });
+    }
+  });
+
   const startScrapingMutation = useMutation({
     mutationFn: async (sources: ScrapingSources) => {
       const response = await fetch('/api/scraping/start', {
@@ -244,9 +292,10 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
   if (scrapingStatus.status === 'preview') {
     return (
       <ScrapedDataPreview 
-        scrapedData={scrapingStatus.data || {}}
-        onApplyData={handleApplyScrapedData}
-        onCancel={handleCancelPreview}
+        data={scrapingStatus.data || {}}
+        onApprove={() => applyDataMutation.mutate(scrapingStatus.data)}
+        onReject={handleCancelPreview}
+        isApplying={applyDataMutation.isPending}
       />
     );
   }

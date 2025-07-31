@@ -14,6 +14,7 @@ import networkingRoutes from "./networking-routes.js";
 import openstreetAdminRoutes from "./openstreet-admin-routes.js";
 import galleryRoutes from "./routes/gallery.js";
 import scrapingRoutes from "./routes/scraping.js";
+import dataApplicationRoutes from "./routes/data-application.js";
 import { simpleAdminRoutes } from "./simple-admin-routes.js";
 import { storage } from "./storage";
 import userPreferencesRoutes from "./user-preferences-routes.js";
@@ -2623,6 +2624,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register scraping API routes
   app.use('/api/scraping', scrapingRoutes);
+  app.use('/api/dashboard', dataApplicationRoutes);
 
   // Register gallery API routes
   app.use('/api/gallery', galleryRoutes);
