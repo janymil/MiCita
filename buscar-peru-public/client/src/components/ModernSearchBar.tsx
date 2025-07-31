@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
-import { Search, Mic, MapPin } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, Mic, MapPin, X, Clock, TrendingUp, ChevronDown } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from 'framer-motion';
 import { PERUVIAN_CITIES, CITY_DISTRICTS } from "@/lib/constants";
+import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
+import SearchSuggestions from "./search-suggestions";
 
 interface ModernSearchBarProps {
   value: string;
@@ -13,7 +16,26 @@ interface ModernSearchBarProps {
   onLocationChange: (location: string) => void;
   isLoading?: boolean;
   className?: string;
+  showDistrictFilter?: boolean;
 }
+
+interface RecentSearch {
+  query: string;
+  location: string;
+  timestamp: number;
+}
+
+interface TrendingSearch {
+  query: string;
+  category: string;
+}
+
+const TRENDING_SEARCHES: TrendingSearch[] = [
+  { query: "Barbería cerca de mí", category: "belleza" },
+  { query: "Spa con descuento", category: "belleza" },
+  { query: "Gimnasio 24 horas", category: "fitness" },
+  { query: "Restaurante romántico", category: "gastronomia" },
+];
 
 export default function ModernSearchBar({
   value,
@@ -21,12 +43,27 @@ export default function ModernSearchBar({
   onSearch,
   onLocationChange,
   isLoading = false,
-  className
+  className,
+  showDistrictFilter = false
 }: ModernSearchBarProps) {
   const [query, setQuery] = useState(value);
   const [isListening, setIsListening] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const [isSticky, setIsSticky] = useState(false);
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  
+  // Search suggestions hook
+  const { suggestions, isLoading: suggestionsLoading, clearSuggestions } = useSearchSuggestions({
+    query,
+    limit: 5,
+    minLength: 2,
+    debounceMs: 300
+  });
   
   // Get available districts for selected city
   const availableDistricts = selectedCity && CITY_DISTRICTS[selectedCity] ? CITY_DISTRICTS[selectedCity] : [];
@@ -34,6 +71,7 @@ export default function ModernSearchBar({
   // Initialize city from location prop
   useEffect(() => {
     if (location) {
+      // Check if location matches any of our cities
       const matchedCity = PERUVIAN_CITIES.find(city => 
         location.toLowerCase().includes(city.toLowerCase())
       );
@@ -48,11 +86,40 @@ export default function ModernSearchBar({
     if (selectedCity && !CITY_DISTRICTS[selectedCity]) {
       setSelectedDistrict("");
     } else if (selectedDistrict && selectedCity && CITY_DISTRICTS[selectedCity]) {
+      // Check if current district is valid for selected city
       if (!CITY_DISTRICTS[selectedCity].includes(selectedDistrict)) {
         setSelectedDistrict("");
       }
     }
   }, [selectedCity, selectedDistrict]);
+
+  // Load recent searches from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('recentSearches');
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
+  }, []);
+
+  // Handle scroll for sticky effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsSticky(window.scrollY > 100);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleVoiceSearch = () => {
     if (!('webkitSpeechRecognition' in window)) {
@@ -85,17 +152,49 @@ export default function ModernSearchBar({
   const handleSearch = (searchQuery?: string) => {
     const finalQuery = searchQuery || query;
     if (finalQuery.trim()) {
+      // Construct location string
       const locationString = selectedCity ? 
         (selectedDistrict ? `${selectedDistrict}, ${selectedCity}` : selectedCity) : 
         location;
       
+      // Save to recent searches
+      const newSearch: RecentSearch = {
+        query: finalQuery,
+        location: locationString,
+        timestamp: Date.now()
+      };
+      
+      const updated = [newSearch, ...recentSearches.filter(
+        s => s.query !== finalQuery || s.location !== locationString
+      )].slice(0, 5);
+      
+      setRecentSearches(updated);
+      localStorage.setItem('recentSearches', JSON.stringify(updated));
+      
       onSearch(finalQuery, locationString, selectedDistrict);
+      setShowSuggestions(false);
     }
   };
 
+  const clearRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('recentSearches');
+  };
+
   return (
-    <div className={cn("relative", className)}>
-      <div className="max-w-4xl mx-auto">
+    <div
+      ref={searchRef}
+      className={cn(
+        "relative transition-all duration-300",
+        isSticky && "fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg shadow-lg px-4 py-3",
+        className
+      )}
+    >
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="max-w-4xl mx-auto"
+      >
         <div className="flex gap-3">
           {/* Search Input */}
           <div className="flex-1 relative">
@@ -105,7 +204,11 @@ export default function ModernSearchBar({
                 type="text"
                 placeholder="Buscar servicios, negocios..."
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
@@ -134,9 +237,113 @@ export default function ModernSearchBar({
                 )} />
               </button>
             </div>
+
+            {/* Suggestions Dropdown */}
+            <AnimatePresence>
+              {showSuggestions && (query || recentSearches.length > 0 || TRENDING_SEARCHES.length > 0) && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50"
+                >
+                  {/* Real-time Search Suggestions */}
+                  {query.length >= 2 && suggestions.length > 0 && (
+                    <div className="p-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-gray-700 flex items-center">
+                          <Search className="w-4 h-4 mr-2" />
+                          Sugerencias
+                        </h4>
+                        {suggestionsLoading && (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        {suggestions.map((suggestion, index) => (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              setQuery(suggestion.value);
+                              handleSearch(suggestion.value);
+                            }}
+                            className="flex items-center justify-between w-full text-left p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <Search className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm text-gray-700">{suggestion.label}</span>
+                            </div>
+                            {suggestion.count && (
+                              <span className="text-xs text-gray-500">{suggestion.count} resultados</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent Searches */}
+                  {recentSearches.length > 0 && (
+                    <div className="p-4 border-b border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-medium text-gray-700 flex items-center">
+                          <Clock className="w-4 h-4 mr-2" />
+                          Búsquedas recientes
+                        </h4>
+                        <button
+                          onClick={clearRecentSearches}
+                          className="text-xs text-gray-500 hover:text-gray-700"
+                        >
+                          Limpiar
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {recentSearches.map((search, index) => (
+                          <button
+                            key={index}
+                            onClick={() => {
+                              setQuery(search.query);
+                              onLocationChange(search.location);
+                              handleSearch(search.query);
+                            }}
+                            className="flex items-center justify-between w-full text-left p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <span className="text-sm text-gray-700">{search.query}</span>
+                            <span className="text-xs text-gray-500">{search.location}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Trending Searches */}
+                  <div className="p-4">
+                    <h4 className="text-sm font-medium text-gray-700 flex items-center mb-3">
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      Tendencias
+                    </h4>
+                    <div className="space-y-2">
+                      {TRENDING_SEARCHES.map((trend, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setQuery(trend.query);
+                            handleSearch(trend.query);
+                          }}
+                          className="flex items-center justify-between w-full text-left p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="text-sm text-gray-700">{trend.query}</span>
+                          <span className="text-xs text-gray-500 capitalize">{trend.category}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Location Selector */}
+          {/* Enhanced Location Selector */}
           <div className="flex items-center gap-2 bg-gray-50 rounded-full px-4 min-w-[280px]">
             <MapPin className="text-gray-400 w-5 h-5 flex-shrink-0" />
             
@@ -146,7 +353,7 @@ export default function ModernSearchBar({
               onValueChange={(value) => {
                 const newCity = value === "all" ? "" : value;
                 setSelectedCity(newCity);
-                setSelectedDistrict("");
+                setSelectedDistrict(""); // Reset district when city changes
                 onLocationChange(newCity);
               }}
             >
@@ -163,7 +370,7 @@ export default function ModernSearchBar({
               </SelectContent>
             </Select>
 
-            {/* District Selector */}
+            {/* District Selector - Only show if city is selected and has districts */}
             {selectedCity && availableDistricts.length > 0 && (
               <>
                 <span className="text-gray-300">|</span>
@@ -200,13 +407,16 @@ export default function ModernSearchBar({
             )}
           >
             {isLoading ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
             ) : (
-              <Search className="w-5 h-5" />
+              <>
+                <Search className="w-5 h-5" />
+                <span className="ml-2 hidden sm:inline">Buscar</span>
+              </>
             )}
           </Button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

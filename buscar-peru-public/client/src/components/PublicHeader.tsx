@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Search, Menu } from "lucide-react";
+import { Search, Menu, User } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function PublicHeader() {
+  const [location] = useLocation();
+  const { isAuthenticated, user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -16,7 +19,7 @@ export default function PublicHeader() {
               <div className="w-8 h-8 peru-gradient rounded-lg flex items-center justify-center">
                 <Search className="text-white w-4 h-4" />
               </div>
-              <span className="text-xl font-bold text-gray-900">BuscarPerú</span>
+              <span className="text-xl font-bold text-gray-900">Mi Cita</span>
             </Link>
           </div>
           
@@ -33,11 +36,32 @@ export default function PublicHeader() {
           </nav>
 
           <div className="flex items-center space-x-4">
-            <a href="https://micita.replit.app/registro" target="_blank" rel="noopener noreferrer">
-              <Button className="bg-red-600 hover:bg-red-700">
-                Registrar Empresa
-              </Button>
-            </a>
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-4">
+                <Link href="/dashboard">
+                  <Button variant="outline" size="sm">
+                    <User className="w-4 h-4 mr-2" />
+                    {user?.name}
+                  </Button>
+                </Link>
+                <Button variant="ghost" size="sm" onClick={logout}>
+                  Cerrar Sesión
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" className="hidden md:block">
+                    Iniciar Sesión
+                  </Button>
+                </Link>
+                <Link href="/registro">
+                  <Button className="bg-red-600 hover:bg-red-700">
+                    Registrar Empresa
+                  </Button>
+                </Link>
+              </>
+            )}
             
             <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <SheetTrigger asChild>
@@ -56,9 +80,16 @@ export default function PublicHeader() {
                   <a href="#" onClick={() => setIsMenuOpen(false)}>
                     Ayuda
                   </a>
-                  <a href="https://micita.replit.app/registro" onClick={() => setIsMenuOpen(false)}>
-                    Registrar Empresa
-                  </a>
+                  {!isAuthenticated && (
+                    <>
+                      <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                        Iniciar Sesión
+                      </Link>
+                      <Link href="/registro" onClick={() => setIsMenuOpen(false)}>
+                        Registrar Empresa
+                      </Link>
+                    </>
+                  )}
                 </nav>
               </SheetContent>
             </Sheet>

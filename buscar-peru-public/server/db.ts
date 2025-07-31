@@ -1,17 +1,35 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 import * as schema from "../shared/schema.js";
 
-if (!process.env.DATABASE_URL) {
+// Database connection
+const connectionString = process.env.DATABASE_URL!;
+
+if (!connectionString) {
   throw new Error("DATABASE_URL environment variable is required");
 }
 
-const connectionString = process.env.DATABASE_URL;
-const sql = postgres(connectionString, { max: 1 });
-
+// Create the connection
+const sql = postgres(connectionString);
 export const db = drizzle(sql, { schema });
 
-// Test connection on startup
-sql`SELECT 1`
-  .then(() => console.log("✅ Database connected successfully"))
-  .catch((err) => console.error("❌ Database connection failed:", err));
+// Run migrations
+export async function runMigrations() {
+  try {
+    console.log("Running database migrations...");
+    await migrate(db, { migrationsFolder: "./migrations" });
+    console.log("Migrations completed successfully");
+  } catch (error) {
+    console.error("Migration failed:", error);
+    throw error;
+  }
+}
+
+// Close database connection
+export async function closeConnection() {
+  await sql.end();
+}

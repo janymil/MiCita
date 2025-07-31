@@ -201,7 +201,21 @@ Successfully transformed the micrositio configuration from a complex, outdated i
 
 ## Recent Development History
 
-### 🔄 Latest Changes (January 2025)
+### 🔄 Latest Changes (July 2025)
+
+#### 🎯 **PROJECT SEPARATION COMPLETED** - BuscarPerú Public App ✅ **COMPLETED**
+- **Objective**: Successfully separated public search functionality into standalone app
+- **Implementation**: Created complete `buscar-peru-public/` folder with extracted components
+- **Architecture**: Moved existing files (not recreated) to preserve functionality:
+  - **Pages**: Home.tsx, Search.tsx, BusinessMicrosite.tsx
+  - **Components**: PublicHeader.tsx, BusinessCard.tsx, CategoryCard.tsx, ModernSearchBar.tsx
+  - **Backend**: Complete server setup with routes.ts, db.ts, storage.ts
+  - **Shared**: schema.ts, constants.ts, utils.ts, queryClient.ts
+- **Database Strategy**: Shared PostgreSQL database for real-time data sync
+- **Deployment Ready**: Complete package.json, configuration files, and deployment guide
+- **Result**: Standalone public search platform ready for new repository deployment
+
+### 🔄 Previous Changes (January 2025)
 
 #### CRITICAL SECURITY FIX - User Data Isolation ✅ **COMPLETED**
 - **Critical Issue**: Cross-user data contamination allowing users to access other users' business data

@@ -20,8 +20,7 @@ const iconMap: Record<string, string> = {
   coffee: "☕",
   car: "🚗",
   "graduation-cap": "🎓",
-  home: "🏠",
-  settings: "⚙️"
+  home: "🏠"
 };
 
 export default function CategoryCard({ category, onClick, className }: CategoryCardProps) {

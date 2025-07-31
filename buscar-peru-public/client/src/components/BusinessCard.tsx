@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Star, Phone, Globe } from "lucide-react";
+import { MapPin, Star, Phone, Clock } from "lucide-react";
 import { BUSINESS_CATEGORIES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -19,10 +19,11 @@ interface BusinessCardProps {
     slug?: string;
     type?: string;
   };
+  onBookClick?: (businessId: number) => void;
   onViewClick?: (slug: string) => void;
 }
 
-export default function BusinessCard({ business, onViewClick }: BusinessCardProps) {
+export default function BusinessCard({ business, onBookClick, onViewClick }: BusinessCardProps) {
   // Find category info from BUSINESS_CATEGORIES
   const categoryInfo = BUSINESS_CATEGORIES.find(cat => cat.id === business.category);
   const categoryName = categoryInfo?.name || business.category || "Servicio";
@@ -112,8 +113,9 @@ export default function BusinessCard({ business, onViewClick }: BusinessCardProp
             <Button
               className="bg-red-600 hover:bg-red-700"
               size="sm"
+              onClick={() => onBookClick?.(business.id)}
             >
-              Ver Micrositio
+              Reservar
             </Button>
           )}
         </div>
