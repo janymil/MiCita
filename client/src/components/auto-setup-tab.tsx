@@ -141,7 +141,9 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
       return response.json();
     },
     onSuccess: (data) => {
-      setScrapingStatus({ status: 'running', progress: 0, currentStep: 'Iniciando...' });
+      console.log('🚀 Scraping started, job ID:', data.jobId);
+      setScrapingStatus({ status: 'running', progress: 10, currentStep: 'Iniciando scrapers...' });
+      // Start aggressive polling immediately
       pollScrapingStatus(data.jobId);
     },
     onError: (error) => {
@@ -153,51 +155,92 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
     }
   });
 
-  const pollScrapingStatus = (jobId: string) => {
-    const interval = setInterval(async () => {
+  const pollScrapingStatus = async (jobId: string) => {
+    console.log('🔄 Starting polling for job:', jobId);
+    const maxAttempts = 120; // Poll for up to 4 minutes (every 2 seconds)
+    let attempts = 0;
+    
+    const poll = async () => {
       try {
-        const response = await fetch(`/api/scraping/status/${jobId}`);
-        const result = await response.json();
+        attempts++;
+        console.log(`📡 Polling attempt ${attempts}/${maxAttempts} for job:`, jobId);
         
-        if (!result.success) {
-          throw new Error(result.message);
+        const response = await fetch(`/api/scraping/status/${jobId}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        const status = result.data;
-        setScrapingStatus(status);
+        const result = await response.json();
+        console.log('📊 Status response:', result);
         
-        if (status.status === 'completed') {
-          clearInterval(interval);
-          // Fetch the final results
+        if (!result.success) {
+          throw new Error(result.message || 'Status check failed');
+        }
+        
+        const statusData = result.data;
+        
+        // Update status immediately
+        setScrapingStatus({
+          status: statusData.status === 'completed' ? 'running' : 'running', // Keep showing progress
+          progress: statusData.progress || 0,
+          currentStep: statusData.currentStep || 'Procesando...'
+        });
+        
+        if (statusData.status === 'completed') {
+          console.log('✅ Job completed, fetching results...');
+          
+          // Fetch final results immediately
           const resultsResponse = await fetch(`/api/scraping/results/${jobId}`);
+          
+          if (!resultsResponse.ok) {
+            throw new Error(`Failed to fetch results: ${resultsResponse.status}`);
+          }
+          
           const resultsData = await resultsResponse.json();
-          if (resultsData.success) {
-            // Instead of auto-applying, show preview
-            setScrapingStatus({ 
-              status: 'preview', 
-              progress: 100, 
+          console.log('📊 Results fetched:', resultsData);
+          
+          if (resultsData.success && resultsData.data) {
+            setScrapingStatus({
+              status: 'preview',
+              progress: 100,
               currentStep: 'Datos listos para revisar',
               data: resultsData.data
             });
+            
+            toast({
+              title: "¡Datos Extraídos!",
+              description: `Se encontraron datos para tu negocio. Revisa y aplica los que necesites.`,
+              variant: "default"
+            });
+          } else {
+            throw new Error('No data found in results');
           }
-        } else if (status.status === 'failed') {
-          clearInterval(interval);
-          toast({
-            title: "Error en auto-configuración",
-            description: status.error || "Ocurrió un error durante el proceso",
-            variant: "destructive"
-          });
+          
+        } else if (statusData.status === 'failed') {
+          throw new Error(statusData.error || 'Scraping job failed');
+          
+        } else if (statusData.status === 'running' && attempts < maxAttempts) {
+          // Continue polling
+          setTimeout(poll, 2000); // Poll every 2 seconds for faster updates
+          
+        } else if (attempts >= maxAttempts) {
+          throw new Error('Timeout: Scraping is taking too long. Please try again.');
         }
+        
       } catch (error) {
-        clearInterval(interval);
-        setScrapingStatus({ status: 'failed', progress: 0, currentStep: '', error: 'Error de conexión' });
+        console.error('❌ Polling error:', error);
+        setScrapingStatus({ status: 'idle', progress: 0, currentStep: '' });
         toast({
-          title: "Error de conexión",
-          description: "No se pudo obtener el estado del proceso",
+          title: "Error de Conexión",
+          description: `Error al verificar el progreso: ${(error as Error).message}`,
           variant: "destructive"
         });
       }
-    }, 2000);
+    };
+    
+    // Start polling immediately
+    poll();
   };
 
   const handleStartScraping = () => {
