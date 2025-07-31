@@ -56,14 +56,14 @@ export default function BusinessMicrosite() {
     );
   }
 
-  const { business, settings, services, gallery, reviews } = micrositeData;
+  const { business, settings, services, gallery, reviews } = micrositeData || {};
   const categoryInfo = categories.find(c => c.id === business.category);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* Modern Hero Header */}
+      <header className="bg-white/90 backdrop-blur-xl shadow-2xl border-b border-gray-200/30 sticky top-0 z-50 transition-all duration-300">
+        <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {settings?.profileImage ? (
@@ -71,12 +71,12 @@ export default function BusinessMicrosite() {
                   <img 
                     src={settings.profileImage} 
                     alt={business.name}
-                    className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300"
+                    className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-2xl group-hover:scale-110 transition-transform duration-500"
                   />
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
               ) : (
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-700 flex items-center justify-center text-white font-bold text-xl shadow-lg hover:scale-105 transition-transform duration-300">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-2xl shadow-2xl hover:scale-110 transition-transform duration-500 ring-4 ring-white/50">
                   {business.name.charAt(0).toUpperCase()}
                 </div>
               )}
@@ -554,8 +554,26 @@ export default function BusinessMicrosite() {
                     })}
                   </div>
                 ) : (
-                  <div className="text-center p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
-                    <p className="text-gray-600">⏰ Horarios no disponibles</p>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'monday', label: 'Lunes', emoji: '📅' },
+                      { key: 'tuesday', label: 'Martes', emoji: '📅' },
+                      { key: 'wednesday', label: 'Miércoles', emoji: '📅' },
+                      { key: 'thursday', label: 'Jueves', emoji: '📅' },
+                      { key: 'friday', label: 'Viernes', emoji: '📅' },
+                      { key: 'saturday', label: 'Sábado', emoji: '🎯' },
+                      { key: 'sunday', label: 'Domingo', emoji: '🌞' }
+                    ].map(({ key, label, emoji }) => (
+                      <div key={key} className="flex justify-between items-center p-3 rounded-lg transition-all duration-300 bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md">
+                        <span className="capitalize font-medium flex items-center text-gray-900">
+                          <span className="mr-2">{emoji}</span>
+                          {label}:
+                        </span>
+                        <span className="font-semibold px-2 py-1 rounded-md text-green-700 bg-green-100">
+                          9:00 AM - 6:00 PM
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
 
