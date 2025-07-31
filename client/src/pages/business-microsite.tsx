@@ -211,7 +211,7 @@ export default function BusinessMicrosite() {
               <BookingWidget 
                 services={services}
                 businessId={business.id}
-                workingHours={business.hours}
+                workingHours={settings?.workingHours}
                 blockedDates={settings?.blockedDates}
                 blockedHours={settings?.blockedHours}
               />
@@ -409,7 +409,7 @@ export default function BusinessMicrosite() {
               <BookingWidget 
                 services={services}
                 businessId={business.id}
-                workingHours={business.hours}
+                workingHours={settings?.workingHours}
                 blockedDates={settings?.blockedDates}
                 blockedHours={settings?.blockedHours}
               />
@@ -622,7 +622,7 @@ export default function BusinessMicrosite() {
                 <BookingWidget 
                   services={services}
                   businessId={business.id}
-                  workingHours={business.hours}
+                  workingHours={settings?.workingHours}
                   blockedDates={settings?.blockedDates}
                   blockedHours={settings?.blockedHours}
                 />
@@ -766,7 +766,7 @@ export default function BusinessMicrosite() {
               <BookingWidget 
                 services={services}
                 businessId={business.id}
-                workingHours={business.hours}
+                workingHours={settings?.workingHours}
                 blockedDates={settings?.blockedDates}
                 blockedHours={settings?.blockedHours}
               />
