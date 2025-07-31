@@ -149,8 +149,8 @@ export default function BusinessLandingPage() {
               <div className="w-10 h-10 peru-gradient rounded-xl flex items-center justify-center">
                 <Search className="text-white w-5 h-5" />
               </div>
-              <span className="text-2xl font-bold text-gray-900">Mi Cita</span>
-              <Badge variant="secondary" className="ml-2">Business</Badge>
+              <span className="text-2xl font-bold text-gray-900">MiCita</span>
+              <Badge variant="secondary" className="ml-2">Negocio</Badge>
             </Link>
 
             <nav className="hidden md:flex items-center space-x-8">
