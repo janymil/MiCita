@@ -15,6 +15,7 @@ import { categories } from "@/lib/constants";
 import { formatDatePeruvian } from "@/lib/utils";
 import { useMicrositeTheme } from "@/contexts/MicrositeThemeContext";
 import MicrositeThemeSelector from "@/components/microsite-theme-selector";
+import { getThemeClasses } from "@/lib/microsite-themes";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
@@ -58,11 +59,12 @@ export default function BusinessMicrosite() {
 
   const { business, settings, services, gallery, reviews } = micrositeData || {};
   const categoryInfo = categories.find(c => c.id === business.category);
+  const themeConfig = getThemeClasses(theme);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className={`min-h-screen ${themeConfig.background}`}>
       {/* Modern Hero Header */}
-      <header className="bg-white/90 backdrop-blur-xl shadow-2xl border-b border-gray-200/30 sticky top-0 z-50 transition-all duration-300">
+      <header className={`${themeConfig.header} sticky top-0 z-50 transition-all duration-300`}>
         <div className="container mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -104,13 +106,13 @@ export default function BusinessMicrosite() {
                 Temas
               </Button>
               {settings?.publicPhone && (
-                <Button size="lg" className="bg-gradient-to-r from-emerald-500 via-green-600 to-emerald-700 hover:from-emerald-600 hover:via-green-700 hover:to-emerald-800 text-white shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-110 rounded-2xl px-6 py-3">
+                <Button size="lg" className={`${themeConfig.button}`}>
                   <Phone className="w-5 h-5 mr-2" />
                   Llamar Ahora
                 </Button>
               )}
               {settings?.enablePublicBooking && (
-                <Button size="lg" className="bg-gradient-to-r from-purple-500 via-pink-600 to-red-600 hover:from-purple-600 hover:via-pink-700 hover:to-red-700 text-white shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:scale-110 rounded-2xl px-6 py-3">
+                <Button size="lg" className={`${themeConfig.button}`}>
                   <Calendar className="w-5 h-5 mr-2" />
                   Reservar Cita
                 </Button>
@@ -145,7 +147,7 @@ export default function BusinessMicrosite() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* About */}
-            <Card className="bg-gradient-to-br from-white/90 to-gray-50/80 backdrop-blur-xl border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 group rounded-3xl overflow-hidden">
+            <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
               <CardHeader className="pb-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
                 <CardTitle className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all duration-500">
                   🏢 Acerca de nosotros
@@ -160,7 +162,7 @@ export default function BusinessMicrosite() {
 
             {/* Services */}
             {services && services.length > 0 && (
-              <Card className="bg-gradient-to-br from-white/90 to-gray-50/80 backdrop-blur-xl border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 group rounded-3xl overflow-hidden">
+              <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
                 <CardHeader className="pb-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
                   <CardTitle className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-teal-600 group-hover:to-cyan-600 transition-all duration-500 flex items-center">
                     ⚡ Nuestros Servicios
@@ -415,7 +417,7 @@ export default function BusinessMicrosite() {
             </Card>
 
             {/* Business Hours */}
-            <Card className="bg-gradient-to-br from-white/90 to-gray-50/80 backdrop-blur-xl border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 group rounded-3xl overflow-hidden">
+            <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
               <CardHeader className="pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
                 <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent group-hover:from-indigo-600 group-hover:to-purple-600 transition-all duration-500 flex items-center">
                   <Clock className="w-6 h-6 mr-3 text-blue-500" />
