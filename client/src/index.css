@@ -325,9 +325,41 @@
     box-shadow: 3px 3px 0px hsl(var(--theme-shadow));
   }
   
-  /* Brutalist typography override */
+  /* Brutalist typography override - only when neobrutalism theme is active */
   .theme-neobrutalism * {
     font-family: 'Arial Black', 'Arial', sans-serif !important;
+  }
+  
+  /* Reset brutalist styles when other themes are active */
+  .theme-material *,
+  .theme-glassmorphism *,
+  .theme-bento * {
+    font-family: inherit !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    text-shadow: none !important;
+    transform: none !important;
+  }
+  
+  .theme-material .theme-card,
+  .theme-material .card,
+  .theme-glassmorphism .theme-card,
+  .theme-glassmorphism .card,
+  .theme-bento .theme-card,
+  .theme-bento .card {
+    transform: none !important;
+  }
+  
+  .theme-material .theme-btn,
+  .theme-material button,
+  .theme-glassmorphism .theme-btn,
+  .theme-glassmorphism button,
+  .theme-bento .theme-btn,
+  .theme-bento button {
+    transform: none !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    font-weight: normal !important;
   }
   
   @keyframes fadeIn {

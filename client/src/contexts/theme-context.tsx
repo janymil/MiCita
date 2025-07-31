@@ -150,6 +150,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       document.documentElement.classList.remove("dark");
     }
     
+    // Force a complete style recalculation
+    const root = document.documentElement;
+    root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento', 'theme-neobrutalism');
+    void root.offsetHeight;
+    
     // Reapply theme with new dark mode setting
     applyTheme(currentTheme, newIsDark, isDashboard);
     
@@ -159,6 +164,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setTheme = (themeId: ThemeId) => {
     setCurrentTheme(themeId);
+    
+    // Force a complete style recalculation by removing all theme classes first
+    const root = document.documentElement;
+    root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento', 'theme-neobrutalism');
+    
+    // Force a reflow to ensure styles are cleared
+    void root.offsetHeight;
+    
     applyTheme(themeId, isDark, isDashboard);
     
     // Save to database

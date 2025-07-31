@@ -214,8 +214,8 @@ export const applyTheme = (themeId: ThemeId, isDark: boolean = false, isDashboar
   
   // Apply theme-specific body classes only for dashboard
   if (isDashboard) {
-    // Remove all theme classes first
-    root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento');
+    // Remove ALL theme classes first to ensure clean slate
+    root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento', 'theme-neobrutalism');
     
     // Add appropriate theme class
     switch (theme.style) {
@@ -233,7 +233,7 @@ export const applyTheme = (themeId: ThemeId, isDark: boolean = false, isDashboar
         break;
     }
   } else {
-    // Remove theme classes for public pages
+    // Remove ALL theme classes for public pages
     root.classList.remove('theme-material', 'theme-glassmorphism', 'theme-bento', 'theme-neobrutalism');
   }
   
