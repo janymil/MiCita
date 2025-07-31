@@ -23,6 +23,7 @@ import Appointments from "@/pages/dashboard/appointments";
 import Calendar from "@/pages/dashboard/calendar";
 import Clients from "@/pages/dashboard/clients";
 import CreateBusiness from "@/pages/dashboard/create-business";
+import Documentation from "@/pages/documentation";
 import Finanzas from "@/pages/dashboard/finanzas";
 import Dashboard from "@/pages/dashboard/index";
 import MicrositioBuilder from "@/pages/dashboard/micrositio";
@@ -69,6 +70,9 @@ function Router() {
       <Route path="/dashboard/create-business" component={CreateBusiness} />
       <Route path="/dashboard/micrositio" component={MicrositioBuilder} />
       <Route path="/dashboard/networking" component={Networking} />
+
+      {/* Documentation route */}
+      <Route path="/documentation" component={Documentation} />
 
       {/* Admin routes */}
       <Route path="/admin" component={AdminLogin} />
