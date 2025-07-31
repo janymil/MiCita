@@ -205,47 +205,14 @@ export default function BusinessMicrosite() {
           )}
 
           {/* Booking Widget */}
-          {settings?.enableBooking && (
+          {settings?.enableBooking && services && services.length > 0 && (
             <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
               <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">RESERVAR</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xl font-black text-black uppercase mb-2">SERVICIO</label>
-                  <select className="w-full border-4 border-black p-4 bg-white text-xl font-black uppercase">
-                    <option>SELECCIONAR...</option>
-                    {services && services.map((service: any) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name} - S/ {service.price}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xl font-black text-black uppercase mb-2">FECHA</label>
-                  <Input 
-                    type="date" 
-                    className="w-full border-4 border-black p-4 bg-white text-xl font-black uppercase" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xl font-black text-black uppercase mb-2">HORA</label>
-                  <Input 
-                    type="time" 
-                    className="w-full border-4 border-black p-4 bg-white text-xl font-black uppercase" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xl font-black text-black uppercase mb-2">NOMBRE</label>
-                  <Input className="w-full border-4 border-black p-4 bg-white text-xl font-black uppercase" placeholder="TU NOMBRE" />
-                </div>
-                <div>
-                  <label className="block text-xl font-black text-black uppercase mb-2">TELÉFONO</label>
-                  <Input className="w-full border-4 border-black p-4 bg-white text-xl font-black uppercase" placeholder="+51 TELÉFONO" />
-                </div>
-                <Button className="w-full bg-red-500 border-4 border-black p-6 text-2xl font-black text-white uppercase hover:bg-red-600 transform hover:rotate-1 transition-all">
-                  RESERVAR AHORA
-                </Button>
-              </div>
+              <BookingWidget 
+                services={services}
+                businessId={business.id}
+                workingHours={business.hours}
+              />
             </div>
           )}
         </div>
@@ -434,47 +401,14 @@ export default function BusinessMicrosite() {
           )}
 
           {/* Booking Widget */}
-          {settings?.enableBooking && (
+          {settings?.enableBooking && services && services.length > 0 && (
             <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
               <h2 className="text-2xl font-mono font-bold text-cyan-400 uppercase tracking-widest mb-6">// BOOKING.SYS</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block font-mono text-cyan-400 mb-2">// SELECT_SERVICE</label>
-                  <select className="w-full bg-gray-800 border border-cyan-400/50 text-cyan-100 font-mono p-2 rounded">
-                    <option>select_service...</option>
-                    {services && services.map((service: any) => (
-                      <option key={service.id} value={service.id}>
-                        {service.name} - S/ {service.price}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-mono text-cyan-400 mb-2">// DATE</label>
-                  <Input 
-                    type="date" 
-                    className="bg-gray-800 border-cyan-400/50 text-cyan-100 font-mono" 
-                  />
-                </div>
-                <div>
-                  <label className="block font-mono text-cyan-400 mb-2">// TIME</label>
-                  <Input 
-                    type="time" 
-                    className="bg-gray-800 border-cyan-400/50 text-cyan-100 font-mono" 
-                  />
-                </div>
-                <div>
-                  <label className="block font-mono text-cyan-400 mb-2">// CLIENT_NAME</label>
-                  <Input className="bg-gray-800 border-cyan-400/50 text-cyan-100 font-mono" placeholder="your_name" />
-                </div>
-                <div>
-                  <label className="block font-mono text-cyan-400 mb-2">// PHONE</label>
-                  <Input className="bg-gray-800 border-cyan-400/50 text-cyan-100 font-mono" placeholder="+51_phone_number" />
-                </div>
-                <Button className={`w-full ${themeConfig.button} font-mono`}>
-                  &gt;&gt; BOOK_APPOINTMENT
-                </Button>
-              </div>
+              <BookingWidget 
+                services={services}
+                businessId={business.id}
+                workingHours={business.hours}
+              />
             </div>
           )}
 
@@ -677,56 +611,15 @@ export default function BusinessMicrosite() {
           )}
 
           {/* Booking Widget */}
-          {settings?.enableBooking && (
+          {settings?.enableBooking && services && services.length > 0 && (
             <div className={`${themeConfig.card} ${themeConfig.effects} md:col-span-3`}>
               <div className="p-8">
                 <h2 className="text-xl font-semibold text-stone-800 mb-6">Reservar Cita</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label className="text-stone-700 font-medium">Servicio</Label>
-                    <select className="w-full mt-1 p-3 rounded-xl border border-stone-200 bg-white focus:ring-2 focus:ring-orange-500/20">
-                      <option>Seleccionar servicio...</option>
-                      {services && services.map((service: any) => (
-                        <option key={service.id} value={service.id}>
-                          {service.name} - S/ {service.price}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label className="text-stone-700 font-medium">Fecha</Label>
-                    <Input 
-                      type="date" 
-                      className="mt-1 rounded-xl border-stone-200 focus:ring-2 focus:ring-orange-500/20" 
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-stone-700 font-medium">Hora</Label>
-                    <Input 
-                      type="time" 
-                      className="mt-1 rounded-xl border-stone-200 focus:ring-2 focus:ring-orange-500/20" 
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-stone-700 font-medium">Nombre</Label>
-                    <Input 
-                      placeholder="Tu nombre completo" 
-                      className="mt-1 rounded-xl border-stone-200 focus:ring-2 focus:ring-orange-500/20" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label className="text-stone-700 font-medium">Teléfono</Label>
-                    <Input 
-                      placeholder="+51 999 999 999" 
-                      className="mt-1 rounded-xl border-stone-200 focus:ring-2 focus:ring-orange-500/20" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Button className={`w-full ${themeConfig.button} py-3 text-lg`}>
-                      Confirmar Reserva
-                    </Button>
-                  </div>
-                </div>
+                <BookingWidget 
+                  services={services}
+                  businessId={business.id}
+                  workingHours={business.hours}
+                />
               </div>
             </div>
           )}
