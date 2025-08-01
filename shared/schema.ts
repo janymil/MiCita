@@ -194,6 +194,7 @@ export const businessSettings = pgTable("business_settings", {
 
   // Existing fields
   theme: text("theme").default("default"),
+  micrositioTheme: text("micrositio_theme").default("moderno"), // moderno, flat, glassmorphism, cyberpunk
   primaryColor: text("primary_color"),
   bookingSettings: jsonb("booking_settings"),
   emailNotifications: boolean("email_notifications").default(true),
