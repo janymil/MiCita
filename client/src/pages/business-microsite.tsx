@@ -1,7 +1,6 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare, Palette } from "lucide-react";
+import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare, Palette, Grid3X3, Sidebar, Layout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,34 +13,28 @@ import BookingWidget from "@/components/booking-widget";
 import { categories } from "@/lib/constants";
 import { formatDatePeruvian } from "@/lib/utils";
 import { useMicrositeTheme } from "@/contexts/MicrositeThemeContext";
-import MicrositeThemeSelector from "@/components/microsite-theme-selector";
 import { getThemeClasses } from "@/lib/microsite-themes";
+import { MicrositeThemeSelector } from "@/components/microsite-theme-selector";
+import { useState } from "react";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
   const { theme } = useMicrositeTheme();
+  const themeConfig = getThemeClasses(theme);
   const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
-
-  console.log("BusinessMicrosite: slug =", slug);
 
   const { data: micrositeData, isLoading, error } = useQuery({
     queryKey: [`/api/micrositio/${slug}`],
     enabled: Boolean(slug),
   });
 
-  console.log("BusinessMicrosite: micrositeData =", micrositeData);
-  console.log("BusinessMicrosite: isLoading =", isLoading);
-  console.log("BusinessMicrosite: error =", error);
-
   if (isLoading) {
     return <MicrositeSkeletonLoader />;
   }
 
   if (error || !micrositeData) {
-    // If the slug doesn't match any business, show 404 or redirect to home
-    // This prevents showing business microsite for system routes like /dashboard
     if (slug && (slug.startsWith('dashboard') || slug === 'login' || slug === 'registro' || slug === 'business' || slug === 'buscar')) {
-      return null; // Let the router handle these routes normally
+      return null;
     }
 
     return (
@@ -57,64 +50,56 @@ export default function BusinessMicrosite() {
     );
   }
 
-  const { business, settings, services, gallery, reviews } = micrositeData || {};
-  const categoryInfo = categories.find(c => c.id === business.category);
-  const themeConfig = getThemeClasses(theme);
+  const { business, settings, services, gallery, reviews } = micrositeData as any;
+  const categoryInfo = categories.find((c: any) => c.id === business.category);
 
-  return (
-    <div className={`min-h-screen ${themeConfig.background}`}>
-      {/* Modern Hero Header */}
-      <header className={`${themeConfig.header} sticky top-0 z-50 transition-all duration-300`}>
-        <div className="container mx-auto px-6 py-6">
+  // Render different layouts based on theme
+  const renderBrutalistLayout = () => (
+    <div className={`min-h-screen ${themeConfig.background} ${themeConfig.special} relative`}>
+      {/* Brutalist animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-10 left-10 w-32 h-32 bg-red-500 transform rotate-45 animate-pulse"></div>
+        <div className="absolute top-40 right-20 w-24 h-24 bg-yellow-400 transform -rotate-12 animate-bounce"></div>
+        <div className="absolute bottom-20 left-1/3 w-40 h-20 bg-cyan-400 transform skew-x-12 animate-pulse"></div>
+      </div>
+
+      {/* Brutalist Header */}
+      <header className={`${themeConfig.header} sticky top-0 z-50 relative`}>
+        <div className="container mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
               {settings?.profileImage ? (
-                <div className="relative group">
-                  <img 
-                    src={settings.profileImage} 
-                    alt={business.name}
-                    className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-2xl group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
+                <img 
+                  src={settings.profileImage} 
+                  alt={business.name}
+                  className="w-20 h-20 object-cover border-8 border-black shadow-[8px_8px_0px_0px_#ff0000]"
+                />
               ) : (
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-2xl shadow-2xl hover:scale-110 transition-transform duration-500 ring-4 ring-white/50">
-                  {business.name.charAt(0).toUpperCase()}
+                <div className="w-20 h-20 bg-white border-8 border-black flex items-center justify-center shadow-[8px_8px_0px_0px_#ff0000]">
+                  <span className="text-4xl font-black text-black">{business.name.charAt(0).toUpperCase()}</span>
                 </div>
               )}
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:from-purple-600 hover:to-pink-600 transition-all duration-500">{business.name}</h1>
+                <h1 className="text-4xl font-black text-black uppercase tracking-wider transform -skew-x-6">{business.name}</h1>
                 {settings?.professionalTitle && (
-                  <p className="text-gray-700 font-semibold bg-gray-100 px-3 py-1 rounded-full text-sm">{settings.professionalTitle}</p>
+                  <p className="text-xl font-black text-black mt-2 uppercase">{settings.professionalTitle}</p>
                 )}
                 {categoryInfo && (
-                  <Badge variant="secondary" className="mt-1 bg-gradient-to-r from-blue-50 to-purple-50 text-gray-700 border border-gray-200 hover:shadow-md transition-shadow duration-300">
+                  <Badge className={`mt-3 ${themeConfig.accent} px-4 py-2 text-lg font-black uppercase`}>
                     {categoryInfo.name}
                   </Badge>
                 )}
               </div>
             </div>
-
-            <div className="flex items-center space-x-3">
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => setIsThemeSelectorOpen(true)}
-                className="border-purple-200 hover:bg-purple-50 hover:border-purple-300 transition-all duration-300"
-              >
-                <Palette className="w-4 h-4 mr-2 text-purple-600" />
-                Temas
+            <div className="flex flex-col space-y-4">
+              <Button className={`${themeConfig.button} px-8 py-4`} onClick={() => setIsThemeSelectorOpen(true)}>
+                <Palette className="w-6 h-6 mr-3" />
+                CAMBIAR TEMA
               </Button>
               {settings?.publicPhone && (
-                <Button size="lg" className={`${themeConfig.button}`}>
-                  <Phone className="w-5 h-5 mr-2" />
-                  Llamar Ahora
-                </Button>
-              )}
-              {settings?.enablePublicBooking && (
-                <Button size="lg" className={`${themeConfig.button}`}>
-                  <Calendar className="w-5 h-5 mr-2" />
-                  Reservar Cita
+                <Button className={`${themeConfig.button} px-8 py-4`}>
+                  <Phone className="w-6 h-6 mr-3" />
+                  LLAMAR AHORA
                 </Button>
               )}
             </div>
@@ -122,589 +107,887 @@ export default function BusinessMicrosite() {
         </div>
       </header>
 
-      {/* Cover Image */}
-      {settings?.coverImage && (
-        <div className="h-64 md:h-80 bg-gradient-to-r from-gray-200 to-gray-300 relative overflow-hidden group">
-          <img 
-            src={settings.coverImage} 
-            alt="Portada"
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-          <div className="absolute bottom-4 left-4 text-white">
-            <div className="bg-black/20 backdrop-blur-sm rounded-lg p-3">
-              <p className="text-sm font-medium opacity-90">📸 Galería de {business.name}</p>
+      {/* Brutalist Masonry Content */}
+      <div className="container mx-auto px-8 py-12">
+        <div className="columns-1 md:columns-2 lg:columns-3 gap-8 space-y-8">
+          {/* About Card */}
+          <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
+            <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">SOBRE NOSOTROS</h2>
+            <p className="text-lg font-bold text-black leading-relaxed">
+              {settings?.publicDescription || business.description || "INFORMACIÓN NO DISPONIBLE."}
+            </p>
+          </div>
+
+          {/* Services Card */}
+          {services && services.length > 0 && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
+              <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">SERVICIOS</h2>
+              <div className="space-y-6">
+                {services.map((service: any) => (
+                  <div key={service.id} className="bg-cyan-400 border-4 border-black p-4 shadow-[4px_4px_0px_0px_#ff00ff]">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-xl font-black text-black uppercase">{service.name}</h3>
+                      <span className="text-2xl font-black text-black bg-yellow-400 px-3 py-1 border-2 border-black">
+                        S/ {service.price}
+                      </span>
+                    </div>
+                    {service.description && (
+                      <p className="text-base font-bold text-black mt-2">{service.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Working Hours Card */}
+          <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
+            <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">HORARIOS</h2>
+            <div className="space-y-4">
+              {/* Priority 1: Use scraped business hours if available */}
+              {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
+                <div className="space-y-3">
+                  {/* Handle both array format (legacy) and object format (new) */}
+                  {Array.isArray(business.hours) 
+                    ? business.hours.map((hourString: string, index: number) => {
+                        const parts = hourString.split(':');
+                        if (parts.length < 2) return null;
+                        
+                        const day = parts[0].trim();
+                        const timeRange = parts.slice(1).join(':').trim();
+                        const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
+                        
+                        return (
+                          <div key={index} className={`${isOpen ? 'bg-green-400' : 'bg-gray-400'} border-4 border-black p-4`}>
+                            <div className="flex justify-between items-center">
+                              <span className="text-lg font-black text-black uppercase">{day}</span>
+                              <span className="text-lg font-black text-black uppercase">{isOpen ? timeRange : 'CERRADO'}</span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    : Object.entries(business.hours).map(([day, schedule]: [string, any]) => {
+                        const isOpen = schedule?.isOpen !== false;
+                        return (
+                          <div key={day} className={`${isOpen ? 'bg-green-400' : 'bg-gray-400'} border-4 border-black p-4`}>
+                            <div className="flex justify-between items-center">
+                              <span className="text-lg font-black text-black uppercase">{day}</span>
+                              <span className="text-lg font-black text-black uppercase">
+                                {isOpen ? `${schedule.open} - ${schedule.close}` : 'CERRADO'}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                  }
+                </div>
+              ) : 
+              /* Priority 2: Fallback to microsite working hours settings */
+              settings?.workingHours ? (
+                <div className="space-y-3">
+                  {[
+                    { key: '1', label: 'LUNES' },
+                    { key: '2', label: 'MARTES' },
+                    { key: '3', label: 'MIÉRCOLES' },
+                    { key: '4', label: 'JUEVES' },
+                    { key: '5', label: 'VIERNES' },
+                    { key: '6', label: 'SÁBADO' },
+                    { key: '0', label: 'DOMINGO' }
+                  ].map(({ key, label }) => {
+                    const hours = settings.workingHours[key];
+                    if (!hours) return null;
+                    
+                    return (
+                      <div key={key} className={`${hours.enabled ? 'bg-green-400' : 'bg-gray-400'} border-4 border-black p-4`}>
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-black text-black uppercase">{label}</span>
+                          <span className="text-lg font-black text-black uppercase">
+                            {hours.enabled ? `${hours.start} - ${hours.end}` : 'CERRADO'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-red-400 border-4 border-black p-6 text-center">
+                  <p className="text-xl font-black text-black uppercase">HORARIOS NO DISPONIBLES</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Contact Card */}
+          <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
+            <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">CONTACTO</h2>
+            <div className="space-y-4">
+              {(settings?.publicPhone || business.phone) && (
+                <div className="bg-green-400 border-4 border-black p-4">
+                  <span className="text-xl font-black text-black uppercase">{settings?.publicPhone || business.phone}</span>
+                </div>
+              )}
+              {(settings?.publicEmail || business.email) && (
+                <div className="bg-blue-400 border-4 border-black p-4">
+                  <span className="text-xl font-black text-black uppercase">{settings?.publicEmail || business.email}</span>
+                </div>
+              )}
+              {(settings?.streetAddress || business.address) && (
+                <div className="bg-purple-400 border-4 border-black p-4">
+                  <span className="text-xl font-black text-black uppercase">{settings?.streetAddress || business.address}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Gallery Card */}
+          {settings?.enableGallery && gallery && gallery.length > 0 && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
+              <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">GALERÍA</h2>
+              <div className="grid grid-cols-2 gap-4">
+                {gallery.slice(0, 6).map((item: any) => (
+                  <div key={item.id} className="border-4 border-black">
+                    <img 
+                      src={item.imageUrl} 
+                      alt={item.title || "Trabajo"}
+                      className="w-full h-24 object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reviews Card */}
+          {(settings?.enableReviews || (reviews && reviews.length > 0)) && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
+              <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">RESEÑAS</h2>
+              <div className="space-y-4">
+                {reviews && reviews.length > 0 && reviews.slice(0, 3).map((review: any) => (
+                  <div key={review.id} className="bg-yellow-400 border-4 border-black p-4">
+                    <div className="flex mb-2">
+                      {[...Array(5)].map((_, i) => (
+                        <span key={i} className={`text-2xl ${i < review.rating ? '★' : '☆'}`}>
+                          {i < review.rating ? '★' : '☆'}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-lg font-black text-black uppercase">{review.clientName}</p>
+                    {review.comment && (
+                      <p className="text-base font-bold text-black mt-2">"{review.comment}"</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Booking Widget */}
+          {settings?.enablePublicBooking && services && services.length > 0 && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8 break-inside-avoid mb-8`}>
+              <h2 className="text-3xl font-black text-black uppercase mb-6 transform -skew-x-3">RESERVAR</h2>
+              <BookingWidget 
+                services={services}
+                businessId={business.id}
+                workingHours={settings?.workingHours}
+                blockedDates={settings?.blockedDates}
+                blockedHours={settings?.blockedHours}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCyberpunkLayout = () => (
+    <div className={`min-h-screen ${themeConfig.background} ${themeConfig.special} text-cyan-100`}>
+      {/* Cyberpunk Header */}
+      <header className={`${themeConfig.header} sticky top-0 z-50 ${themeConfig.effects}`}>
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              {settings?.profileImage ? (
+                <div className="relative">
+                  <img 
+                    src={settings.profileImage} 
+                    alt={business.name}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.7)]"
+                  />
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-400/30 to-pink-400/30 animate-pulse"></div>
+                </div>
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gradient-to-r from-cyan-500 to-pink-500 flex items-center justify-center text-black font-mono font-bold text-xl shadow-[0_0_20px_rgba(6,182,212,0.7)]">
+                  {business.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h1 className="text-2xl font-mono font-bold text-cyan-100 uppercase tracking-widest glitch" data-text={business.name}>
+                  {business.name}
+                </h1>
+                {settings?.professionalTitle && (
+                  <p className="text-pink-400 font-mono tracking-wide">{settings.professionalTitle}</p>
+                )}
+                {categoryInfo && (
+                  <Badge className={`mt-1 ${themeConfig.accent} font-mono`}>
+                    {categoryInfo.name}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button className={`${themeConfig.button} px-6 py-3`} onClick={() => setIsThemeSelectorOpen(true)}>
+                <Palette className="w-5 h-5 mr-2" />
+                THEMAS
+              </Button>
+              {settings?.publicPhone && (
+                <Button className={`${themeConfig.button} px-6 py-3`}>
+                  <Phone className="w-5 h-5 mr-2" />
+                  CONNECT
+                </Button>
+              )}
             </div>
           </div>
         </div>
-      )}
+      </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* About */}
-            <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-              <CardHeader className="pb-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
-                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all duration-500">
-                  🏢 Acerca de nosotros
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-8">
-                <p className="text-gray-700 leading-relaxed text-lg font-medium">
-                  {settings?.publicDescription || business.description || "Información no disponible."}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Services */}
-            {services && services.length > 0 && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
-                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-teal-600 group-hover:to-cyan-600 transition-all duration-500 flex items-center">
-                    ⚡ Nuestros Servicios
-                    <Badge variant="outline" className="ml-4 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-emerald-200 px-3 py-1 text-sm font-semibold">
-                      {services.length} servicios
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {services.map((service) => (
-                      <div key={service.id} className="border-0 rounded-2xl p-6 bg-gradient-to-br from-white/80 to-gray-50/60 backdrop-blur-md hover:from-white/90 hover:to-gray-50/80 hover:shadow-xl transition-all duration-400 group/service transform hover:scale-105">
-                        <div className="flex justify-between items-start mb-2">
-                          <h3 className="font-semibold text-lg text-gray-900 group-hover/service:text-red-600 transition-colors duration-300">{service.name}</h3>
-                          <span className="text-red-600 font-bold text-lg bg-gradient-to-r from-red-50 to-pink-50 px-2 py-1 rounded-lg">
-                            S/ {service.price}
-                          </span>
-                        </div>
-                        {service.description && (
-                          <p className="text-gray-600 text-sm mb-3 leading-relaxed">{service.description}</p>
-                        )}
-                        <div className="flex items-center text-sm text-gray-500 bg-gray-50/50 rounded-lg px-2 py-1">
-                          <Clock className="w-4 h-4 mr-1 text-blue-500" />
-                          {service.duration} min
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Gallery */}
-            {settings?.enableGallery && gallery && gallery.length > 0 && (
-              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
-                    <Camera className="w-5 h-5 mr-2 text-blue-500" />
-                    📸 Galería de Trabajos
-                    <Badge variant="outline" className="ml-3 bg-gradient-to-r from-blue-50 to-purple-50">
-                      {gallery.length} fotos
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {gallery.map((item) => (
-                      <div key={item.id} className="relative group/gallery overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all duration-300">
-                        <img 
-                          src={item.imageUrl} 
-                          alt={item.title || "Trabajo"}
-                          className="w-full h-32 object-cover transition-transform duration-500 group-hover/gallery:scale-110"
-                          onError={(e) => {
-                            console.log('🚨 Gallery image failed to load:', item.imageUrl);
-                            // Hide broken images
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            // You could also set a fallback image:
-                            // target.src = '/placeholder-image.jpg';
-                          }}
-                          onLoad={() => {
-                            console.log('✅ Gallery image loaded successfully:', item.imageUrl.substring(0, 50) + '...');
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-300" />
-                        {item.title && (
-                          <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-xl">
-                            <p className="text-white text-sm font-medium text-center px-2">{item.title}</p>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Reviews */}
-            {(settings?.enableReviews || (reviews && reviews.length > 0)) && (
-              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
-                    ⭐ Reseñas de Clientes
-                    {reviews && reviews.length > 0 && (
-                      <Badge variant="outline" className="ml-3 bg-gradient-to-r from-yellow-50 to-orange-50">
-                        {reviews.length} reseñas
-                      </Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {/* Existing Reviews */}
-                  {reviews && reviews.length > 0 && (
-                    <div className="space-y-4 mb-6">
-                      {reviews.map((review) => (
-                        <div key={review.id} className="border-b border-gray-100/50 pb-4 last:border-b-0 bg-gradient-to-r from-gray-50/50 to-white/50 rounded-lg p-4 hover:shadow-md transition-all duration-300">
-                          <div className="flex items-center mb-3">
-                            <div className="flex mr-3">
-                              {[...Array(5)].map((_, i) => (
-                                <Star 
-                                  key={i} 
-                                  className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} transition-colors duration-300`} 
-                                />
-                              ))}
-                            </div>
-                            <span className="font-medium text-gray-900">{review.clientName}</span>
-                            <div className="ml-auto text-xs text-gray-500 bg-gray-100/50 px-2 py-1 rounded-full">
-                              {review.source === 'scraped' ? '🌐 Google Maps' : '💬 Micrositio'}
-                            </div>
-                          </div>
-                          {review.comment && (
-                            <p className="text-gray-600 italic leading-relaxed">"{review.comment}"</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Review Submission Form */}
-                  {settings?.enableReviews && (
-                    <div className="border-t border-gray-200/50 pt-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                        <Star className="w-5 h-5 mr-2 text-yellow-500" />
-                        Deja tu reseña
-                      </h3>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="review-name" className="text-gray-700 font-medium">Tu nombre</Label>
-                          <Input 
-                            id="review-name" 
-                            placeholder="Tu nombre completo" 
-                            className="mt-1 border-gray-300 focus:border-yellow-500 focus:ring-yellow-500 transition-colors duration-300"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-gray-700 font-medium mb-2 block">Calificación</Label>
-                          <div className="flex space-x-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star 
-                                key={star}
-                                className="w-6 h-6 cursor-pointer text-gray-300 hover:text-yellow-400 transition-colors duration-200"
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="review-comment" className="text-gray-700 font-medium">Tu experiencia</Label>
-                          <Textarea 
-                            id="review-comment" 
-                            placeholder="Cuéntanos sobre tu experiencia con este negocio..." 
-                            rows={4} 
-                            className="mt-1 border-gray-300 focus:border-yellow-500 focus:ring-yellow-500 transition-colors duration-300"
-                          />
-                        </div>
-                        <Button className="w-full bg-gradient-to-r from-yellow-600 to-yellow-700 hover:from-yellow-700 hover:to-yellow-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 py-3">
-                          ⭐ Enviar Reseña
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+      {/* Cyberpunk Sidebar Layout */}
+      <div className="flex">
+        {/* Sidebar */}
+        <div className="w-80 p-6 space-y-6">
+          {/* Contact Panel */}
+          <div className={`${themeConfig.card} ${themeConfig.effects} p-6`}>
+            <h3 className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest mb-4">// CONNECT</h3>
+            <div className="space-y-3">
+              {(settings?.publicPhone || business.phone) && (
+                <div className="flex items-center p-3 bg-cyan-400/10 border border-cyan-400/30 rounded">
+                  <Phone className="w-4 h-4 mr-3 text-cyan-400" />
+                  <span className="font-mono text-sm">{settings?.publicPhone || business.phone}</span>
+                </div>
+              )}
+              {(settings?.publicEmail || business.email) && (
+                <div className="flex items-center p-3 bg-pink-400/10 border border-pink-400/30 rounded">
+                  <Mail className="w-4 h-4 mr-3 text-pink-400" />
+                  <span className="font-mono text-sm">{settings?.publicEmail || business.email}</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Contact Info */}
-            <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300">
-                  📞 Información de Contacto
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {(settings?.publicPhone || business.phone) && (
-                  <div className="flex items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg hover:shadow-md transition-all duration-300 group/contact">
-                    <Phone className="w-4 h-4 mr-3 text-green-600" />
-                    <span className="group-hover/contact:text-green-700 transition-colors duration-300">{settings?.publicPhone || business.phone}</span>
-                  </div>
-                )}
-
-                {(settings?.publicEmail || business.email) && (
-                  <div className="flex items-center p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg hover:shadow-md transition-all duration-300 group/contact">
-                    <Mail className="w-4 h-4 mr-3 text-blue-600" />
-                    <span className="group-hover/contact:text-blue-700 transition-colors duration-300">{settings?.publicEmail || business.email}</span>
-                  </div>
-                )}
-
-                {(settings?.streetAddress || business.address) && (
-                  <div className="flex items-start p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg hover:shadow-md transition-all duration-300 group/contact">
-                    <MapPin className="w-4 h-4 mr-3 text-purple-600 mt-1" />
-                    <div className="group-hover/contact:text-purple-700 transition-colors duration-300">
-                      {settings?.streetAddress ? (
-                        <>
-                          <p className="font-medium">{settings.streetAddress}</p>
-                          {settings.district && <p className="text-sm text-gray-600">{settings.district}</p>}
-                          {settings.region && <p className="text-sm text-gray-600">{settings.region}</p>}
-                          {settings.postalCode && <p className="text-sm text-gray-600">{settings.postalCode}</p>}
-                          {settings.country && <p className="text-sm text-gray-600">{settings.country}</p>}
-                        </>
-                      ) : (
-                        <p>{business.address}</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Social Media Links */}
-                {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
-                  <div>
-                    <div className="border-t border-gray-200/50 pt-4 mt-4">
-                      <Label className="text-sm text-gray-700 mb-3 block font-semibold">🌐 Redes Sociales</Label>
-                      <div className="flex space-x-3 flex-wrap gap-2">
-                        {settings?.facebookUrl && (
-                          <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer" 
-                             className="p-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                            </svg>
-                          </a>
-                        )}
-                        {settings?.instagramUrl && (
-                          <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer" 
-                             className="p-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl hover:from-pink-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987 6.62 0 11.987-5.367 11.987-11.987C24.014 5.367 18.637.001 12.017.001z"/>
-                            </svg>
-                          </a>
-                        )}
-                        {settings?.tiktokUrl && (
-                          <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer" 
-                             className="p-3 bg-gradient-to-r from-gray-900 to-black text-white rounded-xl hover:from-black hover:to-gray-800 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-.88-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z"/>
-                            </svg>
-                          </a>
-                        )}
-                        {settings?.youtubeUrl && (
-                          <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer" 
-                             className="p-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-xl">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                            </svg>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Business Hours */}
-            <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-              <CardHeader className="pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
-                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent group-hover:from-indigo-600 group-hover:to-purple-600 transition-all duration-500 flex items-center">
-                  <Clock className="w-6 h-6 mr-3 text-blue-500" />
-                  🕐 Horarios
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-8">
-                {/* Priority 1: Use scraped business hours if available */}
-                {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
-                  <div className="space-y-3">
-                    {/* Handle both array format (legacy) and object format (new) */}
-                    {Array.isArray(business.hours) 
-                      ? business.hours.map((hourString, index) => {
-                          // Parse hour strings like "Monday: 9:00 AM – 9:00 PM"
-                          const parts = hourString.split(':');
-                          if (parts.length < 2) return null;
-                          
-                          const day = parts[0].trim();
-                          const timeRange = parts.slice(1).join(':').trim();
-                          
-                          const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
-                          
-                          // Map English day names to Spanish
-                          const dayMap: { [key: string]: { label: string; emoji: string } } = {
-                            'monday': { label: 'Lunes', emoji: '📅' },
-                            'tuesday': { label: 'Martes', emoji: '📅' },
-                            'wednesday': { label: 'Miércoles', emoji: '📅' },
-                            'thursday': { label: 'Jueves', emoji: '📅' },
-                            'friday': { label: 'Viernes', emoji: '📅' },
-                            'saturday': { label: 'Sábado', emoji: '🎯' },
-                            'sunday': { label: 'Domingo', emoji: '🌞' }
-                          };
-                          
-                          const dayKey = day.toLowerCase();
-                          const dayInfo = dayMap[dayKey] || { label: day, emoji: '📅' };
-                          
-                          return (
-                            <div key={index} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
-                              isOpen 
-                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
-                                : 'bg-gradient-to-r from-gray-50 to-gray-100'
-                            }`}>
-                              <span className="capitalize font-medium flex items-center text-gray-900">
-                                <span className="mr-2">{dayInfo.emoji}</span>
-                                {dayInfo.label}:
-                              </span>
-                              <span className={`font-semibold px-2 py-1 rounded-md ${
-                                isOpen 
-                                  ? 'text-green-700 bg-green-100' 
-                                  : 'text-gray-500 bg-gray-200 italic'
-                              }`}>
-                                {isOpen ? timeRange : 'Cerrado'}
-                              </span>
-                            </div>
-                          );
-                        })
-                      : Object.entries(business.hours).map(([dayKey, schedule]: [string, any]) => {
-                          // Handle object format like { lunes: { open: "09:00", close: "17:00", closed: false } }
-                          const dayMap: { [key: string]: { label: string; emoji: string } } = {
-                            'lunes': { label: 'Lunes', emoji: '📅' },
-                            'martes': { label: 'Martes', emoji: '📅' },
-                            'miercoles': { label: 'Miércoles', emoji: '📅' },
-                            'jueves': { label: 'Jueves', emoji: '📅' },
-                            'viernes': { label: 'Viernes', emoji: '📅' },
-                            'sabado': { label: 'Sábado', emoji: '🎯' },
-                            'domingo': { label: 'Domingo', emoji: '🌞' },
-                            'monday': { label: 'Lunes', emoji: '📅' },
-                            'tuesday': { label: 'Martes', emoji: '📅' },
-                            'wednesday': { label: 'Miércoles', emoji: '📅' },
-                            'thursday': { label: 'Jueves', emoji: '📅' },
-                            'friday': { label: 'Viernes', emoji: '📅' },
-                            'saturday': { label: 'Sábado', emoji: '🎯' },
-                            'sunday': { label: 'Domingo', emoji: '🌞' }
-                          };
-                          
-                          const dayInfo = dayMap[dayKey.toLowerCase()] || { label: dayKey, emoji: '📅' };
-                          const isOpen = schedule && !schedule.closed && schedule.open && schedule.close;
-                          
-                          return (
-                            <div key={dayKey} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
-                              isOpen 
-                                ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
-                                : 'bg-gradient-to-r from-gray-50 to-gray-100'
-                            }`}>
-                              <span className="capitalize font-medium flex items-center text-gray-900">
-                                <span className="mr-2">{dayInfo.emoji}</span>
-                                {dayInfo.label}:
-                              </span>
-                              <span className={`font-semibold px-2 py-1 rounded-md ${
-                                isOpen 
-                                  ? 'text-green-700 bg-green-100' 
-                                  : 'text-gray-500 bg-gray-200 italic'
-                              }`}>
-                                {isOpen ? `${schedule.open} - ${schedule.close}` : 'Cerrado'}
-                              </span>
-                            </div>
-                          );
-                        })
-                    }
-                  </div>
-                ) : 
-                /* Priority 2: Fallback to microsite working hours settings */
-                settings?.workingHours ? (
-                  <div className="space-y-3">
-                    {[
-                      { dayIndex: '1', label: 'Lunes', emoji: '📅' },
-                      { dayIndex: '2', label: 'Martes', emoji: '📅' },
-                      { dayIndex: '3', label: 'Miércoles', emoji: '📅' },
-                      { dayIndex: '4', label: 'Jueves', emoji: '📅' },
-                      { dayIndex: '5', label: 'Viernes', emoji: '📅' },
-                      { dayIndex: '6', label: 'Sábado', emoji: '🎯' },
-                      { dayIndex: '0', label: 'Domingo', emoji: '🌞' }
-                    ].map(({ dayIndex, label, emoji }) => {
-                      const hours = settings.workingHours[dayIndex];
-                      if (!hours) return null;
+          {/* Hours Panel */}
+          <div className={`${themeConfig.card} ${themeConfig.effects} p-6`}>
+            <h3 className="text-lg font-mono font-bold text-cyan-400 uppercase tracking-widest mb-4">// RUNTIME</h3>
+            {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
+              <div className="space-y-2">
+                {Array.isArray(business.hours) 
+                  ? business.hours.map((hourString: string, index: number) => {
+                      const parts = hourString.split(':');
+                      if (parts.length < 2) return null;
+                      const day = parts[0].trim();
+                      const timeRange = parts.slice(1).join(':').trim();
+                      const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
                       
                       return (
-                        <div key={dayIndex} className={`flex justify-between items-center p-4 rounded-2xl transition-all duration-400 transform hover:scale-102 ${
-                          hours.enabled 
-                            ? 'bg-gradient-to-r from-green-50/80 to-emerald-50/80 hover:shadow-lg border border-green-100' 
-                            : 'bg-gradient-to-r from-gray-50/80 to-gray-100/80 border border-gray-200'
-                        }`}>
-                          <span className="capitalize font-semibold flex items-center text-gray-900 text-lg">
-                            <span className="mr-3 text-xl">{emoji}</span>
-                            {label}:
-                          </span>
-                          <span className={`font-bold px-4 py-2 rounded-xl text-lg ${
-                            hours.enabled 
-                              ? 'text-green-700 bg-gradient-to-r from-green-100 to-emerald-100' 
-                              : 'text-gray-500 bg-gradient-to-r from-gray-100 to-gray-200 italic'
-                          }`}>
-                            {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
+                        <div key={index} className="flex justify-between font-mono text-sm">
+                          <span className="text-cyan-200">{day}:</span>
+                          <span className={isOpen ? "text-green-400" : "text-red-400"}>
+                            {isOpen ? timeRange : "OFFLINE"}
                           </span>
                         </div>
                       );
-                    })}
+                    })
+                  : Object.entries(business.hours).map(([day, schedule]: [string, any]) => (
+                      <div key={day} className="flex justify-between font-mono text-sm">
+                        <span className="text-cyan-200">{day}:</span>
+                        <span className={schedule?.open ? "text-green-400" : "text-red-400"}>
+                          {schedule?.open ? `${schedule.open}-${schedule.close}` : "OFFLINE"}
+                        </span>
+                      </div>
+                    ))
+                }
+              </div>
+            ) : settings?.workingHours ? (
+              <div className="space-y-2">
+                {[
+                  { key: '1', label: 'MON' },
+                  { key: '2', label: 'TUE' },
+                  { key: '3', label: 'WED' },
+                  { key: '4', label: 'THU' },
+                  { key: '5', label: 'FRI' },
+                  { key: '6', label: 'SAT' },
+                  { key: '0', label: 'SUN' }
+                ].map(({ key, label }) => {
+                  const hours = settings.workingHours[key];
+                  if (!hours) return null;
+                  
+                  return (
+                    <div key={key} className="flex justify-between font-mono text-sm">
+                      <span className="text-cyan-200">{label}:</span>
+                      <span className={hours.enabled ? "text-green-400" : "text-red-400"}>
+                        {hours.enabled ? `${hours.start}-${hours.end}` : "OFFLINE"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="font-mono text-red-400">// NO DATA</p>
+            )}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="flex-1 p-6 space-y-6">
+          {/* About */}
+          <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
+            <h2 className="text-2xl font-mono font-bold text-cyan-400 uppercase tracking-widest mb-6">// ABOUT.EXE</h2>
+            <p className="font-mono text-cyan-100 leading-relaxed">
+              {settings?.publicDescription || business.description || "// NO DESCRIPTION LOADED"}
+            </p>
+          </div>
+
+          {/* Services */}
+          {services && services.length > 0 && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
+              <h2 className="text-2xl font-mono font-bold text-cyan-400 uppercase tracking-widest mb-6">// SERVICES.JSON</h2>
+              <div className="grid gap-4">
+                {services.map((service: any) => (
+                  <div key={service.id} className="border border-cyan-400/30 p-4 bg-cyan-400/5 hover:bg-cyan-400/10 transition-all">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-mono font-bold text-pink-400">{service.name}</h3>
+                      <span className="font-mono text-cyan-400">S/ {service.price}</span>
+                    </div>
+                    {service.description && (
+                      <p className="font-mono text-sm text-cyan-200 mt-2">{service.description}</p>
+                    )}
+                    <div className="flex items-center mt-2 font-mono text-xs text-green-400">
+                      <Clock className="w-3 h-3 mr-1" />
+                      {service.duration} min
+                    </div>
                   </div>
-                ) : (
-                  <div className="text-center p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
-                    <p className="text-gray-600">⏰ Horarios no disponibles</p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Gallery */}
+          {settings?.enableGallery && gallery && gallery.length > 0 && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
+              <h2 className="text-2xl font-mono font-bold text-cyan-400 uppercase tracking-widest mb-6">// GALLERY.IMG</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {gallery.map((item: any) => (
+                  <div key={item.id} className="relative border border-cyan-400/30 overflow-hidden">
+                    <img 
+                      src={item.imageUrl} 
+                      alt={item.title || "Work"}
+                      className="w-full h-32 object-cover hover:scale-110 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-cyan-400/20 to-transparent opacity-0 hover:opacity-100 transition-opacity">
+                      <div className="absolute bottom-2 left-2 font-mono text-xs text-cyan-100">
+                        {item.title || "image.jpg"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Reviews */}
+          {(settings?.enableReviews || (reviews && reviews.length > 0)) && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
+              <h2 className="text-2xl font-mono font-bold text-cyan-400 uppercase tracking-widest mb-6">// REVIEWS.LOG</h2>
+              <div className="space-y-4">
+                {reviews && reviews.length > 0 && reviews.map((review: any) => (
+                  <div key={review.id} className="border border-pink-400/30 p-4 bg-pink-400/5">
+                    <div className="flex items-center mb-2">
+                      <div className="flex mr-3">
+                        {[...Array(5)].map((_, i) => (
+                          <span key={i} className={`font-mono ${i < review.rating ? 'text-yellow-400' : 'text-gray-600'}`}>
+                            {i < review.rating ? '★' : '☆'}
+                          </span>
+                        ))}
+                      </div>
+                      <span className="font-mono text-pink-400">{review.clientName}</span>
+                      <span className="ml-auto font-mono text-xs text-cyan-200">
+                        {review.source === 'scraped' ? '// SCRAPED' : '// LOCAL'}
+                      </span>
+                    </div>
+                    {review.comment && (
+                      <p className="font-mono text-sm text-cyan-100 mt-2">"{review.comment}"</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Booking Widget */}
+          {settings?.enablePublicBooking && services && services.length > 0 && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
+              <h2 className="text-2xl font-mono font-bold text-cyan-400 uppercase tracking-widest mb-6">// BOOKING.SYS</h2>
+              <BookingWidget 
+                services={services}
+                businessId={business.id}
+                workingHours={settings?.workingHours}
+                blockedDates={settings?.blockedDates}
+                blockedHours={settings?.blockedHours}
+              />
+            </div>
+          )}
+
+          {/* Contact Form */}
+          {settings?.enableContactForm && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
+              <h2 className="text-2xl font-mono font-bold text-cyan-400 uppercase tracking-widest mb-6">// CONTACT.FORM</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block font-mono text-cyan-400 mb-2">// NAME</label>
+                  <Input className="bg-gray-800 border-cyan-400/50 text-cyan-100 font-mono" placeholder="your_name" />
+                </div>
+                <div>
+                  <label className="block font-mono text-cyan-400 mb-2">// EMAIL</label>
+                  <Input className="bg-gray-800 border-cyan-400/50 text-cyan-100 font-mono" placeholder="user@domain.com" />
+                </div>
+                <div>
+                  <label className="block font-mono text-cyan-400 mb-2">// MESSAGE</label>
+                  <Textarea className="bg-gray-800 border-cyan-400/50 text-cyan-100 font-mono" rows={4} placeholder="enter_message_here..." />
+                </div>
+                <Button className={`w-full ${themeConfig.button} font-mono`}>
+                  &gt;&gt; SEND_MESSAGE
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderBentoLayout = () => (
+    <div className={`min-h-screen ${themeConfig.background}`}>
+      {/* Bento Header */}
+      <header className={`${themeConfig.header} sticky top-0 z-50`}>
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              {settings?.profileImage ? (
+                <img 
+                  src={settings.profileImage} 
+                  alt={business.name}
+                  className="w-14 h-14 rounded-2xl object-cover"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-semibold text-lg">
+                  {business.name.charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <h1 className="text-2xl font-semibold text-stone-800">{business.name}</h1>
+                {settings?.professionalTitle && (
+                  <p className="text-stone-600">{settings.professionalTitle}</p>
+                )}
+                {categoryInfo && (
+                  <Badge className={`mt-1 ${themeConfig.accent}`}>
+                    {categoryInfo.name}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Button className={`${themeConfig.button}`} onClick={() => setIsThemeSelectorOpen(true)}>
+                <Grid3X3 className="w-4 h-4 mr-2" />
+                Temas
+              </Button>
+              {settings?.publicPhone && (
+                <Button className={`${themeConfig.button}`}>
+                  <Phone className="w-4 h-4 mr-2" />
+                  Llamar
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Bento Grid Layout */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* Large About Card */}
+          <div className={`${themeConfig.card} ${themeConfig.effects} md:col-span-2 lg:col-span-2`}>
+            <div className="p-8">
+              <h2 className="text-xl font-semibold text-stone-800 mb-4">Sobre nosotros</h2>
+              <p className="text-stone-700 leading-relaxed">
+                {settings?.publicDescription || business.description || "Información no disponible."}
+              </p>
+            </div>
+          </div>
+
+          {/* Contact Card */}
+          <div className={`${themeConfig.card} ${themeConfig.effects}`}>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-stone-800 mb-4">Contacto</h3>
+              <div className="space-y-3">
+                {(settings?.publicPhone || business.phone) && (
+                  <div className="flex items-center">
+                    <Phone className="w-4 h-4 mr-3 text-orange-500" />
+                    <span className="text-sm text-stone-700">{settings?.publicPhone || business.phone}</span>
                   </div>
                 )}
-
-                {settings?.scheduleNotes && (
-                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">{settings.scheduleNotes}</p>
+                {(settings?.publicEmail || business.email) && (
+                  <div className="flex items-center">
+                    <Mail className="w-4 h-4 mr-3 text-orange-500" />
+                    <span className="text-sm text-stone-700">{settings?.publicEmail || business.email}</span>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+          </div>
 
-            {/* Social Media */}
-            {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Síguenos</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex space-x-4">
-                    {settings?.facebookUrl && (
-                      <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Facebook className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.instagramUrl && (
-                      <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Instagram className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.tiktokUrl && (
-                      <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Twitter className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
-                    {settings?.youtubeUrl && (
-                      <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">
-                          <Youtube className="w-4 h-4" />
-                        </Button>
-                      </a>
-                    )}
+          {/* Horarios Card */}
+          <div className={`${themeConfig.card} ${themeConfig.effects}`}>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-stone-800 mb-4">Horarios</h3>
+              {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
+                <div className="space-y-2">
+                  {Array.isArray(business.hours) 
+                    ? business.hours.slice(0, 3).map((hourString: string, index: number) => {
+                        const parts = hourString.split(':');
+                        if (parts.length < 2) return null;
+                        const day = parts[0].trim();
+                        const timeRange = parts.slice(1).join(':').trim();
+                        const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
+                        
+                        return (
+                          <div key={index} className="flex justify-between text-sm">
+                            <span className="text-stone-600 capitalize">{day}:</span>
+                            <span className={isOpen ? "text-green-600" : "text-red-600"}>
+                              {isOpen ? timeRange : "Cerrado"}
+                            </span>
+                          </div>
+                        );
+                      })
+                    : Object.entries(business.hours).slice(0, 3).map(([day, schedule]: [string, any]) => (
+                        <div key={day} className="flex justify-between text-sm">
+                          <span className="text-stone-600 capitalize">{day}:</span>
+                          <span className={schedule?.open ? "text-green-600" : "text-red-600"}>
+                            {schedule?.open ? `${schedule.open}-${schedule.close}` : "Cerrado"}
+                          </span>
+                        </div>
+                      ))
+                  }
+                </div>
+              ) : settings?.workingHours ? (
+                <div className="space-y-2">
+                  {[
+                    { key: '1', label: 'Lunes' },
+                    { key: '2', label: 'Martes' },
+                    { key: '3', label: 'Miércoles' }
+                  ].map(({ key, label }) => {
+                    const hours = settings.workingHours[key];
+                    if (!hours) return null;
+                    
+                    return (
+                      <div key={key} className="flex justify-between text-sm">
+                        <span className="text-stone-600">{label}:</span>
+                        <span className={hours.enabled ? "text-green-600" : "text-red-600"}>
+                          {hours.enabled ? `${hours.start} - ${hours.end}` : "Cerrado"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-stone-600 text-sm">No disponible</p>
+              )}
+            </div>
+          </div>
+
+          {/* Services Cards */}
+          {services && services.length > 0 && (
+            <>
+              <div className={`${themeConfig.card} ${themeConfig.effects} md:col-span-3 lg:col-span-4`}>
+                <div className="p-8">
+                  <h2 className="text-xl font-semibold text-stone-800 mb-6">Nuestros Servicios</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {services.map((service: any) => (
+                      <div key={service.id} className={`${themeConfig.accent} p-6 rounded-2xl`}>
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="font-semibold text-stone-800">{service.name}</h3>
+                          <span className="text-orange-600 font-semibold">S/ {service.price}</span>
+                        </div>
+                        {service.description && (
+                          <p className="text-stone-600 text-sm">{service.description}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Gallery */}
+          {settings?.enableGallery && gallery && gallery.length > 0 && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} md:col-span-2`}>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-stone-800 mb-4">Galería</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {gallery.slice(0, 4).map((item: any) => (
+                    <img 
+                      key={item.id}
+                      src={item.imageUrl} 
+                      alt={item.title || "Trabajo"}
+                      className="w-full h-24 object-cover rounded-xl"
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Reviews */}
+          {(settings?.enableReviews || (reviews && reviews.length > 0)) && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} md:col-span-2`}>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-stone-800 mb-4">Reseñas</h3>
+                <div className="space-y-3">
+                  {reviews && reviews.length > 0 && reviews.slice(0, 3).map((review: any) => (
+                    <div key={review.id} className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-xl">
+                      <div className="flex items-center mb-2">
+                        <div className="flex mr-3">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-orange-400 text-orange-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                        <span className="font-medium text-stone-800 text-sm">{review.clientName}</span>
+                      </div>
+                      {review.comment && (
+                        <p className="text-stone-600 text-sm">{review.comment}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Booking Widget */}
+          {settings?.enablePublicBooking && services && services.length > 0 && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} md:col-span-3`}>
+              <div className="p-8">
+                <h2 className="text-xl font-semibold text-stone-800 mb-6">Reservar Cita</h2>
+                <BookingWidget 
+                  services={services}
+                  businessId={business.id}
+                  workingHours={settings?.workingHours}
+                  blockedDates={settings?.blockedDates}
+                  blockedHours={settings?.blockedHours}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Contact Form */}
+          {settings?.enableContactForm && (
+            <div className={`${themeConfig.card} ${themeConfig.effects} md:col-span-2`}>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-stone-800 mb-4">Contacto</h3>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-stone-700 font-medium">Nombre</Label>
+                    <Input placeholder="Tu nombre" className="mt-1 rounded-xl border-stone-200" />
+                  </div>
+                  <div>
+                    <Label className="text-stone-700 font-medium">Email</Label>
+                    <Input placeholder="tu@email.com" className="mt-1 rounded-xl border-stone-200" />
+                  </div>
+                  <div>
+                    <Label className="text-stone-700 font-medium">Mensaje</Label>
+                    <Textarea placeholder="Tu mensaje..." rows={4} className="mt-1 rounded-xl border-stone-200" />
+                  </div>
+                  <Button className={`w-full ${themeConfig.button}`}>
+                    Enviar Mensaje
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderGlassmorphismLayout = () => (
+    <div className={`min-h-screen ${themeConfig.background}`}>
+      {/* Floating Theme Selector */}
+      <Button 
+        className="fixed top-4 right-4 z-50 bg-white/80 backdrop-blur-xl text-slate-800 border border-white/20 shadow-2xl hover:shadow-3xl"
+        onClick={() => setIsThemeSelectorOpen(true)}
+      >
+        <Palette className="w-4 h-4 mr-2" />
+        Cambiar Tema
+      </Button>
+
+      {/* Hero Section */}
+      <section className="relative h-screen flex items-center justify-center overflow-hidden">
+        {settings?.coverImage && (
+          <img 
+            src={settings.coverImage} 
+            alt="Portada"
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-transparent to-purple-900/40"></div>
+        
+        <div className={`${themeConfig.special} p-12 rounded-3xl text-center relative z-10 max-w-2xl mx-4`}>
+          {settings?.profileImage ? (
+            <img 
+              src={settings.profileImage} 
+              alt={business.name}
+              className="w-32 h-32 rounded-full object-cover mx-auto mb-6 border-4 border-white/30 shadow-2xl"
+            />
+          ) : (
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-4xl mx-auto mb-6 border-4 border-white/30 shadow-2xl">
+              {business.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          
+          <h1 className="text-5xl font-bold text-slate-800 mb-4">{business.name}</h1>
+          
+          {settings?.professionalTitle && (
+            <p className="text-xl text-slate-600 mb-6">{settings.professionalTitle}</p>
+          )}
+          
+          {categoryInfo && (
+            <Badge className={`${themeConfig.accent} text-lg px-6 py-2 mb-8`}>
+              {categoryInfo.name}
+            </Badge>
+          )}
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            {settings?.publicPhone && (
+              <Button className={`${themeConfig.button} px-8 py-4 text-lg`}>
+                <Phone className="w-5 h-5 mr-3" />
+                Llamar Ahora
+              </Button>
+            )}
+            {settings?.enablePublicBooking && (
+              <Button className={`${themeConfig.button} px-8 py-4 text-lg`}>
+                <Calendar className="w-5 h-5 mr-3" />
+                Reservar Cita
+              </Button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Content Sections */}
+      <div className="container mx-auto px-6 py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* About */}
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
+              <h2 className="text-2xl font-bold text-slate-800 mb-6">Sobre nosotros</h2>
+              <p className="text-slate-700 leading-relaxed text-lg">
+                {settings?.publicDescription || business.description || "Información no disponible."}
+              </p>
+            </div>
+
+            {/* Services */}
+            {services && services.length > 0 && (
+              <div className={`${themeConfig.card} ${themeConfig.effects} p-8`}>
+                <h2 className="text-2xl font-bold text-slate-800 mb-6">Nuestros Servicios</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {services.map((service: any) => (
+                    <div key={service.id} className={`${themeConfig.accent} p-6 rounded-2xl hover:scale-105 transition-transform duration-300`}>
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="text-xl font-semibold text-slate-800">{service.name}</h3>
+                        <span className="text-2xl font-bold text-indigo-600">S/ {service.price}</span>
+                      </div>
+                      {service.description && (
+                        <p className="text-slate-600">{service.description}</p>
+                      )}
+                      <div className="flex items-center mt-4 text-slate-500">
+                        <Clock className="w-4 h-4 mr-2" />
+                        {service.duration} min
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Booking Widget */}
             {settings?.enablePublicBooking && services && services.length > 0 && (
               <BookingWidget 
-                services={services} 
+                services={services}
                 businessId={business.id}
                 workingHours={settings?.workingHours}
                 blockedDates={settings?.blockedDates}
                 blockedHours={settings?.blockedHours}
               />
             )}
+          </div>
 
-            {/* Contact Form */}
-            {settings?.enableContactForm && (
-              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
-                    <MessageSquare className="w-5 h-5 mr-2 text-blue-500" />
-                    💬 Enviar Mensaje
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="contact-name" className="text-gray-700 font-medium">Nombre</Label>
-                    <Input 
-                      id="contact-name" 
-                      placeholder="Tu nombre" 
-                      className="mt-1 border-gray-300 focus:border-red-500 focus:ring-red-500 transition-colors duration-300"
-                    />
+          {/* Sidebar */}
+          <div className="space-y-8">
+            {/* Contact */}
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-6`}>
+              <h3 className="text-xl font-bold text-slate-800 mb-4">Contacto</h3>
+              <div className="space-y-4">
+                {(settings?.publicPhone || business.phone) && (
+                  <div className="flex items-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
+                    <Phone className="w-5 h-5 mr-3 text-green-600" />
+                    <span className="text-slate-700">{settings?.publicPhone || business.phone}</span>
                   </div>
-                  <div>
-                    <Label htmlFor="contact-email" className="text-gray-700 font-medium">Email</Label>
-                    <Input 
-                      id="contact-email" 
-                      type="email" 
-                      placeholder="tu@email.com" 
-                      className="mt-1 border-gray-300 focus:border-red-500 focus:ring-red-500 transition-colors duration-300"
-                    />
+                )}
+                {(settings?.publicEmail || business.email) && (
+                  <div className="flex items-center p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl">
+                    <Mail className="w-5 h-5 mr-3 text-blue-600" />
+                    <span className="text-slate-700">{settings?.publicEmail || business.email}</span>
                   </div>
-                  <div>
-                    <Label htmlFor="contact-message" className="text-gray-700 font-medium">Mensaje</Label>
-                    <Textarea 
-                      id="contact-message" 
-                      placeholder="Escribe tu mensaje..." 
-                      rows={4} 
-                      className="mt-1 border-gray-300 focus:border-red-500 focus:ring-red-500 transition-colors duration-300"
-                    />
-                  </div>
-                  <Button className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 py-3">
-                    📧 Enviar Mensaje
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </div>
+            </div>
+
+            {/* Hours */}
+            <div className={`${themeConfig.card} ${themeConfig.effects} p-6`}>
+              <h3 className="text-xl font-bold text-slate-800 mb-4">Horarios</h3>
+              {business.hours && Object.keys(business.hours).length > 0 ? (
+                <div className="space-y-3">
+                  {Object.entries(business.hours).map(([day, schedule]: [string, any]) => (
+                    <div key={day} className="flex justify-between items-center p-3 bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl">
+                      <span className="capitalize font-medium text-slate-800">{day}:</span>
+                      <span className={`font-semibold ${schedule?.open ? 'text-green-600' : 'text-red-600'}`}>
+                        {schedule?.open ? `${schedule.open} - ${schedule.close}` : 'Cerrado'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-600">Horarios no disponibles</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
+    </div>
+  );
 
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 text-white py-8 mt-12">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              {settings?.profileImage ? (
-                <img 
-                  src={settings.profileImage} 
-                  alt={business.name}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-white/20 mr-3"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg mr-3">
-                  {business.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <h3 className="text-xl font-bold">{business.name}</h3>
-            </div>
-            <p className="text-gray-300 mb-4">
-              {settings?.professionalTitle || "Servicio profesional de calidad"}
-            </p>
-            <div className="border-t border-gray-700 pt-4">
-              <p className="text-gray-400 text-sm">
-                © 2025 {business.name}. Todos los derechos reservados.
-              </p>
-              <p className="text-gray-500 text-xs mt-1">
-                ⚡ Powered by BusinessSearchPlatform
-              </p>
-            </div>
-          </div>
-        </div>
-      </footer>
-      
+  return (
+    <>
+      {/* Render based on theme layout */}
+      {themeConfig.layout === 'masonry' && renderBrutalistLayout()}
+      {themeConfig.layout === 'sidebar' && renderCyberpunkLayout()}
+      {themeConfig.layout === 'bento' && renderBentoLayout()}
+      {themeConfig.layout === 'traditional' && renderGlassmorphismLayout()}
+
       {/* Theme Selector Modal */}
       <MicrositeThemeSelector 
         isOpen={isThemeSelectorOpen} 
         onClose={() => setIsThemeSelectorOpen(false)} 
       />
-    </div>
+    </>
   );
 }

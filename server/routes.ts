@@ -143,12 +143,10 @@ class SmartScheduler {
   ): any[] {
     const slots = [];
     const selectedDate = new Date(date);
-    // Convert JavaScript day (0=Sunday) to business day (1=Monday)
-    const jsDay = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const businessDay = jsDay === 0 ? 7 : jsDay; // Sunday becomes 7, Monday stays 1
+    const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
 
     // Check if the day is a working day
-    const daySchedule = workingHours[businessDay.toString()];
+    const daySchedule = workingHours[dayName];
     if (!daySchedule || !daySchedule.enabled) {
       return slots;
     }
