@@ -2,7 +2,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ThemeProvider } from "@/contexts/theme-context";
-import { MicrositeThemeProvider } from "@/contexts/MicrositeThemeContext";
 import NotFound from "@/pages/not-found";
 import { StackHandler, StackProvider, StackTheme } from "@stackframe/react";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -99,12 +98,10 @@ function App() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <ThemeProvider>
-              <MicrositeThemeProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Router />
-                </TooltipProvider>
-              </MicrositeThemeProvider>
+              <TooltipProvider>
+                <Toaster />
+                <Router />
+              </TooltipProvider>
             </ThemeProvider>
           </AuthProvider>
         </QueryClientProvider>

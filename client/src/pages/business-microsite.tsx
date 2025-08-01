@@ -1,7 +1,6 @@
 import { useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare, Palette } from "lucide-react";
+import { Star, Phone, Mail, MapPin, Clock, Calendar, Facebook, Instagram, Youtube, Twitter, ExternalLink, Camera, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,14 +12,9 @@ import { MicrositeSkeletonLoader } from "@/components/ui/skeleton";
 import BookingWidget from "@/components/booking-widget";
 import { categories } from "@/lib/constants";
 import { formatDatePeruvian } from "@/lib/utils";
-import { useMicrositeTheme } from "@/contexts/MicrositeThemeContext";
-import MicrositeThemeSelector from "@/components/microsite-theme-selector";
-import { getThemeClasses } from "@/lib/microsite-themes";
 
 export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
-  const { theme } = useMicrositeTheme();
-  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
 
   console.log("BusinessMicrosite: slug =", slug);
 
@@ -57,15 +51,14 @@ export default function BusinessMicrosite() {
     );
   }
 
-  const { business, settings, services, gallery, reviews } = micrositeData || {};
+  const { business, settings, services, gallery, reviews } = micrositeData;
   const categoryInfo = categories.find(c => c.id === business.category);
-  const themeConfig = getThemeClasses(theme);
 
   return (
-    <div className={`min-h-screen ${themeConfig.background}`}>
-      {/* Modern Hero Header */}
-      <header className={`${themeConfig.header} sticky top-0 z-50 transition-all duration-300`}>
-        <div className="container mx-auto px-6 py-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-md shadow-lg border-b border-gray-200/50 sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               {settings?.profileImage ? (
@@ -73,19 +66,19 @@ export default function BusinessMicrosite() {
                   <img 
                     src={settings.profileImage} 
                     alt={business.name}
-                    className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-2xl group-hover:scale-110 transition-transform duration-500"
+                    className="w-16 h-16 rounded-full object-cover border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300"
                   />
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
               ) : (
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-2xl shadow-2xl hover:scale-110 transition-transform duration-500 ring-4 ring-white/50">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 via-red-600 to-red-700 flex items-center justify-center text-white font-bold text-xl shadow-lg hover:scale-105 transition-transform duration-300">
                   {business.name.charAt(0).toUpperCase()}
                 </div>
               )}
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:from-purple-600 hover:to-pink-600 transition-all duration-500">{business.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900 hover:text-red-600 transition-colors duration-300">{business.name}</h1>
                 {settings?.professionalTitle && (
-                  <p className="text-gray-700 font-semibold bg-gray-100 px-3 py-1 rounded-full text-sm">{settings.professionalTitle}</p>
+                  <p className="text-gray-600 font-medium">{settings.professionalTitle}</p>
                 )}
                 {categoryInfo && (
                   <Badge variant="secondary" className="mt-1 bg-gradient-to-r from-blue-50 to-purple-50 text-gray-700 border border-gray-200 hover:shadow-md transition-shadow duration-300">
@@ -96,24 +89,15 @@ export default function BusinessMicrosite() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => setIsThemeSelectorOpen(true)}
-                className="border-purple-200 hover:bg-purple-50 hover:border-purple-300 transition-all duration-300"
-              >
-                <Palette className="w-4 h-4 mr-2 text-purple-600" />
-                Temas
-              </Button>
               {settings?.publicPhone && (
-                <Button size="lg" className={`${themeConfig.button}`}>
-                  <Phone className="w-5 h-5 mr-2" />
-                  Llamar Ahora
+                <Button size="sm" className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                  <Phone className="w-4 h-4 mr-2" />
+                  Llamar
                 </Button>
               )}
               {settings?.enablePublicBooking && (
-                <Button size="lg" className={`${themeConfig.button}`}>
-                  <Calendar className="w-5 h-5 mr-2" />
+                <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                  <Calendar className="w-4 h-4 mr-2" />
                   Reservar Cita
                 </Button>
               )}
@@ -143,18 +127,18 @@ export default function BusinessMicrosite() {
       )}
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* About */}
-            <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-              <CardHeader className="pb-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
-                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:from-purple-600 group-hover:to-pink-600 transition-all duration-500">
+            <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300">
                   🏢 Acerca de nosotros
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-8">
-                <p className="text-gray-700 leading-relaxed text-lg font-medium">
+              <CardContent>
+                <p className="text-gray-700 leading-relaxed text-base">
                   {settings?.publicDescription || business.description || "Información no disponible."}
                 </p>
               </CardContent>
@@ -162,19 +146,19 @@ export default function BusinessMicrosite() {
 
             {/* Services */}
             {services && services.length > 0 && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
-                  <CardTitle className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-teal-600 group-hover:to-cyan-600 transition-all duration-500 flex items-center">
+              <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-xl font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
                     ⚡ Nuestros Servicios
-                    <Badge variant="outline" className="ml-4 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-emerald-200 px-3 py-1 text-sm font-semibold">
+                    <Badge variant="outline" className="ml-3 bg-gradient-to-r from-blue-50 to-purple-50">
                       {services.length} servicios
                     </Badge>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-8">
+                <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {services.map((service) => (
-                      <div key={service.id} className="border-0 rounded-2xl p-6 bg-gradient-to-br from-white/80 to-gray-50/60 backdrop-blur-md hover:from-white/90 hover:to-gray-50/80 hover:shadow-xl transition-all duration-400 group/service transform hover:scale-105">
+                      <div key={service.id} className="border border-gray-200/50 rounded-xl p-4 bg-white/60 backdrop-blur-sm hover:bg-white/80 hover:shadow-md transition-all duration-300 group/service">
                         <div className="flex justify-between items-start mb-2">
                           <h3 className="font-semibold text-lg text-gray-900 group-hover/service:text-red-600 transition-colors duration-300">{service.name}</h3>
                           <span className="text-red-600 font-bold text-lg bg-gradient-to-r from-red-50 to-pink-50 px-2 py-1 rounded-lg">
@@ -417,14 +401,14 @@ export default function BusinessMicrosite() {
             </Card>
 
             {/* Business Hours */}
-            <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-              <CardHeader className="pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
-                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent group-hover:from-indigo-600 group-hover:to-purple-600 transition-all duration-500 flex items-center">
-                  <Clock className="w-6 h-6 mr-3 text-blue-500" />
+            <Card className="bg-white/70 backdrop-blur-sm border border-gray-200/50 shadow-lg hover:shadow-xl transition-all duration-300 group">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-bold text-gray-900 group-hover:text-red-600 transition-colors duration-300 flex items-center">
+                  <Clock className="w-5 h-5 mr-2 text-blue-500" />
                   🕐 Horarios
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-8">
+              <CardContent>
                 {/* Priority 1: Use scraped business hours if available */}
                 {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
                   <div className="space-y-3">
@@ -523,31 +507,31 @@ export default function BusinessMicrosite() {
                 settings?.workingHours ? (
                   <div className="space-y-3">
                     {[
-                      { dayIndex: '1', label: 'Lunes', emoji: '📅' },
-                      { dayIndex: '2', label: 'Martes', emoji: '📅' },
-                      { dayIndex: '3', label: 'Miércoles', emoji: '📅' },
-                      { dayIndex: '4', label: 'Jueves', emoji: '📅' },
-                      { dayIndex: '5', label: 'Viernes', emoji: '📅' },
-                      { dayIndex: '6', label: 'Sábado', emoji: '🎯' },
-                      { dayIndex: '0', label: 'Domingo', emoji: '🌞' }
-                    ].map(({ dayIndex, label, emoji }) => {
-                      const hours = settings.workingHours[dayIndex];
+                      { key: 'monday', label: 'Lunes', emoji: '📅' },
+                      { key: 'tuesday', label: 'Martes', emoji: '📅' },
+                      { key: 'wednesday', label: 'Miércoles', emoji: '📅' },
+                      { key: 'thursday', label: 'Jueves', emoji: '📅' },
+                      { key: 'friday', label: 'Viernes', emoji: '📅' },
+                      { key: 'saturday', label: 'Sábado', emoji: '🎯' },
+                      { key: 'sunday', label: 'Domingo', emoji: '🌞' }
+                    ].map(({ key, label, emoji }) => {
+                      const hours = settings.workingHours[key];
                       if (!hours) return null;
                       
                       return (
-                        <div key={dayIndex} className={`flex justify-between items-center p-4 rounded-2xl transition-all duration-400 transform hover:scale-102 ${
+                        <div key={key} className={`flex justify-between items-center p-3 rounded-lg transition-all duration-300 ${
                           hours.enabled 
-                            ? 'bg-gradient-to-r from-green-50/80 to-emerald-50/80 hover:shadow-lg border border-green-100' 
-                            : 'bg-gradient-to-r from-gray-50/80 to-gray-100/80 border border-gray-200'
+                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:shadow-md' 
+                            : 'bg-gradient-to-r from-gray-50 to-gray-100'
                         }`}>
-                          <span className="capitalize font-semibold flex items-center text-gray-900 text-lg">
-                            <span className="mr-3 text-xl">{emoji}</span>
+                          <span className="capitalize font-medium flex items-center text-gray-900">
+                            <span className="mr-2">{emoji}</span>
                             {label}:
                           </span>
-                          <span className={`font-bold px-4 py-2 rounded-xl text-lg ${
+                          <span className={`font-semibold px-2 py-1 rounded-md ${
                             hours.enabled 
-                              ? 'text-green-700 bg-gradient-to-r from-green-100 to-emerald-100' 
-                              : 'text-gray-500 bg-gradient-to-r from-gray-100 to-gray-200 italic'
+                              ? 'text-green-700 bg-green-100' 
+                              : 'text-gray-500 bg-gray-200 italic'
                           }`}>
                             {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
                           </span>
@@ -699,12 +683,6 @@ export default function BusinessMicrosite() {
           </div>
         </div>
       </footer>
-      
-      {/* Theme Selector Modal */}
-      <MicrositeThemeSelector 
-        isOpen={isThemeSelectorOpen} 
-        onClose={() => setIsThemeSelectorOpen(false)} 
-      />
     </div>
   );
 }
