@@ -1,0 +1,59 @@
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Environment files (will be mounted as volumes)
+.env.local
+.env.development
+
+# Development files
+*.md
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Test files
+test
+tests
+*.test.js
+*.spec.js
+
+# Build artifacts (will be built in container)
+dist
+build
+client/dist
+
+# Logs
+logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# SQL dumps
+*.sql
+
+# Backup files
+*.bak
+*.backup
+
+# Documentation
+docs
+attached_assets
+
+# Scripts
+*.sh
+*.ps1

@@ -256,8 +256,24 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Configure multer for file uploads
 const multerStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+  destination: (req: any, file, cb) => {
+    try {
+      // Default uploads directory
+      let uploadPath = uploadsDir;
+      
+      // If user is authenticated, create user-specific directory
+      if (req.user && req.user.email) {
+        uploadPath = path.join(uploadsDir, 'users', req.user.email);
+        
+        // Create the directory if it doesn't exist
+        fs.mkdirSync(uploadPath, { recursive: true });
+      }
+      
+      cb(null, uploadPath);
+    } catch (error) {
+      console.error('Error creating upload directory:', error);
+      cb(error, uploadsDir);
+    }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -2600,14 +2616,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Image upload endpoint
-  app.post("/api/upload", upload.single('image'), async (req, res) => {
+  app.post("/api/upload", requireAuth, upload.single('image'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No se proporcionó ninguna imagen" });
       }
 
-      // Return the URL of the uploaded file
-      const imageUrl = `/uploads/${req.file.filename}`;
+      // Create the correct URL path for user-specific uploads
+      let imageUrl: string;
+      if (req.user && req.user.email) {
+        imageUrl = `/uploads/users/${req.user.email}/${req.file.filename}`;
+      } else {
+        imageUrl = `/uploads/${req.file.filename}`;
+      }
+
       res.json({ url: imageUrl });
     } catch (error: any) {
       console.error("Error uploading image:", error);

@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  micita:
+    build: .
+    container_name: micita-app
+    restart: always
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads

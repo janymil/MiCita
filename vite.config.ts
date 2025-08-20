@@ -1,9 +1,18 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
-export default defineConfig({
+export default defineConfig(async ({ mode }) => {
+  // Load env file based on `mode` in the current working directory
+  // The third parameter '' means load all env vars, not just VITE_ prefixed
+  const env = loadEnv(mode, process.cwd(), '');
+  
+  // Log to verify env vars are loaded during build
+  console.log('Building with VITE_STACK_PROJECT_ID:', env.VITE_STACK_PROJECT_ID ? 'SET' : 'NOT SET');
+  
+  return {
+  envPrefix: 'VITE_',
   plugins: [
     react(),
     runtimeErrorOverlay(),
@@ -18,7 +27,8 @@ export default defineConfig({
   ],
   define: {
     global: 'globalThis',
-    'process.env': {},
+    'import.meta.env.VITE_STACK_PROJECT_ID': JSON.stringify(env.VITE_STACK_PROJECT_ID || process.env.VITE_STACK_PROJECT_ID),
+    'import.meta.env.VITE_STACK_PUBLISHABLE_CLIENT_KEY': JSON.stringify(env.VITE_STACK_PUBLISHABLE_CLIENT_KEY || process.env.VITE_STACK_PUBLISHABLE_CLIENT_KEY),
   },
   resolve: {
     alias: {
@@ -39,4 +49,5 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+  };
 });

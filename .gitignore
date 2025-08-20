@@ -6,3 +6,8 @@ vite.config.ts.*
 *.tar.gz
 uploads/*
 !uploads/.gitkeep
+
+# Environment variables (excluding .env temporarily for initial commit)
+.env.local
+.env.production
+.env.development
