@@ -7,7 +7,9 @@ vite.config.ts.*
 uploads/*
 !uploads/.gitkeep
 
-# Environment variables (excluding .env temporarily for initial commit)
+# Environment variables (secured after initial commit)
+.env
+.env.*
 .env.local
 .env.production
 .env.development
