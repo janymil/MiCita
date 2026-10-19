@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +23,8 @@ import {
   TrendingDown
 } from "lucide-react";
 import DashboardLayout from "@/components/dashboard-layout";
+import { apiFetch } from "@/lib/auth-api";
+import { apiRequest } from "@/lib/queryClient";
 
 const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6366F1'];
 
@@ -37,6 +39,22 @@ interface FinancialData {
   pendingPayments: number;
   averageAppointmentValue: number;
   completedAppointments: number;
+  collected?: number;
+  receivable?: number;
+  growth?: number | null;
+  appointmentsCompletedGrowth?: number | null;
+  occupancyRate?: number;
+  cancelledInPeriod?: number;
+  noShowInPeriod?: number;
+  payments?: Array<{
+    id: number;
+    amount: number;
+    status: string;
+    currency?: string | null;
+    method?: string | null;
+    paidAt?: string | null;
+    createdAt?: string | null;
+  }>;
   monthlyData: Array<{ month: string; revenue: number; appointments: number }>;
   paymentStatusData: Array<{ name: string; value: number }>;
   recentTransactions: Array<{
@@ -53,6 +71,54 @@ interface FinancialData {
 export default function Finanzas() {
   const [selectedPeriod, setSelectedPeriod] = useState("thisMonth");
   const [activeTab, setActiveTab] = useState("resumen");
+  const [isExporting, setIsExporting] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleExport = async (dataset: "appointments" | "clients" | "revenue" | "reviews") => {
+    const businessId = businesses?.[0]?.id;
+    if (!businessId) return;
+    setIsExporting(true);
+    try {
+      const response = await apiFetch(`/api/dashboard/businesses/${businessId}/export/${dataset}`);
+      if (!response.ok) throw new Error("Export failed");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `micita-${dataset}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export error:", error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businesses?.[0]?.id}/financials?period=${selectedPeriod}`] });
+    await queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businesses?.[0]?.id}/analytics`] });
+  };
+
+  const handleSubscribe = async (plan: "premium" | "premium_plus") => {
+    const businessId = businesses?.[0]?.id;
+    if (!businessId) return;
+    setIsSubscribing(true);
+    try {
+      const response = await apiRequest("POST", "/api/payments/subscribe", { businessId, plan });
+      const data = await response.json();
+      if (data?.initPoint) {
+        window.location.href = data.initPoint;
+      }
+    } catch (error) {
+      console.error("Subscribe error:", error);
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
 
   const { data: businesses, isLoading: businessesLoading } = useQuery<DashboardBusiness[]>({
     queryKey: ["/api/dashboard/businesses"],
@@ -67,6 +133,17 @@ export default function Finanzas() {
 
   const { data: analytics } = useQuery<Record<string, unknown>>({
     queryKey: [`/api/dashboard/businesses/${businessId}/analytics`],
+    enabled: !!businessId,
+  });
+
+  // Billing data must be declared before any early return (hook order).
+  const { data: paymentConfig } = useQuery<{
+    configured: boolean;
+    plans: Record<string, { amount: number; label: string }>;
+  }>({ queryKey: ["/api/payments/config"] });
+
+  const { data: subscriptionData } = useQuery<{ subscription: { plan?: string; status?: string; currentPeriodEnd?: string | null } | null }>({
+    queryKey: [`/api/payments/subscription/${businessId}`],
     enabled: !!businessId,
   });
 
@@ -99,7 +176,8 @@ export default function Finanzas() {
     { id: 'resumen', label: 'Resumen', icon: BarChart },
     { id: 'ingresos', label: 'Ingresos', icon: TrendingUp },
     { id: 'pagos', label: 'Pagos', icon: CreditCard },
-    { id: 'reportes', label: 'Reportes', icon: FileText }
+    { id: 'reportes', label: 'Reportes', icon: FileText },
+    { id: 'plan', label: 'Mi plan', icon: CreditCard },
   ];
 
   const renderTabContent = () => {
@@ -122,10 +200,15 @@ export default function Finanzas() {
                       <DollarSign className="w-6 h-6 text-green-600" />
                     </div>
                   </div>
-                  <div className="mt-2 flex items-center text-sm text-green-600">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    +12.5% vs mes anterior
+                  <div className={`mt-2 flex items-center text-sm ${(financialData?.growth ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {(financialData?.growth ?? 0) >= 0 ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+                    {financialData?.growth === null || financialData?.growth === undefined
+                      ? "Sin período anterior comparable"
+                      : `${financialData.growth >= 0 ? "+" : ""}${financialData.growth.toFixed(1)}% vs período anterior`}
                   </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Cobrado: {formatCurrency(financialData?.collected ?? 0)}
+                  </p>
                 </CardContent>
               </Card>
 
@@ -456,6 +539,68 @@ export default function Finanzas() {
           </div>
         );
 
+      case 'plan': {
+        const subscription = subscriptionData?.subscription;
+        const plans = paymentConfig?.plans ?? {
+          premium: { amount: 59, label: "Plan Premium" },
+          premium_plus: { amount: 129, label: "Plan Premium Plus" },
+        };
+        return (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tu plan actual</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-2xl font-bold capitalize">{subscription?.plan || "Gratis"}</p>
+                <Badge variant={subscription?.status === "authorized" ? "default" : "secondary"}>
+                  {subscription?.status || "sin suscripción"}
+                </Badge>
+                {subscription?.currentPeriodEnd && (
+                  <p className="text-sm text-muted-foreground">
+                    Renueva el {new Date(subscription.currentPeriodEnd).toLocaleDateString("es-PE")}
+                  </p>
+                )}
+                {!paymentConfig?.configured && (
+                  <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-3">
+                    La pasarela de pagos aún no está configurada en este entorno.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {Object.entries(plans).map(([key, plan]) => (
+                <Card key={key}>
+                  <CardHeader>
+                    <CardTitle>{plan.label}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-3xl font-bold">
+                      S/ {plan.amount}
+                      <span className="text-sm font-normal text-muted-foreground"> /mes</span>
+                    </p>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• Micrositio publicado y posicionado</li>
+                      <li>• Reservas ilimitadas y recordatorios automáticos</li>
+                      <li>• Analítica de tráfico y embudo</li>
+                      <li>• Exportación de datos</li>
+                    </ul>
+                    <Button
+                      className="w-full"
+                      disabled={isSubscribing || !paymentConfig?.configured}
+                      onClick={() => handleSubscribe(key as "premium" | "premium_plus")}
+                    >
+                      {isSubscribing ? "Redirigiendo…" : `Activar ${plan.label}`}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
       default:
         return null;
     }
@@ -485,11 +630,11 @@ export default function Finanzas() {
                   <SelectItem value="thisYear">Este Año</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => handleExport("appointments")} disabled={isExporting}>
                 <Download className="w-4 h-4 mr-2" />
-                Exportar
+                {isExporting ? "Exportando…" : "Exportar"}
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleRefresh} title="Actualizar datos">
                 <RefreshCw className="w-4 h-4 mr-2" />
               </Button>
             </div>

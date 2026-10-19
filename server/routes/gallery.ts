@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
-import { gallery } from '../../migrations/schema';
+import { gallery } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
 
 const router = Router();

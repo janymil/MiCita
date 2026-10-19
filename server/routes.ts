@@ -2,7 +2,9 @@ import { insertAppointmentSchema, insertBusinessSchema, insertBusinessSettingsSc
 import express, { type Express } from "express";
 import fs from "fs";
 import { createServer, type Server } from "http";
+import { createHash, randomBytes } from "crypto";
 import multer from "multer";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import authRoutes from "./auth-routes.js";
 import paymentRoutes from "./payment-routes.js";
@@ -31,9 +33,87 @@ import { performanceOptimizer, SpatialClusterer } from "./performance-optimizer"
 import { googlePlacesService } from "./google-places-service.js";
 // @ts-ignore - JavaScript module without TypeScript declarations
 import { searchPersonalization } from "./personalization.js";
+import {
+  buildBuckets,
+  computeBusinessMetrics,
+  computeCollected,
+  computePopularTimes,
+  computeFunnel,
+  computeSourceBreakdown,
+  computeTrafficSeries,
+  limaDateISO,
+  money,
+  resolvePeriod,
+  type Granularity,
+  type PeriodKey,
+} from "./lib/analytics.js";
+import { addMonthsISO, limaTimeHM } from "./lib/dates.js";
 
 
-// Helper function to send email notifications for status changes
+// Public microsite write endpoints (views, leads, reviews) are cheap to spam,
+// so they get their own bucket on top of the global API limiter.
+const publicWriteLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV !== "production",
+  message: { message: "Demasiadas solicitudes. Intenta de nuevo más tarde." },
+});
+
+/** Hash an IP so we can rate-limit/deduplicate without storing personal data. */
+function hashIp(value: string | undefined): string | null {
+  if (!value) return null;
+  return createHash("sha256").update(value).digest("hex").slice(0, 32);
+}
+
+// ---------------------------------------------------------------------------
+// Microsite URLs
+// ---------------------------------------------------------------------------
+
+/** Paths that already belong to the app shell and can never be a business slug. */
+const RESERVED_SLUGS = new Set([
+  "dashboard", "admin", "api", "auth", "login", "registro", "otp", "verify-email",
+  "forgot-password", "reset-password", "buscar", "business", "documentation",
+  "micrositio", "cita", "citas", "uploads", "assets", "static", "embed", "health",
+  "mi-cita", "micita", "sitemap", "robots", "favicon", "public", "app",
+]);
+
+/** `"Peluquería Ñuñoa & Spa"` → `"peluqueria-nunoa-spa"`. */
+export function slugifyBusinessName(input: string): string {
+  const base = String(input || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " y ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40)
+    .replace(/-+$/g, "");
+  return base || "negocio";
+}
+
+export function isValidCustomUrl(value: string): boolean {
+  return /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(value) && !RESERVED_SLUGS.has(value);
+}
+
+/**
+ * Find a free, valid slug: the requested base, or `base-2`, `base-3`, …
+ * Never returns a reserved word.
+ */
+async function allocateCustomUrl(base: string, currentBusinessId?: number): Promise<string> {
+  const root = slugifyBusinessName(base);
+  for (let attempt = 1; attempt <= 50; attempt += 1) {
+    const candidate = attempt === 1 ? root : `${root}-${attempt}`;
+    if (!isValidCustomUrl(candidate)) continue;
+    const owner = await storage.getBusinessSettingsByCustomUrl(candidate);
+    if (!owner || owner.businessId === currentBusinessId) return candidate;
+  }
+  return `${root}-${Date.now().toString(36).slice(-5)}`;
+}
+
+
+
 async function sendStatusChangeEmail(appointment: any, previousAppointment: any, businessId: number) {
   try {
     const business = await storage.getBusiness(businessId);
@@ -111,12 +191,20 @@ class SmartScheduler {
   ): Promise<{ hasConflict: boolean; conflictingAppointments: any[] }> {
     const proposedEnd = proposedStart + proposedDuration;
     const conflictingAppointments = [];
+    const durationCache = new Map<number, number>();
 
     for (const appointment of existingAppointments) {
       if (appointment.date !== date) continue;
+      // A cancelled / no-show appointment releases its slot.
+      if (["cancelled", "no_show"].includes(String(appointment.status || ""))) continue;
 
       const appointmentStart = this.timeToMinutes(appointment.time);
-      const appointmentDuration = await this.getServiceDuration(appointment.serviceId);
+      const serviceId = appointment.serviceId || 0;
+      let appointmentDuration = durationCache.get(serviceId);
+      if (appointmentDuration === undefined) {
+        appointmentDuration = await this.getServiceDuration(serviceId);
+        durationCache.set(serviceId, appointmentDuration);
+      }
       const appointmentEnd = appointmentStart + appointmentDuration;
 
       if (this.hasTimeOverlap(proposedStart, proposedEnd, appointmentStart, appointmentEnd)) {
@@ -148,6 +236,7 @@ class SmartScheduler {
     if (!workingHours) return slots;
 
     // Parse YYYY-MM-DD in local time to avoid UTC day-shift issues
+    const todayISO = limaDateISO();
     const dateParts = date.split('-').map(Number);
     const selectedDate = dateParts.length === 3
       ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
@@ -184,8 +273,23 @@ class SmartScheduler {
     // Generate appointment slots (not just 30-min intervals)
     // Consider service duration + buffer time
     const totalSlotTime = serviceDuration + bufferMinutes;
+    void totalSlotTime;
+
+    // Cache service durations once per request instead of querying per slot.
+    const durationCache = new Map<number, number>();
+    const resolveDuration = async (serviceId: number): Promise<number> => {
+      const cached = durationCache.get(serviceId);
+      if (cached !== undefined) return cached;
+      const duration = await this.getServiceDuration(serviceId);
+      durationCache.set(serviceId, duration);
+      return duration;
+    };
+
+    // Slots that already started today must not be offered.
+    const nowMinutes = date === todayISO ? Number(limaTimeHM().slice(0, 2)) * 60 + Number(limaTimeHM().slice(3, 5)) : -1;
 
     for (let minutes = startMinutes; minutes <= endMinutes - serviceDuration; minutes += 15) {
+      if (nowMinutes >= 0 && minutes <= nowMinutes) continue;
       const hour = Math.floor(minutes / 60);
       const min = minutes % 60;
       const timeSlot = `${hour.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}`;
@@ -213,10 +317,12 @@ class SmartScheduler {
       const hasAppointmentConflict = await Promise.all(
         existingAppointments.map(async appointment => {
           if (appointment.date !== date) return false;
+          // Cancelled / no-show appointments do not block a slot.
+          if (["cancelled", "no_show"].includes(String(appointment.status || ""))) return false;
 
           const appointmentStart = this.timeToMinutes(appointment.time);
-          // Get actual service duration for existing appointment
-          const actualDuration = await this.getServiceDuration(appointment.serviceId || 0);
+          // Get actual service duration for existing appointment (cached)
+          const actualDuration = await resolveDuration(appointment.serviceId || 0);
           const appointmentEnd = appointmentStart + actualDuration;
 
           // Check for overlap including buffer time
@@ -1477,6 +1583,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // Public appointment availability endpoint
+  // ---------------------------------------------------------------------
+  // Self-service appointment management (token from the reminder email)
+  // ---------------------------------------------------------------------
+
+  const loadTokenAppointment = async (token: string) => {
+    if (!token || token.length < 20) return null;
+    const appointment = await storage.getAppointmentByCancelToken(token);
+    if (!appointment) return null;
+    const [client, service, business] = await Promise.all([
+      appointment.clientId ? storage.getClient(appointment.clientId) : Promise.resolve(undefined),
+      appointment.serviceId ? storage.getService(appointment.serviceId) : Promise.resolve(undefined),
+      storage.getBusiness(appointment.businessId),
+    ]);
+    return { appointment, client, service, business };
+  };
+
+  app.get("/api/public/appointments/:token", async (req, res) => {
+    try {
+      const found = await loadTokenAppointment(String(req.params.token));
+      if (!found) return res.status(404).json({ message: "Cita no encontrada" });
+      const { appointment, client, service, business } = found;
+
+      res.set("Cache-Control", "no-store");
+      res.json({
+        appointment: {
+          id: appointment.id,
+          date: appointment.date,
+          time: appointment.time,
+          duration: appointment.duration,
+          status: appointment.status,
+          price: appointment.price,
+          notes: appointment.clientNotes,
+        },
+        client: client ? { name: client.name, email: client.email, phone: client.phone } : null,
+        service: service ? { id: service.id, name: service.name, duration: service.duration, price: service.price } : null,
+        business: business ? { id: business.id, name: business.name, phone: business.phone, email: business.email } : null,
+        canManage: ["pending", "confirmed"].includes(appointment.status),
+      });
+    } catch (error: any) {
+      console.error("Error loading appointment by token:", error);
+      res.status(500).json({ message: "Error cargando la cita" });
+    }
+  });
+
+  app.post("/api/public/appointments/:token/cancel", publicWriteLimiter, async (req, res) => {
+    try {
+      const found = await loadTokenAppointment(String(req.params.token));
+      if (!found) return res.status(404).json({ message: "Cita no encontrada" });
+      const { appointment, client, service, business } = found;
+
+      if (!["pending", "confirmed"].includes(appointment.status)) {
+        return res.status(400).json({ message: "Esta cita ya no se puede cancelar" });
+      }
+
+      const updated = await storage.updateAppointment(appointment.id, { status: "cancelled" } as any);
+
+      if (business && client?.email && service) {
+        void emailService.sendAppointmentCancelled({
+          clientName: client.name,
+          clientEmail: client.email,
+          clientPhone: client.phone ?? "",
+          businessName: business.name,
+          businessEmail: business.email ?? "",
+          serviceName: service.name,
+          date: appointment.date,
+          time: appointment.time,
+          duration: appointment.duration ?? 30,
+          price: Number(appointment.price ?? 0),
+        });
+      }
+
+      res.json({ ok: true, appointment: updated, message: "Tu cita fue cancelada" });
+    } catch (error: any) {
+      console.error("Error cancelling appointment by token:", error);
+      res.status(500).json({ message: "Error cancelando la cita" });
+    }
+  });
+
+  app.post("/api/public/appointments/:token/reschedule", publicWriteLimiter, async (req, res) => {
+    try {
+      const found = await loadTokenAppointment(String(req.params.token));
+      if (!found) return res.status(404).json({ message: "Cita no encontrada" });
+      const { appointment, client, service, business } = found;
+
+      if (!["pending", "confirmed"].includes(appointment.status)) {
+        return res.status(400).json({ message: "Esta cita ya no se puede reprogramar" });
+      }
+
+      const date = String(req.body?.date || "");
+      const time = String(req.body?.time || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+        return res.status(400).json({ message: "Fecha u hora inválida" });
+      }
+
+      const settings = await storage.getBusinessSettings(appointment.businessId);
+      const sameDay = await storage.getAppointmentsByDate(appointment.businessId, date);
+      const others = sameDay.filter((other) => other.id !== appointment.id);
+
+      const slots = await generateAvailableTimeSlots(
+        date,
+        settings?.workingHours ?? {},
+        (settings as any)?.blockedDates ?? [],
+        (settings as any)?.blockedHours ?? [],
+        others,
+        service?.duration ?? appointment.duration ?? 30,
+      );
+      const slot = slots.find((candidate) => candidate.time === time);
+      if (!slot || !slot.available) {
+        return res.status(409).json({ message: "Ese horario no está disponible" });
+      }
+
+      const updated = await storage.updateAppointment(appointment.id, {
+        date,
+        time,
+        status: "rescheduled",
+      } as any);
+
+      if (business && client?.email) {
+        void emailService.sendAppointmentRescheduled({
+          clientName: client.name,
+          clientEmail: client.email,
+          clientPhone: client.phone ?? "",
+          businessName: business.name,
+          businessEmail: business.email ?? "",
+          serviceName: service?.name ?? "Servicio",
+          date,
+          time,
+          duration: service?.duration ?? appointment.duration ?? 30,
+          price: Number(appointment.price ?? 0),
+          previousDate: appointment.date,
+          previousTime: appointment.time,
+        });
+      }
+
+      res.json({ ok: true, appointment: updated, message: "Tu cita fue reprogramada" });
+    } catch (error: any) {
+      console.error("Error rescheduling appointment by token:", error);
+      res.status(500).json({ message: "Error reprogramando la cita" });
+    }
+  });
+
+
+  // Public availability: working hours + blocked dates/hours + real conflicts.
   app.get("/api/appointments/availability/:businessId", async (req, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
@@ -1486,7 +1735,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Fecha y servicio son requeridos" });
       }
 
-      // Get business settings for working hours and blocked times
       const settings = await storage.getBusinessSettings(businessId);
       const service = await storage.getService(parseInt(serviceId as string));
 
@@ -1494,15 +1742,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Servicio no encontrado" });
       }
 
-      // Get existing appointments for the date
       const existingAppointments = await storage.getAppointmentsByDate(businessId, date as string);
 
-      // Generate available time slots
       const availableSlots = await generateAvailableTimeSlots(
         date as string,
         settings?.workingHours || {},
-        settings?.blockedDates || [],
-        settings?.blockedHours || [],
+        (settings as any)?.blockedDates || [],
+        (settings as any)?.blockedHours || [],
         existingAppointments,
         service.duration || 30
       );
@@ -1513,6 +1759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error obteniendo disponibilidad" });
     }
   });
+
 
   // Enhanced appointment creation with smart scheduling validation
   app.post("/api/appointments/public", async (req, res) => {
@@ -1607,14 +1854,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: 'pending', // Always start as pending for public bookings
         notes: `Reserva online - ${service.name}`,
         clientNotes: appointmentData.clientNotes || null,
-        price: service.price
-      });
+        price: service.price,
+        // Signed token used by the reminder email's cancel/reschedule link.
+        cancelToken: randomBytes(24).toString("hex"),
+      } as any);
 
       // Get business information for email
       const [business, businessSettings] = await Promise.all([
         storage.getBusiness(appointmentData.businessId),
         storage.getBusinessSettings(appointmentData.businessId)
       ]);
+
+      // Traffic funnel: record the conversion (fire-and-forget, never blocks booking).
+      void storage.createMicrositeEvent({
+        businessId: appointment.businessId,
+        slug: businessSettings?.customUrl ?? null,
+        type: "booking_completed",
+        day: limaDateISO(),
+        source: "direct",
+        metadata: { serviceId: service.id, appointmentId: appointment.id },
+      } as any).catch(() => undefined);
 
       // Send confirmation emails
       if (business) {
@@ -1794,14 +2053,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // NO SLUG GENERATION - micrositio URLs are handled through settings customUrl only
+      // Provision the micrositio in the same transaction-like step: a business
+      // without settings is not bookable and has no public URL.
+      const customUrl = await allocateCustomUrl(
+        (businessData as any).name || (businessData as any).slug || "negocio",
+      );
       const business = await storage.createBusiness({
         ...businessData,
-        slug: null, // No slug needed - customUrl in settings handles micrositio access
-        userId: dbUser.id // Use authenticated user's database ID
+        slug: null, // legacy column — public URLs live in settings.customUrl
+        userId: dbUser.id,
       });
 
-      res.json(business);
+      await storage.updateBusinessSettings(business.id, {
+        customUrl,
+        profileImage: business.logo ?? null,
+        coverImage: business.coverImage ?? null,
+        publicEmail: business.email ?? null,
+        publicPhone: business.phone ?? null,
+        streetAddress: business.address ?? null,
+        district: business.district ?? null,
+        publicDescription: business.description ?? null,
+        workingHours: (business.hours as any) ?? undefined,
+      } as any);
+
+      res.json({ ...business, customUrl });
     } catch (error: any) {
       console.error('Error creating business:', error);
       res.status(400).json({ message: "Error creando negocio" });
@@ -1993,13 +2268,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const appointmentData = insertAppointmentSchema.parse(req.body);
 
+      // The dashboard must obey the same rules as the public booking flow.
+      if (appointmentData.date && appointmentData.time) {
+        const service = appointmentData.serviceId
+          ? await storage.getService(appointmentData.serviceId)
+          : undefined;
+        const duration = appointmentData.duration ?? service?.duration ?? 30;
+
+        const sameDay = await storage.getAppointmentsByDate(businessId, appointmentData.date);
+        const conflict = await SmartScheduler.detectConflicts(
+          SmartScheduler.timeToMinutes(appointmentData.time),
+          duration,
+          sameDay.filter((existing) => existing.status !== "cancelled" && existing.status !== "no_show"),
+          appointmentData.date,
+        );
+
+        if (conflict.hasConflict) {
+          return res.status(409).json({
+            message: "Ese horario ya está ocupado por otra cita",
+            conflicts: conflict.conflictingAppointments,
+          });
+        }
+      }
+
       const appointment = await storage.createAppointment({
         ...appointmentData,
-        businessId
-      });
+        businessId,
+        cancelToken: (appointmentData as any).cancelToken ?? randomBytes(24).toString("hex"),
+      } as any);
 
       res.json(appointment);
     } catch (error: any) {
+      console.error("Error creating appointment:", error);
       res.status(400).json({ message: "Error creando cita" });
     }
   });
@@ -2104,108 +2404,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dbUser = await verifyBusinessOwnership(req, res, businessId);
       if (!dbUser) return; // Response already sent
 
-      const [appointments, clients, services] = await Promise.all([
+      // Every KPI is derived from the service date (appointment.date) in Lima time.
+      const period = resolvePeriod((String(req.query.period || "thisMonth")) as PeriodKey, limaDateISO());
+      const granularity = String(req.query.granularity || "week") as Granularity;
+
+      const [appointments, clients, services, settings, events, payments] = await Promise.all([
         storage.getAppointmentsByBusinessId(businessId),
         storage.getClientsByBusinessId(businessId),
-        storage.getServicesByBusinessId(businessId)
+        storage.getServicesByBusinessId(businessId),
+        storage.getBusinessSettings(businessId),
+        storage.getMicrositeEvents(businessId, period.previousFrom, period.to),
+        storage.getPaymentsByBusinessId(businessId),
       ]);
 
-      // Calculate analytics
-      const thisMonth = new Date();
-      thisMonth.setDate(1);
+      // One pass for names instead of one query per appointment (removes the old N+1).
+      const clientNames = new Map<number, string>(clients.map((client) => [client.id, client.name]));
+      const serviceNames = new Map<number, string>(services.map((service) => [service.id, service.name]));
 
-      const monthlyAppointments = appointments.filter(a => a.createdAt && a.createdAt >= thisMonth);
-      const completedAppointments = appointments.filter(a => a.status === 'completed');
-      const monthlyRevenue = completedAppointments
-        .filter(a => a.createdAt && a.createdAt >= thisMonth)
-        .reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-      const newClientsThisMonth = clients.filter(c => c.createdAt && c.createdAt >= thisMonth);
+      const metrics = computeBusinessMetrics({
+        appointments,
+        clients,
+        services,
+        period,
+        granularity,
+        workingHours: (settings?.workingHours ?? null) as any,
+        events,
+        clientNames,
+        serviceNames,
+      });
 
-      // Calculate real weekly revenue for the last 7 weeks
-      const now = new Date();
-      const weeklyRevenue = [];
-      for (let i = 6; i >= 0; i--) {
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - (i * 7) - now.getDay());
-        weekStart.setHours(0, 0, 0, 0);
+      // "Cobrado" comes from the payments ledger, never from appointment prices.
+      const collected = computeCollected(payments, period);
 
-        const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
-
-        const weekAppointments = appointments.filter(a => {
-          if (!a.createdAt) return false;
-          const appointmentDate = new Date(a.createdAt);
-          return appointmentDate >= weekStart && appointmentDate <= weekEnd &&
-            a.status === 'completed'; // Only count completed appointments for revenue
-        });
-
-        const weekRevenue = weekAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-        weeklyRevenue.push(weekRevenue);
-      }
-
-      // Get upcoming appointments with proper names
-      const upcomingAppointments = await Promise.all(
-        appointments
-          .filter(a => {
-            const appointmentDate = new Date(`${a.date}T${a.time}`);
-            return appointmentDate > new Date() && (a.status === 'pending' || a.status === 'confirmed');
-          })
-          .sort((a, b) => {
-            const dateA = new Date(`${a.date}T${a.time}`);
-            const dateB = new Date(`${b.date}T${b.time}`);
-            return dateA.getTime() - dateB.getTime();
-          })
-          .slice(0, 5)
-          .map(async (appointment) => {
-            const [client, service] = await Promise.all([
-              storage.getClient(appointment.clientId || 0),
-              storage.getService(appointment.serviceId || 0)
-            ]);
-
-            return {
-              ...appointment,
-              clientName: client?.name || 'Cliente Desconocido',
-              serviceName: service?.name || 'Servicio Desconocido'
-            };
-          })
-      );
-
-      // Count appointments by status
-      const pendingAppointments = appointments.filter(a => a.status === 'pending').length;
-      const confirmedToday = appointments.filter(a => {
-        const today = new Date().toISOString().split('T')[0];
-        return a.date === today && a.status === 'confirmed';
-      }).length;
-
-      // Financial analytics
-      const totalRevenue = completedAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-      const pendingPayments = appointments
-        .filter(a => a.status === 'pending' || a.status === 'confirmed')
-        .reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-      const averageAppointmentValue = completedAppointments.length > 0
-        ? totalRevenue / completedAppointments.length
-        : 0;
-
-      const analytics = {
-        revenue: monthlyRevenue,
-        appointments: monthlyAppointments.length,
-        newClients: newClientsThisMonth.length,
-        totalClients: clients.length,
-        totalServices: services.length,
-        pendingAppointments,
-        confirmedToday,
-        weeklyRevenue,
-        upcomingAppointments,
-        // Financial data
-        totalRevenue,
-        pendingPayments,
-        averageAppointmentValue,
-        completedAppointments: completedAppointments.length
-      };
-
-      res.json(analytics);
+      res.json({
+        ...metrics,
+        // ---- legacy keys (older UI components still read these) ----
+        revenue: metrics.revenue,
+        appointments: metrics.appointmentsCreatedInPeriod,
+        newClients: metrics.newClients,
+        // ---- invoiced vs collected ----
+        collected,
+        invoiced: metrics.revenue,
+        receivable: Math.max(0, metrics.revenue - collected),
+        paymentsCount: payments.filter((payment) => payment.status === "approved").length,
+        pendingPaymentOrders: payments.filter((payment) => payment.status === "pending").length,
+        // ---- microsite traffic ----
+        trafficSeries: computeTrafficSeries(events, period),
+        sourceBreakdown: computeSourceBreakdown(events),
+        funnel: computeFunnel(events, metrics.appointmentsCreatedInPeriod, metrics.completedAppointments),
+      });
     } catch (error: any) {
+      console.error("Error getting analytics:", error);
       res.status(500).json({ message: "Error obteniendo analytics" });
     }
   });
@@ -2217,111 +2466,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dbUser = await verifyBusinessOwnership(req, res, businessId);
       if (!dbUser) return;
 
-      const { period = 'thisMonth' } = req.query;
+      const period = resolvePeriod((String(req.query.period || "thisMonth")) as PeriodKey, limaDateISO());
 
-      const [appointments, services] = await Promise.all([
+      const [appointments, services, clients, settings, payments] = await Promise.all([
         storage.getAppointmentsByBusinessId(businessId),
-        storage.getServicesByBusinessId(businessId)
+        storage.getServicesByBusinessId(businessId),
+        storage.getClientsByBusinessId(businessId),
+        storage.getBusinessSettings(businessId),
+        storage.getPaymentsByBusinessId(businessId),
       ]);
 
-      // Calculate date ranges based on period
-      const now = new Date();
-      let startDate: Date;
-      let endDate = new Date();
+      const clientNames = new Map<number, string>(clients.map((client) => [client.id, client.name]));
+      const serviceNames = new Map<number, string>(services.map((service) => [service.id, service.name]));
 
-      switch (period) {
-        case 'lastMonth':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          endDate = new Date(now.getFullYear(), now.getMonth(), 0);
-          break;
-        case 'last3Months':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-          break;
-        case 'thisYear':
-          startDate = new Date(now.getFullYear(), 0, 1);
-          break;
-        case 'thisMonth':
-        default:
-          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-          break;
-      }
-
-      // Filter appointments by period
-      const periodAppointments = appointments.filter(a => {
-        if (!a.createdAt) return false;
-        const appointmentDate = new Date(a.createdAt);
-        return appointmentDate >= startDate && appointmentDate <= endDate;
+      const metrics = computeBusinessMetrics({
+        appointments,
+        clients,
+        services,
+        period,
+        granularity: "week",
+        workingHours: (settings?.workingHours ?? null) as any,
+        clientNames,
+        serviceNames,
       });
 
-      const completedAppointments = periodAppointments.filter(a => a.status === 'completed');
-      const pendingAppointments = periodAppointments.filter(a => a.status === 'pending' || a.status === 'confirmed');
+      // Last 12 months of billed revenue, attributed to the service date.
+      const monthlyFrom = `${addMonthsISO(limaDateISO(), -11).slice(0, 7)}-01`;
+      const monthlyPeriod = {
+        key: "all" as PeriodKey,
+        from: monthlyFrom,
+        to: limaDateISO(),
+        previousFrom: monthlyFrom,
+        previousTo: monthlyFrom,
+      };
+      const monthlyData = buildBuckets(appointments, monthlyPeriod, "month").map((bucket) => ({
+        month: bucket.label,
+        revenue: bucket.revenue,
+        appointments: bucket.completed,
+      }));
 
-      // Calculate financial metrics
-      const totalRevenue = completedAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-      const pendingPayments = pendingAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-      const averageAppointmentValue = completedAppointments.length > 0
-        ? totalRevenue / completedAppointments.length
-        : 0;
+      // Transactions are ordered by when the service happened, not when it was booked.
+      const recentTransactions = appointments
+        .filter((appointment) => appointment.status === "completed")
+        .sort((a, b) => `${b.date}T${b.time}`.localeCompare(`${a.date}T${a.time}`))
+        .slice(0, 10)
+        .map((appointment) => ({
+          id: appointment.id,
+          date: appointment.date,
+          time: appointment.time,
+          clientName: clientNames.get(appointment.clientId ?? 0) ?? "Cliente",
+          serviceName: serviceNames.get(appointment.serviceId ?? 0) ?? "Servicio",
+          amount: money(appointment.price),
+          status: appointment.status,
+        }));
 
-      // Generate monthly revenue chart data
-      const monthlyData = [];
-      for (let i = 11; i >= 0; i--) {
-        const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
-
-        const monthAppointments = appointments.filter(a => {
-          if (!a.createdAt || a.status !== 'completed') return false;
-          const appointmentDate = new Date(a.createdAt);
-          return appointmentDate >= monthStart && appointmentDate <= monthEnd;
-        });
-
-        const monthRevenue = monthAppointments.reduce((sum, a) => sum + parseFloat(a.price || "0"), 0);
-
-        monthlyData.push({
-          month: monthStart.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
-          revenue: monthRevenue,
-          appointments: monthAppointments.length
-        });
-      }
-
-      // Recent transactions (completed appointments)
-      const recentTransactions = await Promise.all(
-        completedAppointments
-          .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime())
-          .slice(0, 10)
-          .map(async (appointment) => {
-            const [client, service] = await Promise.all([
-              storage.getClient(appointment.clientId || 0),
-              storage.getService(appointment.serviceId || 0)
-            ]);
-
-            return {
-              id: appointment.id,
-              date: appointment.date,
-              time: appointment.time,
-              clientName: client?.name || 'Cliente Desconocido',
-              serviceName: service?.name || 'Servicio Desconocido',
-              amount: parseFloat(appointment.price || "0"),
-              status: appointment.status
-            };
-          })
-      );
-
-      // Payment status distribution
-      const paymentStatusData = [
-        { name: 'Completados', value: totalRevenue, count: completedAppointments.length },
-        { name: 'Pendientes', value: pendingPayments, count: pendingAppointments.length }
-      ];
+      const collected = computeCollected(payments, period);
+      const approvedPayments = payments.filter((payment) => payment.status === "approved");
 
       const financialData = {
-        totalRevenue,
-        pendingPayments,
-        averageAppointmentValue,
-        completedAppointments: completedAppointments.length,
+        // legacy keys
+        totalRevenue: metrics.revenue,
+        pendingPayments: metrics.pendingPayments,
+        averageAppointmentValue: metrics.averageAppointmentValue,
+        completedAppointments: metrics.completedAppointments,
         monthlyData,
         recentTransactions,
-        paymentStatusData,
-        period
+        paymentStatusData: [
+          { name: "Facturado", value: metrics.revenue, count: metrics.completedAppointments },
+          { name: "Por cobrar", value: metrics.pendingPayments, count: metrics.pendingAppointments },
+        ],
+        period: period.key,
+        // new, explicit money semantics
+        range: period,
+        invoiced: metrics.revenue,
+        collected,
+        receivable: Math.max(0, metrics.revenue - collected),
+        growth: metrics.revenueGrowth,
+        appointmentsCompletedGrowth: metrics.completedGrowth,
+        cancelledInPeriod: metrics.cancelledInPeriod,
+        noShowInPeriod: metrics.noShowInPeriod,
+        occupancyRate: metrics.occupancyRate,
+        payments: approvedPayments.slice(0, 20).map((payment) => ({
+          id: payment.id,
+          amount: money(payment.amount),
+          status: payment.status,
+          currency: payment.currency,
+          method: payment.paymentMethod,
+          paidAt: payment.paidAt,
+          createdAt: payment.createdAt,
+        })),
       };
 
       res.json(financialData);
@@ -2331,49 +2564,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ---------------------------------------------------------------------
+  // CSV exports (the "Exportar" button in Finanzas used to do nothing)
+  // ---------------------------------------------------------------------
+  app.get("/api/dashboard/businesses/:businessId/export/:dataset", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const businessId = parseInt(req.params.businessId);
+      const dataset = String(req.params.dataset || "").replace(/\.csv$/i, "");
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
+      const cell = (value: unknown): string => {
+        if (value === null || value === undefined) return "";
+        const text = value instanceof Date ? value.toISOString() : String(value);
+        return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      };
+      const toCsv = (headers: string[], rows: unknown[][]): string =>
+        `\uFEFF${[headers, ...rows].map((row) => row.map(cell).join(",")).join("\r\n")}\r\n`;
+
+      let csv = "";
+      let filename = `micita-${dataset}-${limaDateISO()}.csv`;
+
+      if (dataset === "appointments" || dataset === "citas") {
+        const [appointments, clients, services] = await Promise.all([
+          storage.getAppointmentsByBusinessId(businessId),
+          storage.getClientsByBusinessId(businessId),
+          storage.getServicesByBusinessId(businessId),
+        ]);
+        const clientNames = new Map(clients.map((client) => [client.id, client.name]));
+        const serviceNames = new Map(services.map((service) => [service.id, service.name]));
+        csv = toCsv(
+          ["ID", "Fecha", "Hora", "Cliente", "Servicio", "Estado", "Precio", "Duracion (min)", "Creada"],
+          appointments
+            .slice()
+            .sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))
+            .map((appointment) => [
+              appointment.id,
+              appointment.date,
+              appointment.time,
+              clientNames.get(appointment.clientId ?? 0) ?? "Cliente",
+              serviceNames.get(appointment.serviceId ?? 0) ?? "Servicio",
+              appointment.status,
+              appointment.price ?? "",
+              appointment.duration ?? "",
+              appointment.createdAt ?? "",
+            ]),
+        );
+      } else if (dataset === "clients" || dataset === "clientes") {
+        const clients = await storage.getClientsByBusinessId(businessId);
+        csv = toCsv(
+          ["ID", "Nombre", "Email", "Telefono", "Notas", "Creado"],
+          clients.map((client) => [client.id, client.name, client.email, client.phone, client.notes, client.createdAt]),
+        );
+      } else if (dataset === "revenue" || dataset === "ingresos") {
+        const [appointments, clients, services] = await Promise.all([
+          storage.getAppointmentsByBusinessId(businessId),
+          storage.getClientsByBusinessId(businessId),
+          storage.getServicesByBusinessId(businessId),
+        ]);
+        const clientNames = new Map(clients.map((client) => [client.id, client.name]));
+        const serviceNames = new Map(services.map((service) => [service.id, service.name]));
+        csv = toCsv(
+          ["Fecha", "Cliente", "Servicio", "Monto", "Estado"],
+          appointments
+            .filter((appointment) => appointment.status === "completed")
+            .sort((a, b) => b.date.localeCompare(a.date))
+            .map((appointment) => [
+              appointment.date,
+              clientNames.get(appointment.clientId ?? 0) ?? "Cliente",
+              serviceNames.get(appointment.serviceId ?? 0) ?? "Servicio",
+              money(appointment.price),
+              appointment.status,
+            ]),
+        );
+      } else if (dataset === "reviews" || dataset === "resenas") {
+        const reviews = await storage.getReviewsByBusinessId(businessId);
+        csv = toCsv(
+          ["Fecha", "Cliente", "Calificacion", "Estado", "Fuente", "Comentario", "Respuesta"],
+          reviews.map((review) => [
+            review.createdAt ?? "",
+            review.clientName,
+            review.rating,
+            review.status ?? "",
+            review.source ?? "",
+            review.comment ?? "",
+            review.ownerReply ?? "",
+          ]),
+        );
+      } else if (dataset === "messages" || dataset === "mensajes") {
+        const messages = await storage.getContactMessages(businessId, "all");
+        csv = toCsv(
+          ["Fecha", "Nombre", "Email", "Telefono", "Estado", "Mensaje"],
+          messages.map((message) => [
+            message.createdAt ?? "",
+            message.name,
+            message.email ?? "",
+            message.phone ?? "",
+            message.status,
+            message.message,
+          ]),
+        );
+      } else {
+        return res.status(404).json({ message: "Conjunto de datos no encontrado" });
+      }
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(csv);
+    } catch (error: any) {
+      console.error("Error exporting CSV:", error);
+      res.status(500).json({ message: "Error generando el archivo" });
+    }
+  });
+
+
   const httpServer = createServer(app);
   // Micrositio routes
+
+  /**
+   * Resolve a public slug to its business + settings with a single indexed
+   * lookup (previously this scanned every business and every settings row).
+   */
+  const resolveMicrosite = async (rawSlug: string) => {
+    const slug = String(rawSlug || "").trim().toLowerCase();
+    if (!slug) return null;
+    const settings = await storage.getBusinessSettingsByCustomUrl(slug);
+    if (!settings) return null;
+    const business = await storage.getBusiness(settings.businessId);
+    if (!business || business.isActive === false) return null;
+    return { business, settings };
+  };
+
   app.get("/api/micrositio/:slug", async (req, res) => {
     const slug = req.params.slug;
-    console.log(`Looking for micrositio with slug: ${slug}`);
-
     try {
-      // Get all business settings to find one with matching custom URL
-      const businesses = await storage.searchBusinesses("");
-      console.log(`Found ${businesses.length} businesses to search through`);
+      const resolved = await resolveMicrosite(slug);
+      if (!resolved) {
+        return res.status(404).json({ error: "Negocio no encontrado" });
+      }
+      const { business, settings } = resolved;
 
-      let foundBusiness = null;
-      let foundSettings = null;
+      const [services, galleryRows, reviews] = await Promise.all([
+        storage.getServicesByBusinessId(business.id),
+        storage.getGalleryByBusinessId(business.id),
+        storage.getApprovedReviewsByBusinessId(business.id),
+      ]);
 
-      for (const business of businesses) {
-        const settings = await storage.getBusinessSettings(business.id);
-        console.log(`Business ${business.id} (${business.name}) has customUrl: ${settings?.customUrl}, slug: ${business.slug}`);
-
-        // ONLY check customUrl in settings - ignore business slug completely
-        if (settings?.customUrl && settings.customUrl === slug) {
-          foundBusiness = business;
-          foundSettings = settings;
-          console.log(`Found matching business: ${business.name} with customUrl: ${settings.customUrl}`);
-          break;
+      // Two stores exist for historical reasons: the editor writes the jsonb
+      // `settings.gallery`, while imports/admin write the `gallery` table.
+      // The public page shows the union so neither pipeline can lose images.
+      const mergedGallery = new Map<string, { id: string | number; imageUrl: string; title?: string }>();
+      const settingsGallery = Array.isArray((settings as any).gallery) ? ((settings as any).gallery as any[]) : [];
+      for (const item of settingsGallery) {
+        if (item?.imageUrl) {
+          mergedGallery.set(item.imageUrl, {
+            id: item.id ?? item.imageUrl,
+            imageUrl: item.imageUrl,
+            title: item.title,
+          });
+        }
+      }
+      for (const item of galleryRows) {
+        if (item.imageUrl && !mergedGallery.has(item.imageUrl)) {
+          mergedGallery.set(item.imageUrl, {
+            id: item.id,
+            imageUrl: item.imageUrl,
+            title: item.caption ?? undefined,
+          });
         }
       }
 
-      if (!foundBusiness || !foundSettings) {
-        console.log(`No business found with customUrl: ${slug}`);
-        return res.status(404).json({ error: "Negocio no encontrado" });
-      }
+      const activeServices = services.filter((service) => service.isActive !== false);
+      const approvedRatings = reviews.map((review) => review.rating);
+      const publicRating = approvedRatings.length
+        ? approvedRatings.reduce((sum, rating) => sum + rating, 0) / approvedRatings.length
+        : Number.parseFloat(String(business.rating ?? 0)) || 0;
 
-      const services = await storage.getServicesByBusinessId(foundBusiness.id);
-      const gallery = await storage.getGalleryByBusinessId(foundBusiness.id);
-      const reviews = await storage.getReviewsByBusinessId(foundBusiness.id);
-
-      console.log(`Returning micrositio data for: ${foundBusiness.name}`);
+      // Public cache: short enough to reflect edits, long enough to absorb traffic.
+      res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=120");
       res.json({
-        business: foundBusiness,
-        settings: foundSettings,
-        services,
-        gallery,
-        reviews
+        business,
+        settings,
+        services: activeServices,
+        gallery: Array.from(mergedGallery.values()),
+        reviews,
+        stats: {
+          rating: Math.round(publicRating * 10) / 10,
+          reviewCount: approvedRatings.length || business.reviewCount || 0,
+          serviceCount: activeServices.length,
+        },
       });
     } catch (error: any) {
       console.error("Error in micrositio route:", error);
@@ -2381,8 +2760,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+  // Anonymous traffic beacon (view / whatsapp_click / book_click).
+  app.post("/api/micrositio/:slug/events", publicWriteLimiter, async (req, res) => {
+    try {
+      const resolved = await resolveMicrosite(req.params.slug);
+      if (!resolved) return res.status(404).json({ ok: false });
+
+      const allowed = new Set(["view", "whatsapp_click", "book_click", "booking_completed"]);
+      const type = String(req.body?.type || "");
+      if (!allowed.has(type)) {
+        return res.status(400).json({ ok: false, message: "Tipo de evento inválido" });
+      }
+
+      const referrer = typeof req.body?.referrer === "string" ? req.body.referrer.slice(0, 500) : null;
+      const classify = (value: string | null): string => {
+        if (!value) return "direct";
+        const lower = value.toLowerCase();
+        if (lower.includes("whatsapp") || lower.includes("wa.me")) return "whatsapp";
+        if (lower.includes("instagram")) return "instagram";
+        if (lower.includes("facebook")) return "facebook";
+        if (lower.includes("google")) return "google";
+        if (lower.includes("tiktok")) return "tiktok";
+        return "other";
+      };
+      const userAgent = String(req.headers["user-agent"] || "");
+      const device = /mobile/i.test(userAgent) ? "mobile" : /tablet|ipad/i.test(userAgent) ? "tablet" : "desktop";
+
+      await storage.createMicrositeEvent({
+        businessId: resolved.business.id,
+        slug: String(req.params.slug).slice(0, 120),
+        type,
+        path: typeof req.body?.path === "string" ? req.body.path.slice(0, 300) : null,
+        referrer,
+        source: classify(referrer),
+        device,
+        sessionId: typeof req.body?.sessionId === "string" ? req.body.sessionId.slice(0, 64) : null,
+        day: limaDateISO(),
+        metadata: typeof req.body?.metadata === "object" && req.body.metadata ? req.body.metadata : null,
+      } as any);
+
+      res.status(202).json({ ok: true });
+    } catch (error: any) {
+      console.error("Error recording microsite event:", error);
+      res.status(500).json({ ok: false });
+    }
+  });
+
+  // Contact form → stored lead + notification email (no more silent mailto:).
+  app.post("/api/micrositio/:slug/contact", publicWriteLimiter, async (req, res) => {
+    try {
+      const resolved = await resolveMicrosite(req.params.slug);
+      if (!resolved) return res.status(404).json({ ok: false, message: "Negocio no encontrado" });
+
+      const name = String(req.body?.name || "").trim();
+      const message = String(req.body?.message || "").trim();
+      const email = String(req.body?.email || "").trim();
+      const phone = String(req.body?.phone || "").trim();
+
+      if (name.length < 2 || message.length < 5) {
+        return res.status(400).json({ ok: false, message: "Escribe tu nombre y tu consulta" });
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ ok: false, message: "Email inválido" });
+      }
+
+      const saved = await storage.createContactMessage({
+        businessId: resolved.business.id,
+        name: name.slice(0, 120),
+        email: email ? email.slice(0, 160) : null,
+        phone: phone ? phone.slice(0, 40) : null,
+        message: message.slice(0, 2000),
+        source: "microsite",
+        ipHash: hashIp(req.ip),
+      } as any);
+
+      const businessEmail = resolved.settings.publicEmail || resolved.business.email;
+      if (businessEmail) {
+        void emailService.sendBusinessMessage({
+          businessName: resolved.business.name,
+          businessEmail,
+          name: saved.name,
+          email: saved.email,
+          phone: saved.phone,
+          message: saved.message,
+        });
+      }
+
+      res.status(201).json({ ok: true, id: saved.id, message: "Mensaje enviado" });
+    } catch (error: any) {
+      console.error("Error creating contact message:", error);
+      res.status(500).json({ ok: false, message: "Error enviando el mensaje" });
+    }
+  });
+
+  // Demand heatmap so visitors can see the best time to book.
+  app.get("/api/micrositio/:slug/popular-times", async (req, res) => {
+    try {
+      const resolved = await resolveMicrosite(req.params.slug);
+      if (!resolved) return res.status(404).json({ error: "Negocio no encontrado" });
+
+      const appointments = await storage.getAppointmentsByBusinessId(resolved.business.id);
+      res.set("Cache-Control", "public, max-age=300");
+      res.json({ cells: computePopularTimes(appointments) });
+    } catch (error: any) {
+      console.error("Error computing popular times:", error);
+      res.status(500).json({ error: "Error obteniendo horarios populares" });
+    }
+  });
+
   // Reviews routes
-  // Get reviews for a business (both scraped and customer reviews)
+
+  // Owner inbox: every review (any status) plus computed stats.
   app.get("/api/dashboard/businesses/:businessId/reviews", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
@@ -2390,27 +2879,182 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!dbUser) return;
 
       const reviews = await storage.getReviewsByBusinessId(businessId);
-      res.json(reviews);
+      const approved = reviews.filter((review) => (review.status ?? "approved") === "approved");
+      const averageRating = approved.length
+        ? approved.reduce((sum, review) => sum + review.rating, 0) / approved.length
+        : 0;
+
+      res.json({
+        reviews,
+        stats: {
+          total: reviews.length,
+          approved: approved.length,
+          pending: reviews.filter((review) => review.status === "pending").length,
+          averageRating,
+          replyRate: approved.length
+            ? (approved.filter((review) => review.ownerReply).length / approved.length) * 100
+            : 0,
+        },
+      });
     } catch (error: any) {
       console.error("Error fetching reviews:", error);
       res.status(500).json({ message: "Error obteniendo reseñas" });
     }
   });
 
-  // Create a new customer review (public endpoint for microsite)
-  app.post("/api/reviews", async (req, res) => {
+  // Contact inbox (messages sent from the public microsite).
+  app.get("/api/dashboard/businesses/:businessId/messages", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
-      const reviewData = insertReviewSchema.parse(req.body);
+      const businessId = parseInt(req.params.businessId);
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
 
-      // Add source to identify this as a customer review
-      const newReview = await storage.createReview({
-        ...reviewData,
+      const messages = await storage.getContactMessages(businessId, String(req.query.status || "all"));
+      res.json({
+        messages,
+        unread: messages.filter((message) => message.status === "new").length,
       });
+    } catch (error: any) {
+      console.error("Error fetching contact messages:", error);
+      res.status(500).json({ message: "Error obteniendo mensajes" });
+    }
+  });
 
-      res.status(201).json(newReview);
+  app.patch("/api/dashboard/businesses/:businessId/messages/:messageId", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const businessId = parseInt(req.params.businessId);
+      const messageId = parseInt(req.params.messageId);
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
+      const messages = await storage.getContactMessages(businessId, "all");
+      if (!messages.some((message) => message.id === messageId)) {
+        return res.status(404).json({ message: "Mensaje no encontrado" });
+      }
+
+      const status = String(req.body?.status || "read");
+      if (!["new", "read", "replied", "archived"].includes(status)) {
+        return res.status(400).json({ message: "Estado inválido" });
+      }
+
+      const updated = await storage.updateContactMessage(messageId, { status });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating contact message:", error);
+      res.status(500).json({ message: "Error actualizando mensaje" });
+    }
+  });
+
+
+  // Public review submission. Everything moderation-related is server-side.
+  app.post("/api/reviews", publicWriteLimiter, async (req, res) => {
+    try {
+      const businessId = Number(req.body?.businessId);
+      const clientName = String(req.body?.clientName || "").trim();
+      const rating = Number(req.body?.rating);
+      const comment = String(req.body?.comment || "").trim();
+      const clientEmail = String(req.body?.clientEmail || "").trim().toLowerCase();
+      const appointmentId = req.body?.appointmentId ? Number(req.body.appointmentId) : undefined;
+
+      if (!Number.isInteger(businessId) || businessId <= 0) {
+        return res.status(400).json({ message: "Negocio inválido" });
+      }
+      if (clientName.length < 2 || clientName.length > 80) {
+        return res.status(400).json({ message: "Escribe tu nombre" });
+      }
+      if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+        return res.status(400).json({ message: "La calificación debe estar entre 1 y 5" });
+      }
+      if (comment.length > 1200) {
+        return res.status(400).json({ message: "La reseña es demasiado larga" });
+      }
+      if (clientEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail)) {
+        return res.status(400).json({ message: "Email inválido" });
+      }
+
+      const business = await storage.getBusiness(businessId);
+      if (!business || business.isActive === false) {
+        return res.status(404).json({ message: "Negocio no encontrado" });
+      }
+
+      if (appointmentId) {
+        const appointment = await storage.getAppointment(appointmentId);
+        if (!appointment || appointment.businessId !== businessId) {
+          return res.status(400).json({ message: "Cita inválida" });
+        }
+        if (appointment.status !== "completed") {
+          return res.status(400).json({ message: "Solo puedes reseñar citas completadas" });
+        }
+      }
+
+      // Simple anti-spam: one review per client name/email per business per day.
+      const existing = await storage.getReviewsByBusinessId(businessId);
+      const dayAgo = Date.now() - 24 * 60 * 60 * 1000;
+      const duplicate = existing.some((review) => {
+        const created = review.createdAt ? new Date(review.createdAt).getTime() : 0;
+        if (created < dayAgo) return false;
+        const sameName = review.clientName.trim().toLowerCase() === clientName.toLowerCase();
+        const sameEmail = Boolean(clientEmail) && (review.clientEmail || "").toLowerCase() === clientEmail;
+        return sameName || sameEmail;
+      });
+      if (duplicate) {
+        return res.status(429).json({ message: "Ya recibimos tu reseña hoy. ¡Gracias!" });
+      }
+
+      const review = await storage.createReview({
+        businessId,
+        clientName,
+        rating,
+        comment: comment || null,
+        clientEmail: clientEmail || null,
+        appointmentId: appointmentId ?? null,
+        source: "microsite",
+        status: "pending",
+        ipHash: hashIp(req.ip),
+      } as any);
+
+      res.status(201).json({
+        review,
+        message: "¡Gracias! Tu reseña será publicada después de la revisión del negocio.",
+      });
     } catch (error: any) {
       console.error("Error creating review:", error);
       res.status(500).json({ message: "Error creando reseña" });
+    }
+  });
+
+
+  // Moderation: approve / reject / reply.
+  app.patch("/api/dashboard/businesses/:businessId/reviews/:reviewId", requireAuth, async (req: AuthenticatedRequest, res) => {
+    try {
+      const businessId = parseInt(req.params.businessId);
+      const reviewId = parseInt(req.params.reviewId);
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
+      const review = await storage.getReview(reviewId);
+      if (!review || review.businessId !== businessId) {
+        return res.status(404).json({ message: "Reseña no encontrada" });
+      }
+
+      const patch: Record<string, unknown> = {};
+      if (typeof req.body?.status === "string") {
+        if (!["pending", "approved", "rejected"].includes(req.body.status)) {
+          return res.status(400).json({ message: "Estado inválido" });
+        }
+        patch.status = req.body.status;
+      }
+      if (typeof req.body?.ownerReply === "string") {
+        patch.ownerReply = req.body.ownerReply.slice(0, 1200);
+        patch.ownerRepliedAt = new Date();
+      }
+
+      const updated = await storage.updateReview(reviewId, patch as any);
+      await storage.recomputeBusinessRating(businessId);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating review:", error);
+      res.status(500).json({ message: "Error actualizando reseña" });
     }
   });
 
@@ -2423,13 +3067,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dbUser = await verifyBusinessOwnership(req, res, businessId);
       if (!dbUser) return;
 
-      // Verify review belongs to business
-      const review = await storage.getReviewsByBusinessId(businessId);
-      if (!review.find(r => r.id === reviewId)) {
+      const review = await storage.getReview(reviewId);
+      if (!review || review.businessId !== businessId) {
         return res.status(404).json({ message: "Reseña no encontrada" });
       }
 
       await storage.deleteReview(reviewId);
+      await storage.recomputeBusinessRating(businessId);
       res.json({ message: "Reseña eliminada" });
     } catch (error: any) {
       console.error("Error deleting review:", error);
@@ -2445,7 +3089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!dbUser) return;
 
       const settings = await storage.getBusinessSettings(businessId);
-      res.json(settings);
+      res.json(settings ?? { businessId, customUrl: null });
     } catch (error: any) {
       res.status(500).json({ error: "Error obteniendo configuración" });
     }
@@ -2457,11 +3101,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const dbUser = await verifyBusinessOwnership(req, res, businessId);
       if (!dbUser) return;
 
-      const body = insertBusinessSettingsSchema.partial().parse(req.body);
+      const raw: Record<string, any> = { ...req.body };
+
+      // The editor historically sent `galleryImages` while the column is
+      // `gallery`. Normalise both so neither pipeline loses images.
+      if (Array.isArray(raw.galleryImages)) {
+        raw.gallery = raw.galleryImages
+          .filter((image: any) => image && typeof image.imageUrl === "string")
+          .map((image: any) => ({
+            id: String(image.id ?? image.imageUrl),
+            imageUrl: image.imageUrl,
+            title: typeof image.title === "string" ? image.title : undefined,
+          }));
+        delete raw.galleryImages;
+      }
+
+      if (typeof raw.customUrl === "string") {
+        const requested = raw.customUrl.trim().toLowerCase();
+        if (requested === "") {
+          raw.customUrl = null;
+        } else if (!isValidCustomUrl(requested)) {
+          return res.status(400).json({
+            error: "URL inválida",
+            message: "La URL debe tener entre 3 y 40 caracteres: letras minúsculas, números o guiones (sin espacios ni acentos).",
+          });
+        } else {
+          const owner = await storage.getBusinessSettingsByCustomUrl(requested);
+          if (owner && owner.businessId !== businessId) {
+            return res.status(409).json({
+              error: "URL ocupada",
+              message: "Esa URL ya está en uso por otro negocio. Prueba con otra.",
+            });
+          }
+          raw.customUrl = requested;
+        }
+      }
+
+      const body = insertBusinessSettingsSchema.partial().parse(raw);
       const settings = await storage.updateBusinessSettings(businessId, body);
       res.json(settings);
     } catch (error: any) {
       console.error("Error updating settings:", error);
+      if (error?.name === "ZodError") {
+        return res.status(400).json({
+          error: "Datos inválidos",
+          message: "Revisa los campos del formulario.",
+          details: error?.errors ?? error?.issues,
+        });
+      }
       res.status(500).json({ error: "Error actualizando configuración", details: error?.message || "Unknown error" });
     }
   };
@@ -2512,16 +3199,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Google Places enrichment endpoint
-  app.post("/api/dashboard/businesses/:id/enrich-google", async (req, res) => {
+  app.post("/api/dashboard/businesses/:id/enrich-google", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
+      const businessId = parseInt(req.params.id);
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
       if (!googlePlacesService.isConfigured()) {
         return res.status(503).json({
           message: "La integración con Google Places no está configurada (GOOGLE_MAPS_API_KEY)",
         });
       }
 
-      const businessId = parseInt(req.params.id);
       const business = await storage.getBusiness(businessId);
+
 
       if (!business) {
         return res.status(404).json({ message: "Negocio no encontrado" });
@@ -2565,6 +3256,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Error enriqueciendo negocio con Google Places",
         error: error instanceof Error ? error.message : "Error desconocido"
       });
+    }
+  });
+
+  // Gallery upload — the microsite editor posts field `file`; older clients
+  // (microsite-settings-new) post `image`. Accept both so no client breaks.
+  app.post("/api/upload/gallery", requireAuth, upload.fields([
+    { name: "file", maxCount: 1 },
+    { name: "image", maxCount: 1 },
+  ]), async (req: AuthenticatedRequest, res) => {
+    try {
+      const files = (req.files ?? {}) as Record<string, Express.Multer.File[] | undefined>;
+      const file = files.file?.[0] ?? files.image?.[0] ?? (req.file as Express.Multer.File | undefined);
+
+      if (!file) {
+        return res.status(400).json({ error: "No se proporcionó ninguna imagen" });
+      }
+
+      const segment = req.user?.email ? safeUserSegment(req.user.email) : "anon";
+      const url = `/uploads/users/${segment}/${file.filename}`;
+
+      res.json({ url, galleryUrl: url, filename: file.filename, size: file.size });
+    } catch (error: any) {
+      console.error("Error uploading gallery image:", error);
+      res.status(500).json({ error: "Error al subir la imagen" });
     }
   });
 

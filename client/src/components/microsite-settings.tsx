@@ -9,8 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  AlertTriangle,
+import { AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Calendar,
@@ -39,6 +38,10 @@ import {
   X,
   Youtube
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AutoSetupTab } from "@/components/auto-setup-tab";
+import VisualMicrositioBuilder from "@/components/visual-micrositio-builder";
+import { MicrositeSettings as MicrositeSettingsQuick } from "@/components/microsite-settings-new";
 import React, { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
@@ -48,6 +51,9 @@ const micrositeSchema = z.object({
   customUrl: z.string().optional(),
   professionalTitle: z.string().optional(),
   publicDescription: z.string().optional(),
+  aboutUs: z.string().optional(),
+  yearsOfExperience: z.string().optional(),
+  specializations: z.string().optional(),
 
   // Imágenes de Marca
   profileImage: z.string().optional(),
@@ -115,6 +121,9 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
   // Enhanced UI State
   const [activeSection, setActiveSection] = useState("setup");
   const [setupMode, setSetupMode] = useState<'auto' | 'manual' | null>(null);
+  const [openAutoSetup, setOpenAutoSetup] = useState(false);
+  const [openVisualBuilder, setOpenVisualBuilder] = useState(false);
+  const [openQuickEditor, setOpenQuickEditor] = useState(false);
   const [autoSetupSources, setAutoSetupSources] = useState({
     facebookUrl: '',
     instagramUrl: '',
@@ -170,6 +179,9 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
       customUrl: "",
       professionalTitle: "",
       publicDescription: "",
+      aboutUs: "",
+      yearsOfExperience: "",
+      specializations: "",
       profileImage: "",
       coverImage: "",
       publicEmail: "",
@@ -211,6 +223,9 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
       micrositeForm.setValue("customUrl", settings.customUrl || "");
       micrositeForm.setValue("professionalTitle", settings.professionalTitle || "");
       micrositeForm.setValue("publicDescription", settings.publicDescription || "");
+      micrositeForm.setValue("aboutUs", settings.aboutUs || "");
+      micrositeForm.setValue("yearsOfExperience", settings.yearsOfExperience || "");
+      micrositeForm.setValue("specializations", settings.specializations || "");
       micrositeForm.setValue("profileImage", settings.profileImage || "");
       micrositeForm.setValue("coverImage", settings.coverImage || "");
       micrositeForm.setValue("publicEmail", settings.publicEmail || "");
@@ -230,9 +245,11 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
       micrositeForm.setValue("enableReviews", settings.enableReviews ?? true);
       micrositeForm.setValue("scheduleNotes", settings.scheduleNotes || "");
 
-      // Load gallery images if available
-      if (settings.galleryImages) {
-        setGalleryImages(settings.galleryImages);
+      // Load gallery images if available (the column is `gallery`; older rows
+      // used `galleryImages`, so accept both).
+      const storedGallery = (settings as any).gallery ?? (settings as any).galleryImages;
+      if (Array.isArray(storedGallery)) {
+        setGalleryImages(storedGallery);
       }
     }
   }, [currentBusinessSettings]);
@@ -330,11 +347,23 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses"] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error saving settings:", error);
+      // Surface the server's validation message (e.g. URL ocupada / URL inválida).
+      let description = "Hubo un problema al guardar la configuración.";
+      const raw = String(error?.message || "");
+      const brace = raw.indexOf("{");
+      if (brace >= 0) {
+        try {
+          const parsed = JSON.parse(raw.slice(brace));
+          if (parsed?.message) description = parsed.message;
+        } catch {
+          // keep the generic message
+        }
+      }
       toast({
         title: "Error",
-        description: "Hubo un problema al guardar la configuración.",
+        description,
         variant: "destructive",
       });
     },
@@ -406,6 +435,66 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
 
   return (
     <div className="space-y-6">
+      {/* Assistentes: auto-configuración, generador visual y editor rápido */}
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpenAutoSetup(true)}>
+          <Wand2 className="w-4 h-4 mr-2" /> Autocompletar desde redes
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpenVisualBuilder(true)}>
+          <Sparkles className="w-4 h-4 mr-2" /> Generador visual (IA)
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpenQuickEditor(true)}>
+          <Edit className="w-4 h-4 mr-2" /> Editor rápido
+        </Button>
+      </div>
+
+      <Dialog open={openAutoSetup} onOpenChange={setOpenAutoSetup}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Autocompletar mi micrositio</DialogTitle>
+          </DialogHeader>
+          {currentBusiness?.id && (
+            <AutoSetupTab
+              businessId={currentBusiness.id}
+              onDataFetched={() => {
+                setOpenAutoSetup(false);
+                queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${currentBusiness.id}/settings`] });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openVisualBuilder} onOpenChange={setOpenVisualBuilder}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Generador visual de micrositio</DialogTitle>
+          </DialogHeader>
+          {currentBusiness?.id && (
+            <VisualMicrositioBuilder
+              businessId={currentBusiness.id}
+              onClose={() => {
+                setOpenVisualBuilder(false);
+                queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${currentBusiness.id}/settings`] });
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openQuickEditor} onOpenChange={setOpenQuickEditor}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editor rápido</DialogTitle>
+          </DialogHeader>
+          {currentBusiness && (
+            <MicrositeSettingsQuick
+              currentBusiness={currentBusiness}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       <form onSubmit={micrositeForm.handleSubmit(onMicrositeSubmit)} className="space-y-6">
 
         {/* Enhanced Header with Quick Actions */}
@@ -742,12 +831,9 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
                         <Button
                           size="lg"
                           onClick={() => {
-                            // Here you would integrate with AutoSetupTab logic
-                            toast({
-                              title: "🚀 Iniciando Configuración Automática",
-                              description: "Analizando tus fuentes de información..."
-                            });
-                            // For now, just proceed to basic tab
+                            // Opens the real scraping wizard (auto-setup-tab) instead
+                            // of pretending to analyze the sources.
+                            setOpenAutoSetup(true);
                             setActiveSection('basic');
                           }}
                           disabled={
@@ -889,6 +975,30 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
                     <p className="text-xs text-gray-500 mt-1">
                       {micrositeForm.watch("publicDescription")?.length || 0}/500 caracteres
                     </p>
+                  </div>
+
+                  {/* "Sobre nosotros" — previously rendered by the microsite but never editable */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-base font-semibold">Años de experiencia</Label>
+                      <Input placeholder="Ej: 8" {...micrositeForm.register("yearsOfExperience")} />
+                    </div>
+                    <div>
+                      <Label className="text-base font-semibold">Especialidades</Label>
+                      <Input placeholder="Ej: Color, tratamientos capilares" {...micrositeForm.register("specializations")} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-base font-semibold">Sobre nosotros</Label>
+                    <p className="text-sm text-gray-600 mb-2">
+                      Historia del negocio, equipo y filosofía. Se muestra en la pestaña "Sobre nosotros".
+                    </p>
+                    <Textarea
+                      placeholder="Somos un equipo de..."
+                      rows={4}
+                      {...micrositeForm.register("aboutUs")}
+                    />
                   </div>
                 </div>
 

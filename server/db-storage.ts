@@ -1,4 +1,4 @@
-import { eq, ilike, and, desc, sql, inArray, count } from "drizzle-orm";
+import { eq, ilike, and, desc, sql, inArray, count, isNotNull } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   users,
@@ -11,7 +11,15 @@ import {
   reviews,
   businessSettings,
   apifyBusinesses,
+  micrositeEvents,
+  contactMessages,
+  payments,
 
+  type Payment,
+  type MicrositeEvent,
+  type InsertMicrositeEvent,
+  type ContactMessage,
+  type InsertContactMessage,
   type User,
   type Business,
   type Service,
@@ -274,7 +282,21 @@ export class DBStorage implements IStorage {
 
   // Reviews
   async getReviewsByBusinessId(businessId: number): Promise<Review[]> {
-    return await db.select().from(reviews).where(eq(reviews.businessId, businessId));
+    return await db.select().from(reviews)
+      .where(eq(reviews.businessId, businessId))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  /** Only what a public visitor is allowed to see. */
+  async getApprovedReviewsByBusinessId(businessId: number): Promise<Review[]> {
+    return await db.select().from(reviews)
+      .where(and(eq(reviews.businessId, businessId), eq(reviews.status, "approved")))
+      .orderBy(desc(reviews.createdAt));
+  }
+
+  async getReview(id: number): Promise<Review | undefined> {
+    const result = await db.select().from(reviews).where(eq(reviews.id, id)).limit(1);
+    return result[0];
   }
 
   async createReview(review: InsertReview): Promise<Review> {
@@ -282,8 +304,34 @@ export class DBStorage implements IStorage {
     return result[0];
   }
 
+  async updateReview(id: number, review: Partial<InsertReview>): Promise<Review> {
+    const result = await db.update(reviews).set(review).where(eq(reviews.id, id)).returning();
+    return result[0];
+  }
+
   async deleteReview(id: number): Promise<void> {
     await db.delete(reviews).where(eq(reviews.id, id));
+  }
+
+  /**
+   * Keep `businesses.rating` / `reviewCount` in sync with approved reviews.
+   * Scraped values are preserved when the business has no approved reviews yet.
+   */
+  async recomputeBusinessRating(businessId: number): Promise<void> {
+    const rows = await db
+      .select({ rating: reviews.rating })
+      .from(reviews)
+      .where(and(eq(reviews.businessId, businessId), eq(reviews.status, "approved")));
+
+    if (rows.length === 0) return;
+
+    const average = rows.reduce((sum, row) => sum + row.rating, 0) / rows.length;
+    await db.update(businesses)
+      .set({
+        rating: average.toFixed(2) as any,
+        reviewCount: rows.length,
+      })
+      .where(eq(businesses.id, businessId));
   }
 
   // Business Settings
@@ -292,12 +340,46 @@ export class DBStorage implements IStorage {
     return result[0];
   }
 
+  /** Single indexed lookup used by the public microsite route. */
+  async getBusinessSettingsByCustomUrl(customUrl: string): Promise<BusinessSettings | undefined> {
+    const result = await db.select().from(businessSettings)
+      .where(eq(businessSettings.customUrl, customUrl))
+      .limit(1);
+    return result[0];
+  }
+
+  /** Every published micrositio, for sitemap + internal linking. */
+  async getPublishedMicrosites(): Promise<Array<{ businessId: number; customUrl: string; businessName: string; updatedAt: Date | null }>> {
+    const rows = await db
+      .select({
+        businessId: businessSettings.businessId,
+        customUrl: businessSettings.customUrl,
+        businessName: businesses.name,
+        updatedAt: businessSettings.updatedAt,
+      })
+      .from(businessSettings)
+      .innerJoin(businesses, eq(businesses.id, businessSettings.businessId))
+      .where(and(
+        eq(businesses.isActive, true),
+        isNotNull(businessSettings.customUrl),
+      ));
+
+    return rows
+      .filter((row) => Boolean(row.customUrl))
+      .map((row) => ({
+        businessId: row.businessId,
+        customUrl: row.customUrl as string,
+        businessName: row.businessName,
+        updatedAt: row.updatedAt ?? null,
+      }));
+  }
+
   async updateBusinessSettings(businessId: number, settings: InsertBusinessSettings): Promise<BusinessSettings> {
     const existing = await this.getBusinessSettings(businessId);
 
     if (existing) {
       const result = await db.update(businessSettings)
-        .set(settings)
+        .set({ ...settings, updatedAt: new Date() })
         .where(eq(businessSettings.businessId, businessId))
         .returning();
       return result[0];
@@ -307,6 +389,69 @@ export class DBStorage implements IStorage {
         .returning();
       return result[0];
     }
+  }
+
+  // Microsite traffic
+  async createMicrositeEvent(event: InsertMicrositeEvent): Promise<MicrositeEvent> {
+    const result = await db.insert(micrositeEvents).values(event).returning();
+    return result[0];
+  }
+
+  async getMicrositeEvents(businessId: number, fromISO: string, toISO: string): Promise<MicrositeEvent[]> {
+    return await db.select().from(micrositeEvents)
+      .where(and(
+        eq(micrositeEvents.businessId, businessId),
+        sql`${micrositeEvents.day} >= ${fromISO}`,
+        sql`${micrositeEvents.day} <= ${toISO}`,
+      ));
+  }
+
+  // Contact inbox
+  async createContactMessage(message: InsertContactMessage): Promise<ContactMessage> {
+    const result = await db.insert(contactMessages).values(message).returning();
+    return result[0];
+  }
+
+  async getContactMessages(businessId: number, status?: string): Promise<ContactMessage[]> {
+    const conditions = [eq(contactMessages.businessId, businessId)];
+    if (status && status !== "all") conditions.push(eq(contactMessages.status, status));
+    return await db.select().from(contactMessages)
+      .where(and(...conditions))
+      .orderBy(desc(contactMessages.createdAt));
+  }
+
+  async updateContactMessage(
+    id: number,
+    patch: Partial<InsertContactMessage> & { status?: string },
+  ): Promise<ContactMessage | undefined> {
+    const result = await db.update(contactMessages)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(contactMessages.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Lifecycle
+  async getAppointmentByCancelToken(token: string): Promise<Appointment | undefined> {
+    if (!token) return undefined;
+    const result = await db.select().from(appointments).where(eq(appointments.cancelToken, token)).limit(1);
+    return result[0];
+  }
+
+  async getAppointmentsNeedingReminder(fromISO: string, toISO: string): Promise<Appointment[]> {
+    return await db.select().from(appointments)
+      .where(and(
+        sql`${appointments.date} >= ${fromISO}`,
+        sql`${appointments.date} <= ${toISO}`,
+        sql`${appointments.reminderSentAt} IS NULL`,
+        inArray(appointments.status, ["pending", "confirmed"]),
+      ));
+  }
+
+  async getPaymentsByBusinessId(businessId: number): Promise<Payment[]> {
+    return await db.select().from(payments)
+      .where(eq(payments.businessId, businessId))
+      .orderBy(desc(payments.createdAt));
   }
 
   // Apify business methods

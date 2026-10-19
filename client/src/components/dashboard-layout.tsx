@@ -26,7 +26,6 @@ import {
   Moon,
   Network,
   Package,
-  Search,
   Settings,
   Star,
   Sun,
@@ -35,6 +34,7 @@ import {
 } from "lucide-react";
 import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import { MicitaLogo } from "@/components/brand";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -163,13 +163,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar */}
       <div className="hidden md:flex md:w-64 md:flex-col">
         <div className="flex flex-col flex-grow pt-5 theme-sidebar overflow-y-auto shadow-lg border-r theme-border">
-          <div className="flex items-center flex-shrink-0 px-4">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 theme-primary rounded-lg flex items-center justify-center">
-                <Search className="text-white w-4 h-4" />
-              </div>
-              <span className="text-xl font-bold">{businessName}</span>
-            </Link>
+          <div className="flex items-center flex-shrink-0 px-4 pt-2">
+            <MicitaLogo href="/" size="sm" showTagline />
           </div>
 
           <div className="mt-5 flex-grow flex flex-col">
@@ -179,10 +174,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 return (
                   <Link key={item.name} href={item.href}>
                     <div className={cn(
-                      "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors",
+                      "group flex items-center px-3 py-2 text-sm font-medium rounded-xl transition-all duration-200",
                       isActive
-                        ? "theme-nav-active text-white"
-                        : "theme-nav-inactive hover:theme-nav-hover"
+                        ? "theme-nav-active text-white shadow-brand"
+                        : "theme-nav-inactive hover:theme-nav-hover hover:translate-x-0.5"
                     )}>
                       <item.icon className={cn(
                         "mr-3 h-5 w-5 flex-shrink-0",

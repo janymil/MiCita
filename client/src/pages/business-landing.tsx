@@ -1,17 +1,16 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { MicitaLogo, AndeanSun } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Search, 
-  TrendingUp, 
-  Users, 
-  Calendar, 
-  BarChart, 
-  Star, 
-  Shield, 
+import {
+  TrendingUp,
+  Users,
+  Calendar,
+  BarChart,
+  Star,
   Smartphone,
   Clock,
   MapPin,
@@ -21,7 +20,9 @@ import {
   Camera,
   MessageCircle,
   CreditCard,
-  Zap
+  Zap,
+  CalendarCheck,
+  Compass
 } from "lucide-react";
 
 export default function BusinessLandingPage() {
@@ -141,23 +142,25 @@ export default function BusinessLandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <div className="min-h-screen bg-brand-hero dark:bg-gray-900">
       {/* Header */}
-      <header className="border-b border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-[hsl(36_55%_90%)] dark:border-gray-800 bg-[hsl(40_74%_96%/0.9)] dark:bg-gray-900/95 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 peru-gradient rounded-xl flex items-center justify-center">
-                <Search className="text-white w-5 h-5" />
-              </div>
-              <span className="text-2xl font-bold text-gray-900 dark:text-white">MiCita</span>
-              <Badge variant="secondary" className="ml-2">Negocio</Badge>
-            </Link>
+            <div className="flex items-center gap-3">
+              <MicitaLogo size="md" showTagline />
+              <Badge variant="secondary" className="ml-1 bg-[hsl(38_85%_92%)] text-[#8A5A08] border-[hsl(35_80%_80%)] font-hand text-sm">
+                Para Negocios
+              </Badge>
+            </div>
 
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Características</a>
-              <a href="#pricing" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Precios</a>
-              <a href="#testimonials" className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Testimonios</a>
+              <a href="#features" className="text-[hsl(var(--brand-tinta-soft))] hover:text-[hsl(var(--brand-manta))] transition-colors font-medium">Características</a>
+              <a href="#pricing" className="text-[hsl(var(--brand-tinta-soft))] hover:text-[hsl(var(--brand-manta))] transition-colors font-medium">Precios</a>
+              <a href="#testimonials" className="text-[hsl(var(--brand-tinta-soft))] hover:text-[hsl(var(--brand-manta))] transition-colors font-medium">Testimonios</a>
+              <Link href="/buscar" className="text-[hsl(var(--brand-tinta-soft))] hover:text-[hsl(var(--brand-manta))] transition-colors font-medium inline-flex items-center gap-1.5">
+                <Compass className="w-4 h-4" /> Explorar negocios
+              </Link>
             </nav>
 
             <div className="flex items-center space-x-4">
@@ -166,7 +169,7 @@ export default function BusinessLandingPage() {
                 <Button variant="ghost">Iniciar sesión</Button>
               </Link>
               <Link href="/registro">
-                <Button className="bg-red-600 hover:bg-red-700">
+                <Button className="brand-btn-primary border-0">
                   Empezar gratis
                 </Button>
               </Link>
@@ -176,20 +179,21 @@ export default function BusinessLandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+      <section className="py-20 px-4 bg-chakana">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <Badge className="mb-6 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-4 py-2">
+              <Badge className="mb-6 bg-[hsl(38_85%_92%)] text-[#8A5A08] border-[hsl(35_80%_80%)] px-4 py-2">
                 <Zap className="w-4 h-4 mr-2" />
                 Prueba gratuita de 30 días
               </Badge>
-              
-              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-                Haz crecer tu 
-                <span className="text-red-600"> negocio</span> con 
-                <span className="text-orange-500"> Mi Cita</span>
+
+              <h1 className="font-display text-5xl lg:text-6xl font-bold text-[hsl(var(--brand-tinta))] mb-6 leading-tight">
+                Haz crecer tu
+                <span className="text-[hsl(var(--brand-manta))]"> negocio</span> con
+                <span className="text-brand-gradient"> MiCita</span>
               </h1>
+              <AndeanSun className="mb-6" />
               
               <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
                 La plataforma todo-en-uno para gestionar tu negocio de servicios. 
@@ -363,13 +367,13 @@ export default function BusinessLandingPage() {
               <Card 
                 key={plan.id} 
                 className={`relative border-2 ${
-                  plan.popular 
-                    ? 'border-red-500 shadow-xl scale-105' 
-                    : 'border-gray-200 dark:border-gray-600'
+                  plan.popular
+                    ? 'border-[hsl(var(--brand-manta))] shadow-brand scale-105'
+                    : 'border-[hsl(36_55%_90%)] dark:border-gray-600'
                 }`}
               >
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-red-600 text-white">
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-brand-gradient text-white border-0 shadow-brand">
                     Más popular
                   </Badge>
                 )}
@@ -394,10 +398,18 @@ export default function BusinessLandingPage() {
                   </ul>
                   
                   <Button 
+                    onClick={() => {
+                      // Starter → crear cuenta; planes pagos → registrarse y
+                      // activar la suscripción desde Finanzas → Mi plan.
+                      window.location.href =
+                        plan.id === "starter"
+                          ? "/registro"
+                          : `/registro?plan=${encodeURIComponent(plan.id)}&next=${encodeURIComponent("/dashboard/finanzas")}`;
+                    }}
                     className={`w-full h-12 ${
-                      plan.popular 
-                        ? 'bg-red-600 hover:bg-red-700' 
-                        : 'bg-gray-900 hover:bg-gray-800 dark:bg-gray-600 dark:hover:bg-gray-500'
+                      plan.popular
+                        ? 'brand-btn-primary border-0'
+                        : 'bg-[hsl(var(--brand-tinta))] hover:bg-[hsl(var(--brand-manta-deep))] text-white'
                     }`}
                   >
                     {plan.cta}
@@ -410,8 +422,9 @@ export default function BusinessLandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-red-600 to-orange-600">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="relative py-20 px-4 bg-brand-gradient overflow-hidden">
+        <div className="absolute inset-0 bg-chakana-light" />
+        <div className="relative max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-bold text-white mb-6">
             ¿Listo para transformar tu negocio?
           </h2>
@@ -422,7 +435,7 @@ export default function BusinessLandingPage() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Link href="/registro">
-              <Button size="lg" className="bg-white text-red-600 hover:bg-gray-100 h-14 px-8 text-lg">
+              <Button size="lg" className="bg-white text-[hsl(var(--brand-manta))] hover:bg-[hsl(40_74%_96%)] h-14 px-8 text-lg font-semibold shadow-lg">
                 Empezar prueba gratuita
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
@@ -443,24 +456,24 @@ export default function BusinessLandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 px-4">
+      <footer className="text-white py-12 px-4" style={{ backgroundColor: "hsl(var(--brand-tinta))" }}>
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-                  <Search className="text-white w-4 h-4" />
+                <div className="w-8 h-8 bg-brand-gradient rounded-lg flex items-center justify-center shadow-brand">
+                  <CalendarCheck className="text-white w-4 h-4" />
                 </div>
-                <span className="text-xl font-bold">Mi Cita</span>
+                <span className="font-display text-xl font-bold">Mi<span className="text-brand-gradient">Cita</span></span>
               </div>
-              <p className="text-gray-400">
+              <p className="text-[hsl(40_20%_70%)]">
                 Potencia tu negocio con herramientas profesionales diseñadas para el mercado peruano.
               </p>
             </div>
-            
+
             <div>
               <h4 className="font-semibold mb-4">Producto</h4>
-              <ul className="space-y-2 text-gray-400">
+              <ul className="space-y-2 text-[hsl(40_20%_70%)]">
                 <li><a href="#features" className="hover:text-white">Características</a></li>
                 <li><a href="#pricing" className="hover:text-white">Precios</a></li>
                 <li><a href="#" className="hover:text-white">Integraciones</a></li>

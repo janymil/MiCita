@@ -1,5 +1,5 @@
 import { createTransporter } from './email-config';
-import { getClientConfirmationTemplate, getBusinessNotificationTemplate, getAppointmentCancelledTemplate, getAppointmentRescheduledTemplate, AppointmentData } from './email-templates';
+import { getClientConfirmationTemplate, getBusinessNotificationTemplate, getAppointmentCancelledTemplate, getAppointmentRescheduledTemplate, getContactMessageTemplate, getAppointmentReminderTemplate, AppointmentData, ContactMessageData } from './email-templates';
 
 export class EmailService {
   private transporter;
@@ -120,6 +120,51 @@ export class EmailService {
       return true;
     } catch (error: any) {
       console.error('Failed to send appointment rescheduling email:', error);
+      return false;
+    }
+  }
+  async sendBusinessMessage(data: ContactMessageData): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email service not configured. Skipping contact message email.');
+      return false;
+    }
+
+    try {
+      const template = getContactMessageTemplate(data);
+      await this.transporter.sendMail({
+        from: `"MiCita" <${process.env.EMAIL_USER}>`,
+        replyTo: data.email || undefined,
+        to: data.businessEmail,
+        subject: template.subject,
+        html: template.html
+      });
+      console.log(`Contact message email sent to: ${data.businessEmail}`);
+      return true;
+    } catch (error: any) {
+      console.error('Failed to send contact message email:', error);
+      return false;
+    }
+  }
+
+  async sendReminder(data: AppointmentData & { cancelUrl?: string }): Promise<boolean> {
+    if (!this.transporter) {
+      console.error('Email service not configured. Skipping reminder email.');
+      return false;
+    }
+
+    try {
+      const template = getAppointmentReminderTemplate(data);
+      await this.transporter.sendMail({
+        from: `"${data.businessName}" <${process.env.EMAIL_USER}>`,
+        replyTo: data.businessEmail,
+        to: data.clientEmail,
+        subject: template.subject,
+        html: template.html
+      });
+      console.log(`Reminder email sent to: ${data.clientEmail}`);
+      return true;
+    } catch (error: any) {
+      console.error('Failed to send reminder email:', error);
       return false;
     }
   }

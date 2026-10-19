@@ -191,6 +191,77 @@ const statements = [
      "updated_at" timestamp DEFAULT now()
    )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "subscriptions_business_uq" ON "subscriptions" ("business_id")`,
+
+  // --- business_settings: microsite content + feature toggles ---------------
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "enable_reviews" boolean DEFAULT true`,
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "about_us" text`,
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "years_of_experience" text`,
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "specializations" text`,
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "public_title" text`,
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "services_description" text`,
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "meta_title" text`,
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "meta_description" text`,
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "keywords" text`,
+
+  // --- reviews: provenance + moderation (legacy rows stay visible) ----------
+  `ALTER TABLE "reviews" ADD COLUMN IF NOT EXISTS "source" text`,
+  `ALTER TABLE "reviews" ADD COLUMN IF NOT EXISTS "status" text`,
+  `ALTER TABLE "reviews" ADD COLUMN IF NOT EXISTS "owner_reply" text`,
+  `ALTER TABLE "reviews" ADD COLUMN IF NOT EXISTS "owner_replied_at" timestamp`,
+  `ALTER TABLE "reviews" ADD COLUMN IF NOT EXISTS "appointment_id" integer`,
+  `ALTER TABLE "reviews" ADD COLUMN IF NOT EXISTS "client_email" text`,
+  `ALTER TABLE "reviews" ADD COLUMN IF NOT EXISTS "ip_hash" text`,
+  `UPDATE "reviews" SET "source" = 'microsite' WHERE "source" IS NULL`,
+  `UPDATE "reviews" SET "status" = 'approved' WHERE "status" IS NULL`,
+  `ALTER TABLE "reviews" ALTER COLUMN "source" SET DEFAULT 'microsite'`,
+  `ALTER TABLE "reviews" ALTER COLUMN "status" SET DEFAULT 'pending'`,
+  `CREATE INDEX IF NOT EXISTS "reviews_business_status_idx" ON "reviews" ("business_id", "status")`,
+
+  // --- appointments: reminders + self-service cancel ------------------------
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "reminder_sent_at" timestamp`,
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "cancel_token" text`,
+  `CREATE INDEX IF NOT EXISTS "appointments_business_date_idx" ON "appointments" ("business_id", "date")`,
+  `CREATE INDEX IF NOT EXISTS "appointments_status_idx" ON "appointments" ("status")`,
+
+  // --- hot-path indexes ----------------------------------------------------
+  `CREATE INDEX IF NOT EXISTS "clients_business_idx" ON "clients" ("business_id")`,
+  `CREATE INDEX IF NOT EXISTS "services_business_idx" ON "services" ("business_id")`,
+  `CREATE INDEX IF NOT EXISTS "business_settings_business_idx" ON "business_settings" ("business_id")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "business_settings_custom_url_uq" ON "business_settings" ("custom_url")`,
+
+  // --- microsite traffic --------------------------------------------------
+  `CREATE TABLE IF NOT EXISTS "microsite_events" (
+     "id" serial PRIMARY KEY,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "slug" text,
+     "type" text NOT NULL,
+     "path" text,
+     "referrer" text,
+     "source" text,
+     "device" text,
+     "session_id" text,
+     "day" text NOT NULL,
+     "metadata" jsonb,
+     "created_at" timestamp DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS "microsite_events_business_day_idx" ON "microsite_events" ("business_id", "day")`,
+  `CREATE INDEX IF NOT EXISTS "microsite_events_type_idx" ON "microsite_events" ("type")`,
+
+  // --- microsite contact inbox -------------------------------------------
+  `CREATE TABLE IF NOT EXISTS "contact_messages" (
+     "id" serial PRIMARY KEY,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "name" text NOT NULL,
+     "email" text,
+     "phone" text,
+     "message" text NOT NULL,
+     "status" text NOT NULL DEFAULT 'new',
+     "source" text DEFAULT 'microsite',
+     "ip_hash" text,
+     "created_at" timestamp DEFAULT now(),
+     "updated_at" timestamp DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS "contact_messages_business_status_idx" ON "contact_messages" ("business_id", "status")`,
 ];
 
 async function main() {

@@ -36,7 +36,11 @@ const passwordSchema = z.string().min(10, "La contraseña debe tener al menos 10
 const otpCodeSchema = z.string().regex(/^\d{4,8}$/, "Código inválido");
 
 // --- Rate limiters scoped to sensitive auth endpoints ------------------------
+// Disabled in development so local testing is never throttled.
+const skipInDev = () => config.isDevelopment;
+
 const authLimiter = rateLimit({
+  skip: skipInDev,
   windowMs: config.security.apiRateLimitWindowMinutes * 60 * 1000,
   max: config.security.authRateLimitMax,
   standardHeaders: true,
@@ -45,6 +49,7 @@ const authLimiter = rateLimit({
 });
 
 const otpLimiter = rateLimit({
+  skip: skipInDev,
   windowMs: 10 * 60 * 1000,
   max: config.security.otpRateLimitMax,
   standardHeaders: true,

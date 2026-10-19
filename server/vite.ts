@@ -10,6 +10,7 @@ import {
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
+import { getMetaForUrl, injectMeta, readHtmlShell } from "./seo.js";
 
 const viteLogger = createLogger();
 
@@ -77,6 +78,11 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
+
+      // Per-business SEO: the same SPA shell, different head per micrositio.
+      const meta = await getMetaForUrl(url);
+      if (meta) template = injectMeta(template, meta);
+
       const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
@@ -98,7 +104,17 @@ export function serveStatic(app: Express) {
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  app.use("*", async (req, res) => {
+    try {
+      const shell = readHtmlShell();
+      if (!shell) {
+        return res.status(500).type("text/plain").send("Client build not found");
+      }
+      const meta = await getMetaForUrl(req.originalUrl);
+      res.status(200).type("html").send(meta ? injectMeta(shell, meta) : shell);
+    } catch (error) {
+      console.error("[vite] failed to serve shell:", error);
+      res.status(500).type("text/plain").send("Unable to render page");
+    }
   });
 }

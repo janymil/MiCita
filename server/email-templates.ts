@@ -388,3 +388,88 @@ export function getAppointmentRescheduledTemplate(data: AppointmentData & { prev
       </html>`
   };
 }
+// ---------------------------------------------------------------------------
+// Microsite contact lead notification
+// ---------------------------------------------------------------------------
+
+export interface ContactMessageData {
+  businessName: string;
+  businessEmail: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  message: string;
+  receivedAt?: string;
+}
+
+export function getContactMessageTemplate(data: ContactMessageData): { subject: string; html: string } {
+  const safe = (value: string) =>
+    value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const when = data.receivedAt || new Date().toLocaleString("es-PE", { timeZone: "America/Lima" });
+
+  return {
+    subject: `📩 Nuevo mensaje desde tu micrositio — ${data.name}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; background:#f6f2ea; padding:24px;">
+        <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #eadfd0;">
+          <div style="background:linear-gradient(135deg,#c13a2e,#e08b2d);padding:24px;color:#fff;">
+            <h1 style="margin:0;font-size:20px;">Nuevo mensaje de contacto</h1>
+            <p style="margin:8px 0 0;opacity:.9;font-size:14px;">${safe(data.businessName)} · ${safe(when)}</p>
+          </div>
+          <div style="padding:24px;color:#2b2b2b;font-size:15px;line-height:1.6;">
+            <p style="margin:0 0 12px;"><strong>Nombre:</strong> ${safe(data.name)}</p>
+            ${data.email ? `<p style="margin:0 0 12px;"><strong>Email:</strong> ${safe(data.email)}</p>` : ""}
+            ${data.phone ? `<p style="margin:0 0 12px;"><strong>Teléfono:</strong> ${safe(data.phone)}</p>` : ""}
+            <div style="margin-top:16px;padding:16px;background:#f9f6f1;border-left:4px solid #c13a2e;border-radius:8px;">
+              ${safe(data.message).replace(/\n/g, "<br>")}
+            </div>
+            <p style="margin-top:24px;font-size:13px;color:#6b6b6b;">
+              Responde directamente a este correo para contactar al cliente. El mensaje también queda
+              guardado en tu panel: Dashboard → Mensajes.
+            </p>
+          </div>
+        </div>
+      </div>
+    `,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Appointment reminder (T-24h)
+// ---------------------------------------------------------------------------
+
+export function getAppointmentReminderTemplate(
+  data: AppointmentData & { cancelUrl?: string },
+): { subject: string; html: string } {
+  const cancel = data.cancelUrl
+    ? `<p style="margin-top:20px;"><a href="${data.cancelUrl}" style="display:inline-block;padding:12px 20px;background:#c13a2e;color:#fff;border-radius:10px;text-decoration:none;">Cancelar o reprogramar</a></p>`
+    : "";
+
+  return {
+    subject: `⏰ Recordatorio: ${data.serviceName} mañana a las ${data.time}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; background:#f6f2ea; padding:24px;">
+        <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #eadfd0;">
+          <div style="background:linear-gradient(135deg,#c13a2e,#e08b2d);padding:24px;color:#fff;">
+            <h1 style="margin:0;font-size:20px;">Tu cita es mañana</h1>
+            <p style="margin:8px 0 0;opacity:.9;font-size:14px;">${data.businessName}</p>
+          </div>
+          <div style="padding:24px;color:#2b2b2b;font-size:15px;line-height:1.6;">
+            <p>Hola <strong>${data.clientName}</strong>, te recordamos tu cita:</p>
+            <ul style="padding-left:18px;">
+              <li><strong>Servicio:</strong> ${data.serviceName}</li>
+              <li><strong>Fecha:</strong> ${data.date}</li>
+              <li><strong>Hora:</strong> ${data.time}</li>
+              <li><strong>Duración:</strong> ${data.duration} minutos</li>
+            </ul>
+            ${cancel}
+            <p style="margin-top:24px;font-size:13px;color:#6b6b6b;">
+              Si no puedes asistir, avísanos con anticipación para liberar el horario.
+            </p>
+          </div>
+        </div>
+      </div>
+    `,
+  };
+}
+

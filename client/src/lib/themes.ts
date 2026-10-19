@@ -5,7 +5,7 @@ export const themes = {
     name: "Material Inca",
     description: "Material Design con influencias incaicas - Rojo Ayllu y Dorado Inti",
     gradient: "from-red-600 via-orange-500 to-yellow-500",
-    primaryColor: "#dc2626", // Peru red
+    primaryColor: "#C13A2E", // Rojo Manta (marca MiCita)
     style: "material",
     cssVariables: {
       "--theme-primary": "0 84% 60%", // Peru red

@@ -11,6 +11,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import { isDatabaseConfigured, isDatabaseHealthy, pingDatabase, ensureAuthSchema } from "./db.js";
 import { csrfCookieMiddleware, csrfProtection } from "./csrf.js";
 import { clientIp } from "./auth/audit.js";
+import { startReminderScheduler, stopReminderScheduler, getReminderStatus } from "./jobs/reminders.js";
+import { registerSeoRoutes } from "./seo.js";
 
 const app = express();
 
@@ -62,8 +64,11 @@ app.use(
   }),
 );
 
-// Rate limiting
+// Rate limiting (disabled in development so local testing is never throttled)
+const skipInDev = () => config.isDevelopment;
+
 const apiLimiter = rateLimit({
+  skip: skipInDev,
   windowMs: config.security.apiRateLimitWindowMinutes * 60 * 1000,
   max: config.security.apiRateLimitMax,
   standardHeaders: true,
@@ -74,6 +79,7 @@ const apiLimiter = rateLimit({
 });
 
 const authLimiter = rateLimit({
+  skip: skipInDev,
   windowMs: 15 * 60 * 1000,
   max: config.security.authRateLimitMax,
   skipSuccessfulRequests: true,
@@ -84,6 +90,7 @@ const authLimiter = rateLimit({
 });
 
 const speedLimiter = slowDown({
+  skip: skipInDev,
   windowMs: 15 * 60 * 1000,
   delayAfter: 100,
   delayMs: () => 300,
@@ -155,6 +162,8 @@ app.use((req, res, next) => {
       env: config.nodeEnv,
       uptimeSeconds: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
+      reminders: getReminderStatus(),
+      version: process.env.APP_VERSION || process.env.GIT_SHA || "dev",
     });
   });
 
@@ -173,6 +182,9 @@ app.use((req, res, next) => {
   }
 
   const server = await registerRoutes(app);
+
+  // SEO surface: /robots.txt + /sitemap.xml (registered before the SPA fallback).
+  registerSeoRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
@@ -193,8 +205,14 @@ app.use((req, res, next) => {
     log(`serving on port ${config.port} (${config.nodeEnv})`);
   });
 
+  // Lifecycle jobs (reminders). No-op when there is no database.
+  if (isDatabaseConfigured()) {
+    startReminderScheduler();
+  }
+
   const shutdown = async (signal: string) => {
     log(`received ${signal}, shutting down gracefully`);
+    stopReminderScheduler();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(1), 10000).unref();
   };

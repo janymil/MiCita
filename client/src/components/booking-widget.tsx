@@ -51,6 +51,13 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
     setCustomerNotes("");
     setStep(1);
     setIsModalOpen(true);
+    // Decoupled analytics hook: the public microsite listens for this to count
+    // a "book click" without the widget knowing anything about tracking.
+    try {
+      window.dispatchEvent(new CustomEvent("micita:book-click"));
+    } catch {
+      // ignore
+    }
   };
 
   // Get selected service details

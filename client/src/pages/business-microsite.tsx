@@ -1,21 +1,50 @@
 import BookingWidget from "@/components/booking-widget";
+import PopularTimes from "@/components/popular-times";
 import MicrositeThemeSelector from "@/components/microsite-theme-selector";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MicrositeSkeletonLoader } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { MicrositeSkeletonLoader } from "@/components/ui/skeleton";
 import { useMicrositeTheme } from "@/contexts/MicrositeThemeContext";
+import { useToast } from "@/hooks/use-toast";
 import { categories } from "@/lib/constants";
-import { getThemeClasses } from "@/lib/microsite-themes";
+import { getThemeClasses, getThemeCSSVariables, micrositeThemes } from "@/lib/microsite-themes";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Camera, Clock, Mail, MapPin, MessageSquare, Palette, Phone, Star } from "lucide-react";
-import { useState } from "react";
+import {
+  ArrowRight,
+  Calendar,
+  Camera,
+  CheckCircle2,
+  ChevronDown,
+  Clock,
+  ExternalLink,
+  Facebook,
+  GraduationCap,
+  Heart,
+  Instagram,
+  Mail,
+  MapPin,
+  MessageCircle,
+  MessageSquare,
+  Music2,
+  Navigation,
+  Palette,
+  Phone,
+  Quote,
+  Search,
+  Send,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  X,
+  Youtube,
+  Zap,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "wouter";
 
-export default function BusinessMicrosite() {
 interface MicrositeBusiness {
   id: number;
   name: string;
@@ -49,6 +78,7 @@ interface MicrositeReview {
   comment?: string | null;
   clientName?: string | null;
   source?: string | null;
+  ownerReply?: string | null;
   createdAt?: string | null;
 }
 
@@ -58,40 +88,273 @@ interface MicrositeData {
   services: MicrositeService[];
   gallery: MicrositeGalleryItem[];
   reviews: MicrositeReview[];
+  stats?: { rating: number; reviewCount: number; serviceCount: number };
 }
 
+const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+const DAY_LABELS: Record<string, string> = {
+  monday: "Lunes",
+  tuesday: "Martes",
+  wednesday: "Miércoles",
+  thursday: "Jueves",
+  friday: "Viernes",
+  saturday: "Sábado",
+  sunday: "Domingo",
+};
+
+function normalizeHours(hours: unknown) {
+  if (!hours) return [] as Array<{ day: string; label: string; text: string; open: boolean }>;
+  const rows: Array<{ day: string; label: string; text: string; open: boolean }> = [];
+  if (Array.isArray(hours)) {
+    hours.forEach((h: string) => {
+      const [d, ...rest] = h.split(":");
+      const key = d.trim().toLowerCase();
+      const range = rest.join(":").trim();
+      const open = !!range && !/closed|cerrado/i.test(range);
+      rows.push({ day: key, label: DAY_LABELS[key] || d.trim(), text: open ? range : "Cerrado", open });
+    });
+  } else if (typeof hours === "object") {
+    Object.entries(hours as Record<string, any>).forEach(([key, s]) => {
+      const k = key.toLowerCase();
+      const open = s && !s.closed && s.open && s.close;
+      rows.push({ day: k, label: DAY_LABELS[k] || key, text: open ? `${s.open} – ${s.close}` : "Cerrado", open: !!open });
+    });
+  }
+  return rows.sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
+}
+
+const todayKey = () =>
+  ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][new Date().getDay()];
+
+const whatsappLink = (phone: string, businessName = "") => {
+  const d = phone.replace(/\D/g, "");
+  const text = encodeURIComponent(
+    `Hola ${businessName ? businessName : ""}, vi tu micrositio y deseo consultar por una cita.`
+  );
+  return `https://wa.me/${d.length === 9 ? `51${d}` : d}?text=${text}`;
+};
+
+function StarRow({ rating, className = "w-4 h-4" }: { rating: number; className?: string }) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={`${className} ${
+            i <= Math.round(rating) ? "fill-amber-400 text-amber-400" : "fill-neutral-200 text-neutral-200 dark:text-neutral-700 dark:fill-neutral-700"
+          }`}
+        />
+      ))}
+    </span>
+  );
+}
+
+export default function BusinessMicrosite() {
   const { slug } = useParams<{ slug: string }>();
   const { theme } = useMicrositeTheme();
-  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
+  const { toast } = useToast();
 
-  console.log("BusinessMicrosite: slug =", slug);
+  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"services" | "gallery" | "about" | "reviews" | "contact">("services");
+  const [serviceSearch, setServiceSearch] = useState("");
+  const [selectedPhoto, setSelectedPhoto] = useState<MicrositeGalleryItem | null>(null);
+  const [showAllHours, setShowAllHours] = useState(false);
+
+  // Form states
+  const [reviewStars, setReviewStars] = useState(5);
+  const [reviewName, setReviewName] = useState("");
+  const [reviewComment, setReviewComment] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  // Declared here (before any early return) so the hook order never changes
+  // between the loading / not-found / ready renders.
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [isSubmittingContact, setIsSubmittingContact] = useState(false);
 
   const { data: micrositeData, isLoading, error } = useQuery<MicrositeData>({
     queryKey: [`/api/micrositio/${slug}`],
     enabled: Boolean(slug),
   });
 
-  console.log("BusinessMicrosite: micrositeData =", micrositeData);
-  console.log("BusinessMicrosite: isLoading =", isLoading);
-  console.log("BusinessMicrosite: error =", error);
+  const { data: popularTimesResponse } = useQuery<{
+    cells: Array<{ day: number; hour: number; count: number; popularity: number }>;
+  }>({
+    queryKey: [`/api/micrositio/${slug}/popular-times`],
+    enabled: Boolean(slug),
+  });
 
-  if (isLoading) {
-    return <MicrositeSkeletonLoader />;
-  }
+  const { business, settings, services = [], gallery = [], reviews = [] } = micrositeData || {
+    business: {} as MicrositeBusiness,
+    services: [],
+    gallery: [],
+    reviews: [],
+  };
 
-  if (error || !micrositeData) {
-    // If the slug doesn't match any business, show 404 or redirect to home
-    // This prevents showing business microsite for system routes like /dashboard
-    if (slug && (slug.startsWith('dashboard') || slug === 'login' || slug === 'registro' || slug === 'business' || slug === 'buscar')) {
-      return null; // Let the router handle these routes normally
+  // ---- Microsite analytics (anonymous, cookie-less) -----------------------
+  const trackEvent = (type: "view" | "whatsapp_click" | "book_click") => {
+    if (!slug) return;
+    try {
+      let sessionId = sessionStorage.getItem("micita_session");
+      if (!sessionId) {
+        sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+        sessionStorage.setItem("micita_session", sessionId);
+      }
+      void fetch(`/api/micrositio/${slug}/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          type,
+          referrer: document.referrer || null,
+          path: window.location.pathname,
+          sessionId,
+        }),
+      });
+    } catch {
+      // Analytics must never break the page.
+    }
+  };
+
+  useEffect(() => {
+    trackEvent("view");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
+
+  useEffect(() => {
+    const onBookClick = () => trackEvent("book_click");
+    window.addEventListener("micita:book-click", onBookClick);
+    return () => window.removeEventListener("micita:book-click", onBookClick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
+
+
+  const categoryInfo = useMemo(() => {
+    return categories.find((c) => c.id === business?.category);
+  }, [business?.category]);
+
+  // Reactive theme configuration
+  const themeConfig = useMemo(() => {
+    return getThemeClasses(theme);
+  }, [theme]);
+
+  // Sync theme CSS variables dynamically
+  useEffect(() => {
+    const vars = getThemeCSSVariables(theme);
+    const root = document.documentElement;
+    Object.entries(vars).forEach(([prop, val]) => {
+      root.style.setProperty(prop, val);
+    });
+  }, [theme]);
+
+  const avgRating = useMemo(() => {
+    if (micrositeData?.stats?.rating) return micrositeData.stats.rating;
+    return reviews.length ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : 0;
+  }, [reviews, micrositeData?.stats?.rating]);
+
+  const phone = settings?.publicPhone || business?.phone || null;
+  const email = settings?.publicEmail || business?.email || null;
+  const address = settings?.streetAddress || business?.address || null;
+  const hoursRows = useMemo(() => {
+    // Priority: structured business hours → microsite working hours → free-text per day.
+    const direct = normalizeHours(business?.hours);
+    if (direct.length > 0) return direct;
+
+    const structured = settings?.workingHours as
+      | Record<string, { enabled?: boolean; start?: string; end?: string }>
+      | undefined;
+    if (structured && Object.keys(structured).length > 0) {
+      return DAY_ORDER.map((day) => {
+        const value = structured[day];
+        const open = Boolean(value && value.enabled !== false);
+        return {
+          day,
+          label: DAY_LABELS[day],
+          text: open ? `${value?.start ?? "09:00"} – ${value?.end ?? "17:00"}` : "Cerrado",
+          open,
+        };
+      });
     }
 
+    const perDay: Array<[string, string | undefined]> = [
+      ["monday", settings?.mondayHours],
+      ["tuesday", settings?.tuesdayHours],
+      ["wednesday", settings?.wednesdayHours],
+      ["thursday", settings?.thursdayHours],
+      ["friday", settings?.fridayHours],
+      ["saturday", settings?.saturdayHours],
+      ["sunday", settings?.sundayHours],
+    ];
+    const filled = perDay
+      .filter(([, value]) => Boolean(value && String(value).trim()))
+      .map(([day, value]) => {
+        const text = String(value).trim();
+        const open = !/closed|cerrado/i.test(text);
+        return { day, label: DAY_LABELS[day], text, open };
+      });
+
+    return filled
+      .sort((a, b) => DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day))
+      .map((row) => ({ ...row, text: row.text }));
+  }, [business?.hours, settings]);
+  const canBook = !!settings?.enablePublicBooking && services.length > 0;
+  const mapUrl = address ? `https://www.google.com/maps/search/${encodeURIComponent(address)}` : null;
+
+  const todayRow = useMemo(() => hoursRows.find((r) => r.day === todayKey()), [hoursRows]);
+  const isOpenNow = todayRow?.open ?? false;
+
+  const popularTimesData = useMemo(() => {
+    const cells = popularTimesResponse?.cells ?? [];
+    return cells.reduce<Record<string, { hours: { hour: number; percentage: number }[] }>>((acc, cell) => {
+      const key = String(cell.day);
+      acc[key] = acc[key] ?? { hours: [] };
+      acc[key].hours.push({ hour: cell.hour, percentage: cell.popularity });
+      return acc;
+    }, {});
+  }, [popularTimesResponse]);
+  const lowestPrice = useMemo(() => {
+    const prices = services
+      .map((s) => parseFloat(s.price || "0"))
+      .filter((p) => !isNaN(p) && p > 0);
+    return prices.length ? Math.min(...prices) : null;
+  }, [services]);
+
+  const filteredServices = useMemo(() => {
+    if (!serviceSearch.trim()) return services;
+    const q = serviceSearch.toLowerCase();
+    return services.filter(
+      (s) => s.name.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q))
+    );
+  }, [services, serviceSearch]);
+
+  const socials = useMemo(() => {
+    return [
+      settings?.facebookUrl && { href: settings.facebookUrl, icon: Facebook, label: "Facebook" },
+      settings?.instagramUrl && { href: settings.instagramUrl, icon: Instagram, label: "Instagram" },
+      settings?.tiktokUrl && { href: settings.tiktokUrl, icon: Music2, label: "TikTok" },
+      settings?.youtubeUrl && { href: settings.youtubeUrl, icon: Youtube, label: "YouTube" },
+    ].filter(Boolean) as Array<{ href: string; icon: any; label: string }>;
+  }, [settings]);
+
+  if (isLoading) return <MicrositeSkeletonLoader />;
+
+  if (error || !micrositeData || !business?.id) {
+    if (slug && (slug.startsWith("dashboard") || ["login", "registro", "business", "buscar", "documentation"].includes(slug))) {
+      return null;
+    }
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Negocio no encontrado</h1>
-          <p className="text-gray-600 mb-4">El micrositio que buscas no existe o no está disponible.</p>
-          <Button onClick={() => window.location.href = "/"}>
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center p-6">
+        <div className="text-center max-w-md bg-white dark:bg-neutral-900 p-8 rounded-3xl shadow-xl">
+          <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-600 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+            !
+          </div>
+          <h1 className="font-display text-2xl font-bold text-neutral-900 dark:text-neutral-100 mb-2">
+            Negocio no disponible
+          </h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6 leading-relaxed">
+            El micrositio que buscas no existe o aún no está publicado en la red MiCita.
+          </p>
+          <Button onClick={() => (window.location.href = "/")} className="w-full brand-btn-primary border-0 rounded-2xl h-12 font-medium">
             Volver al inicio
           </Button>
         </div>
@@ -99,182 +362,795 @@ interface MicrositeData {
     );
   }
 
-  const { business, settings, services = [], gallery = [], reviews = [] } = micrositeData;
-  const categoryInfo = categories.find(c => c.id === business.category);
-  const themeConfig = getThemeClasses(theme);
+  const submitReview = async () => {
+    if (!business?.id) return;
+    if (!reviewName.trim() || reviewComment.trim().length < 5) {
+      toast({
+        title: "Completa todos los campos",
+        description: "Por favor escribe tu nombre y tu experiencia (mínimo 5 caracteres).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    try {
+      const response = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessId: business.id,
+          clientName: reviewName.trim(),
+          rating: reviewStars,
+          comment: reviewComment.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast({
+          title: "No se pudo enviar la reseña",
+          description: data?.message || "Inténtalo de nuevo en unos minutos.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "¡Gracias por tu reseña!",
+        description: data?.message || "Será publicada después de la revisión del negocio.",
+      });
+      setReviewName("");
+      setReviewComment("");
+      setReviewStars(5);
+    } catch {
+      toast({
+        title: "Error de conexión",
+        description: "No pudimos enviar tu reseña. Revisa tu internet e inténtalo otra vez.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
+
+  const submitContact = async () => {
+    if (!slug) return;
+    if (!contactName.trim() || contactMessage.trim().length < 5) {
+      toast({
+        title: "Completa los campos obligatorios",
+        description: "Escribe tu nombre y tu consulta.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingContact(true);
+    try {
+      const response = await fetch(`/api/micrositio/${slug}/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: contactName.trim(),
+          email: contactEmail.trim() || undefined,
+          message: contactMessage.trim(),
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast({
+          title: "No se pudo enviar",
+          description: data?.message || "Inténtalo de nuevo por favor.",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "¡Mensaje enviado!",
+        description: "El negocio recibió tu consulta y te contactará pronto.",
+      });
+      setContactName("");
+      setContactEmail("");
+      setContactMessage("");
+    } catch {
+      toast({
+        title: "Error de conexión",
+        description: "No pudimos enviar tu mensaje. Inténtalo otra vez.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingContact(false);
+    }
+  };
+
+  // Dynamic available tabs
+  const tabs = [
+    { id: "services", label: "Servicios", count: services.length, icon: Sparkles },
+    ...(settings?.enableGallery && gallery.length > 0
+      ? [{ id: "gallery", label: "Galería", count: gallery.length, icon: Camera }]
+      : []),
+    ...(settings?.aboutUs || settings?.professionalTitle || settings?.yearsOfExperience || settings?.specializations
+      ? [{ id: "about", label: "Sobre Nosotros", count: null, icon: GraduationCap }]
+      : []),
+    ...(settings?.enableReviews || reviews.length > 0
+      ? [{ id: "reviews", label: "Opiniones", count: reviews.length, icon: Star }]
+      : []),
+    { id: "contact", label: "Ubicación y Contacto", count: null, icon: MapPin },
+  ] as const;
 
   return (
-    <div className={`min-h-screen ${themeConfig.background}`}>
-      {/* Modern Hero Header */}
-      <header className={`${themeConfig.header} sticky top-0 z-50 transition-all duration-300`}>
-        <div className="container mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              {settings?.profileImage ? (
-                <div className="relative group">
-                  <img
-                    src={settings.profileImage}
-                    alt={business.name}
-                    className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-2xl group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-2xl shadow-2xl hover:scale-110 transition-transform duration-500 ring-4 ring-white/50">
-                  {business.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:from-purple-600 hover:to-pink-600 transition-all duration-500">{business.name}</h1>
-                {settings?.professionalTitle && (
-                  <p className="text-gray-700 font-semibold bg-gray-100 px-3 py-1 rounded-full text-sm">{settings.professionalTitle}</p>
-                )}
-                {categoryInfo && (
-                  <Badge variant="secondary" className="mt-1 bg-gradient-to-r from-blue-50 to-purple-50 text-gray-700 border border-gray-200 hover:shadow-md transition-shadow duration-300">
-                    {categoryInfo.name}
-                  </Badge>
-                )}
-              </div>
-            </div>
+    <div className={`min-h-screen ${themeConfig.background} ${themeConfig.text} transition-colors duration-300 font-sans`}>
+      
+      {/* ── TOP UTILITY NAVIGATION BAR (REACTS TO THEME) ── */}
+      <header className={`sticky top-0 z-40 ${themeConfig.header} transition-all duration-300`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a href="/" className="flex items-center gap-2 group">
+              <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white shadow-sm shadow-red-500/20 group-hover:scale-105 transition-transform">
+                <span className="w-2 h-2 rounded-full bg-white" />
+              </span>
+              <span className="font-display font-bold text-base tracking-tight">
+                MiCita
+              </span>
+            </a>
+            <span className="opacity-30">/</span>
+            <span className="font-medium text-sm opacity-80 truncate max-w-[180px] sm:max-w-xs">
+              {business.name}
+            </span>
+          </div>
 
-            <div className="flex items-center space-x-3">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsThemeSelectorOpen(true)}
-                className="border-purple-200 hover:bg-purple-50 hover:border-purple-300 transition-all duration-300"
-              >
-                <Palette className="w-4 h-4 mr-2 text-purple-600" />
-                Temas
-              </Button>
-              {settings?.publicPhone && (
-                <Button size="lg" className={`${themeConfig.button}`}>
-                  <Phone className="w-5 h-5 mr-2" />
-                  Llamar Ahora
+          <div className="flex items-center gap-2">
+            {/* Visual theme button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsThemeSelectorOpen(true)}
+              className="text-xs h-9 px-3 rounded-full border-current/20 bg-white/50 dark:bg-black/30 backdrop-blur-md gap-1.5 shadow-sm hover:scale-105 transition-transform"
+            >
+              <Palette className="w-3.5 h-3.5 text-red-500" />
+              <span className="font-medium">Tema:</span>
+              <span className="font-bold capitalize opacity-90">{micrositeThemes[theme]?.name.split(' ')[0] || theme}</span>
+            </Button>
+
+            {phone && (
+              <a href={whatsappLink(phone, business.name)} target="_blank" rel="noopener noreferrer" onClick={() => trackEvent("whatsapp_click")}>
+                <Button
+                  size="sm"
+                  className="h-9 px-4 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold shadow-sm shadow-emerald-500/20 gap-1.5"
+                >
+                  <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                  <span className="hidden sm:inline">WhatsApp</span>
                 </Button>
-              )}
-              {settings?.enablePublicBooking && (
-                <Button size="lg" className={`${themeConfig.button}`}>
-                  <Calendar className="w-5 h-5 mr-2" />
-                  Reservar Cita
-                </Button>
-              )}
-            </div>
+              </a>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Cover Image */}
-      {settings?.coverImage && (
-        <div className="h-64 md:h-80 bg-gradient-to-r from-gray-200 to-gray-300 relative overflow-hidden group">
-          <img
-            src={settings.coverImage}
-            alt="Portada"
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
-          <div className="absolute bottom-4 left-4 text-white">
-            <div className="bg-black/20 backdrop-blur-sm rounded-lg p-3">
-              <p className="text-sm font-medium opacity-90">📸 Galería de {business.name}</p>
-            </div>
-          </div>
+      {/* ── CINEMATIC MODERN HERO ── */}
+      <section className="relative bg-neutral-900 text-white overflow-hidden">
+        {/* Cover background */}
+        <div className="absolute inset-0 z-0">
+          {settings?.coverImage ? (
+            <img
+              src={settings.coverImage}
+              alt={business.name}
+              className="w-full h-full object-cover opacity-50 scale-105 transform transition-transform duration-1000"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-tr from-neutral-950 via-neutral-900 to-red-950/60" />
+          )}
+          {/* Subtle multi-layer gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-neutral-950/80 via-transparent to-neutral-950/40" />
         </div>
-      )}
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Enhanced Hero Section */}
-        {(settings?.publicDescription || business.description) && (
-          <div className="mb-12">
-            <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-              <CardContent className="p-8 text-center">
-                <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
-                  Bienvenido a {business.name}
-                </h2>
-                <p className="text-xl text-gray-700 leading-relaxed max-w-4xl mx-auto">
-                  {settings?.publicDescription || business.description}
-                </p>
-                {(settings?.publicPhone || settings?.enablePublicBooking) && (
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center mt-6">
-                    {settings?.publicPhone && (
-                      <Button size="lg" className={`${themeConfig.button} px-8 py-3`}>
-                        <Phone className="w-5 h-5 mr-2" />
-                        Llamar Ahora
-                      </Button>
-                    )}
-                    {settings?.enablePublicBooking && (
-                      <Button size="lg" className={`${themeConfig.button} px-8 py-3`}>
-                        <Calendar className="w-5 h-5 mr-2" />
-                        Reservar Cita
-                      </Button>
-                    )}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-12 pb-16 md:pt-16 md:pb-20">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+            
+            {/* Identity & Badges */}
+            <div className="flex items-start sm:items-center gap-5 sm:gap-6">
+              {/* Profile Avatar */}
+              <div className="relative shrink-0">
+                {settings?.profileImage ? (
+                  <img
+                    src={settings.profileImage}
+                    alt={business.name}
+                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover ring-4 ring-white/10 shadow-2xl backdrop-blur-md"
+                  />
+                ) : (
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white font-display font-bold text-4xl shadow-2xl ring-4 ring-white/10">
+                    {business.name.charAt(0).toUpperCase()}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                <div
+                  className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-neutral-900 flex items-center justify-center ${
+                    isOpenNow ? "bg-emerald-500" : "bg-neutral-500"
+                  }`}
+                  title={isOpenNow ? "Abierto" : "Cerrado"}
+                >
+                  <span className={`w-2 h-2 rounded-full bg-white ${isOpenNow ? "animate-ping" : ""}`} />
+                </div>
+              </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Content - Takes 3 columns */}
-          <div className="lg:col-span-3 space-y-8">
-            {/* Services */}
-            {services && services.length > 0 && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects}`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
-                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent flex items-center justify-between">
-                    <span className="flex items-center">
-                      ⚡ Nuestros Servicios
-                    </span>
-                    <Badge variant="outline" className="bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-700 border-emerald-200 px-4 py-2 text-lg font-bold">
-                      {services.length} servicios disponibles
+              {/* Title & metadata */}
+              <div>
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  {categoryInfo && (
+                    <Badge className="bg-white/10 hover:bg-white/15 text-white/90 border-0 rounded-full px-3 py-0.5 text-xs font-medium backdrop-blur-md">
+                      {categoryInfo.name}
                     </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {services.map((service) => (
-                      <div key={service.id} className="border-0 rounded-2xl p-6 bg-gradient-to-br from-white/90 to-gray-50/70 backdrop-blur-md border border-gray-100/50">
-                        <div className="flex justify-between items-start mb-3">
-                          <h3 className="font-bold text-xl text-gray-900 leading-tight">{service.name}</h3>
-                          <span className="text-emerald-600 font-bold text-xl bg-gradient-to-r from-emerald-50 to-teal-50 px-3 py-2 rounded-xl border border-emerald-200">
-                            S/ {service.price}
-                          </span>
-                        </div>
-                        {service.description && (
-                          <p className="text-gray-600 text-sm mb-4 leading-relaxed">{service.description}</p>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center text-sm text-gray-500 bg-gray-50/70 rounded-lg px-3 py-2">
-                            <Clock className="w-4 h-4 mr-2 text-blue-500" />
-                            {service.duration} minutos
+                  )}
+                  {avgRating > 0 && (
+                    <div className="flex items-center gap-1.5 bg-amber-500/20 text-amber-300 rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur-md">
+                      <Star className="w-3.5 h-3.5 fill-current" />
+                      <span>{avgRating.toFixed(1)}</span>
+                      <span className="text-amber-200/60 font-normal">({reviews.length})</span>
+                    </div>
+                  )}
+                  <div
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-medium backdrop-blur-md ${
+                      isOpenNow
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-neutral-800 text-neutral-400"
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOpenNow ? "bg-emerald-400" : "bg-neutral-400"}`} />
+                    {isOpenNow ? "Abierto ahora" : "Cerrado"}
+                  </div>
+                </div>
+
+                <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
+                  {business.name}
+                </h1>
+
+                {settings?.professionalTitle && (
+                  <p className="text-white/70 text-sm sm:text-base mt-1 font-light max-w-xl">
+                    {settings.professionalTitle}
+                  </p>
+                )}
+
+                {address && (
+                  <p className="flex items-center gap-1.5 text-white/60 text-xs sm:text-sm mt-2">
+                    <MapPin className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    <span className="truncate max-w-md">{address}{settings?.district ? `, ${settings.district}` : ""}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Metrics & Call to Action */}
+            <div className="flex flex-wrap items-center gap-3 md:justify-end">
+              {phone && (
+                <a href={`tel:${phone}`}>
+                  <Button
+                    variant="outline"
+                    className="h-11 px-5 rounded-2xl bg-white/10 hover:bg-white/20 border-white/15 text-white text-xs font-medium backdrop-blur-md gap-2 shadow-sm"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    Llamar
+                  </Button>
+                </a>
+              )}
+
+              {mapUrl && (
+                <a href={mapUrl} target="_blank" rel="noopener noreferrer">
+                  <Button
+                    variant="outline"
+                    className="h-11 px-5 rounded-2xl bg-white/10 hover:bg-white/20 border-white/15 text-white text-xs font-medium backdrop-blur-md gap-2 shadow-sm"
+                  >
+                    <Navigation className="w-3.5 h-3.5" />
+                    Cómo llegar
+                  </Button>
+                </a>
+              )}
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── MAIN CONTENT CONTAINER WITH DEDICATED SIDEBAR ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+
+          {/* ══════════════════════════════════════════════════════════
+              LEFT / MAIN AREA: MODERN TABBED NAVIGATION & VIEWS
+             ══════════════════════════════════════════════════════════ */}
+          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+
+            {/* Segmented Pill Tabs Navigation (Uses theme card/button) */}
+            <div className={`${themeConfig.card} p-1.5 flex items-center gap-1 overflow-x-auto scrollbar-hide`}>
+              {tabs.map((tab) => {
+                const isActive = activeTab === tab.id;
+                const Icon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all duration-200 shrink-0 ${
+                      isActive
+                        ? `${themeConfig.button} shadow-sm scale-[1.01]`
+                        : "opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span>{tab.label}</span>
+                    {tab.count !== null && (
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-black/5 dark:bg-white/10 opacity-80"
+                        }`}
+                      >
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* TAB VIEW 1: SERVICIOS */}
+            {activeTab === "services" && (
+              <div className="space-y-6 animate-in fade-in-50 duration-200">
+                {/* Search & Filter bar for services */}
+                <div className={`${themeConfig.card} p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3`}>
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 opacity-40" />
+                    <input
+                      type="text"
+                      value={serviceSearch}
+                      onChange={(e) => setServiceSearch(e.target.value)}
+                      placeholder="Buscar un servicio o tratamiento…"
+                      className="w-full pl-10 pr-4 py-2 bg-black/5 dark:bg-white/5 rounded-xl text-sm placeholder:opacity-40 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                    />
+                    {serviceSearch && (
+                      <button
+                        onClick={() => setServiceSearch("")}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-80"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <div className="text-xs opacity-60 font-medium px-2 text-right">
+                    {filteredServices.length} disponible{filteredServices.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+
+                {/* Service Cards (Borderless, elevated, reacts to Theme) */}
+                {filteredServices.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredServices.map((service) => (
+                      <div
+                        key={service.id}
+                        className={`${themeConfig.card} p-6 flex flex-col justify-between group hover:-translate-y-0.5 transition-all duration-200`}
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-4 mb-2">
+                            <h3 className="font-display font-bold text-lg leading-snug group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                              {service.name}
+                            </h3>
+                            {service.price && (
+                              <div className="text-right shrink-0">
+                                <span className="font-display font-extrabold text-xl">
+                                  S/ {service.price}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                          {settings?.enablePublicBooking && (
-                            <Button size="sm" className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-teal-600 hover:to-cyan-600 text-white">
-                              Reservar
-                            </Button>
+
+                          {service.description && (
+                            <p className="text-sm opacity-70 leading-relaxed mb-4 line-clamp-3">
+                              {service.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="pt-4 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between gap-3 mt-4">
+                          {service.duration ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-black/5 dark:bg-white/5 opacity-80">
+                              <Clock className="w-3.5 h-3.5 opacity-60" />
+                              {service.duration} min
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+
+                          {canBook && (
+                            <div className="scale-90 origin-right">
+                              <BookingWidget
+                                services={services}
+                                businessId={business.id}
+                                workingHours={settings?.workingHours}
+                                blockedDates={settings?.blockedDates}
+                                blockedHours={settings?.blockedHours}
+                              />
+                            </div>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+                ) : (
+                  <div className={`${themeConfig.card} p-12 text-center`}>
+                    <p className="opacity-50 text-sm">No se encontraron servicios con "{serviceSearch}".</p>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setServiceSearch("")}
+                      className="mt-3 text-xs font-semibold text-red-600 dark:text-red-400"
+                    >
+                      Ver todos los servicios
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
 
-            {/* Calendar Section - New Enhanced Booking Section */}
-            {settings?.enablePublicBooking && services && services.length > 0 && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects}`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
-                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent flex items-center">
-                    <Calendar className="w-8 h-8 mr-4 text-blue-500" />
-                    📅 Agendar Cita
-                  </CardTitle>
-                  <p className="text-gray-600 mt-2 text-lg">Selecciona el servicio y horario que mejor se adapte a ti</p>
-                </CardHeader>
-                <CardContent className="p-8">
+            {/* TAB VIEW 2: GALERÍA */}
+            {activeTab === "gallery" && settings?.enableGallery && (
+              <div className="space-y-6 animate-in fade-in-50 duration-200">
+                <div className={`${themeConfig.card} p-6`}>
+                  <div className="mb-6">
+                    <h2 className="font-display text-2xl font-bold">
+                      Galería de Trabajos y Espacio
+                    </h2>
+                    <p className="text-sm opacity-60 mt-1">
+                      Conoce las instalaciones y los resultados reales de {business.name}.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {gallery.map((item, index) => (
+                      <div
+                        key={item.id}
+                        onClick={() => setSelectedPhoto(item)}
+                        className={`group relative overflow-hidden rounded-2xl cursor-pointer bg-black/5 dark:bg-white/5 ${
+                          index === 0 ? "sm:col-span-2 sm:row-span-2 aspect-video sm:aspect-square" : "aspect-square"
+                        }`}
+                      >
+                        <img
+                          src={item.imageUrl}
+                          alt={item.title || `Foto de ${business.name}`}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white">
+                          <p className="text-sm font-semibold truncate">{item.title || "Ver detalle"}</p>
+                          {item.description && <p className="text-xs text-white/80 line-clamp-1 mt-0.5">{item.description}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB VIEW 3: SOBRE NOSOTROS */}
+            {activeTab === "about" && (
+              <div className="space-y-6 animate-in fade-in-50 duration-200">
+                <div className={`${themeConfig.card} p-8 space-y-8`}>
+                  <div>
+                    <h2 className="font-display text-2xl font-bold mb-4">
+                      Nuestra Historia y Filosofía
+                    </h2>
+                    {settings?.aboutUs ? (
+                      <div
+                        className="opacity-80 leading-relaxed space-y-4 text-base"
+                        dangerouslySetInnerHTML={{ __html: settings.aboutUs.replace(/\n/g, "<br>") }}
+                      />
+                    ) : (
+                      <p className="opacity-80 leading-relaxed text-base">
+                        {settings?.publicDescription || business.description || "Comprometidos con brindarte la mejor atención y los mejores resultados."}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Highlights / Badges */}
+                  {(settings?.professionalTitle || settings?.yearsOfExperience || settings?.specializations) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-black/[0.06] dark:border-white/[0.06]">
+                      {settings?.professionalTitle && (
+                        <div className="bg-black/5 dark:bg-white/5 p-5 rounded-2xl">
+                          <GraduationCap className="w-5 h-5 text-red-500 mb-2" />
+                          <p className="text-xs font-semibold opacity-50 uppercase tracking-wider">Título Profesional</p>
+                          <p className="font-bold text-sm mt-1">{settings.professionalTitle}</p>
+                        </div>
+                      )}
+                      {settings?.yearsOfExperience && (
+                        <div className="bg-black/5 dark:bg-white/5 p-5 rounded-2xl">
+                          <ShieldCheck className="w-5 h-5 text-amber-500 mb-2" />
+                          <p className="text-xs font-semibold opacity-50 uppercase tracking-wider">Trayectoria</p>
+                          <p className="font-bold text-sm mt-1">{settings.yearsOfExperience} años de experiencia</p>
+                        </div>
+                      )}
+                      {settings?.specializations && (
+                        <div className="bg-black/5 dark:bg-white/5 p-5 rounded-2xl">
+                          <Sparkles className="w-5 h-5 text-emerald-500 mb-2" />
+                          <p className="text-xs font-semibold opacity-50 uppercase tracking-wider">Especialidad</p>
+                          <p className="font-bold text-sm mt-1">{settings.specializations}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB VIEW 4: RESEÑAS */}
+            {activeTab === "reviews" && (
+              <div className="space-y-6 animate-in fade-in-50 duration-200">
+                {/* Rating Overview Card */}
+                <div className={`${themeConfig.card} p-8 flex flex-col sm:flex-row items-center gap-8 justify-between`}>
+                  <div className="flex items-center gap-6">
+                    <div className="text-5xl font-black font-display tracking-tight">
+                      {avgRating > 0 ? avgRating.toFixed(1) : "—"}
+                    </div>
+                    <div>
+                      <StarRow rating={avgRating} className="w-5 h-5" />
+                      <p className="text-sm opacity-60 mt-1">
+                        Basado en {reviews.length} opiniones de clientes
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="rounded-full px-4 py-1.5 text-xs font-medium border-current/20">
+                      100% verificadas
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Reviews List */}
+                {reviews.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {reviews.map((rev) => (
+                      <div key={rev.id} className={`${themeConfig.card} p-6 space-y-3 relative`}>
+                        <Quote className="w-8 h-8 opacity-10 absolute top-4 right-4" />
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-neutral-300 to-neutral-400 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center font-bold text-sm">
+                            {(rev.clientName || "C").charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{rev.clientName || "Cliente"}</p>
+                            <StarRow rating={rev.rating} className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                        {rev.comment && (
+                          <p className="text-sm opacity-75 leading-relaxed pt-1">
+                            {rev.comment}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={`${themeConfig.card} p-8 text-center`}>
+                    <p className="opacity-50 text-sm">Aún no hay reseñas registradas para este negocio.</p>
+                  </div>
+                )}
+
+                {/* Form to leave a review */}
+                {settings?.enableReviews && (
+                  <div className={`${themeConfig.card} p-8 space-y-5`}>
+                    <div>
+                      <h3 className="font-display font-bold text-xl">
+                        Comparte tu Experiencia
+                      </h3>
+                      <p className="text-xs opacity-60 mt-0.5">
+                        Tu opinión ayuda a otros usuarios a conocer la calidad de este negocio.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-xs font-semibold opacity-70 mb-1.5 block">Calificación</Label>
+                        <div className="flex items-center gap-1.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setReviewStars(s)}
+                              className="p-1 hover:scale-110 transition-transform"
+                            >
+                              <Star
+                                className={`w-7 h-7 ${
+                                  s <= reviewStars
+                                    ? "fill-amber-400 text-amber-400"
+                                    : "fill-neutral-200 text-neutral-300 dark:fill-neutral-800 dark:text-neutral-700"
+                                }`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="rev-name" className="text-xs font-semibold opacity-70 mb-1.5 block">
+                            Tu nombre
+                          </Label>
+                          <Input
+                            id="rev-name"
+                            value={reviewName}
+                            onChange={(e) => setReviewName(e.target.value)}
+                            placeholder="Ej. Roberto Díaz"
+                            className="h-11 rounded-xl bg-black/5 dark:bg-white/5 border-0 focus-visible:ring-2 focus-visible:ring-red-500/20"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="rev-comment" className="text-xs font-semibold opacity-70 mb-1.5 block">
+                          Comentario
+                        </Label>
+                        <Textarea
+                          id="rev-comment"
+                          rows={3}
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          placeholder="Cuéntanos qué tal fue el servicio y la atención…"
+                          className="rounded-xl bg-black/5 dark:bg-white/5 border-0 focus-visible:ring-2 focus-visible:ring-red-500/20"
+                        />
+                      </div>
+
+                      <Button
+                        onClick={submitReview}
+                        disabled={isSubmittingReview}
+                        className={`${themeConfig.button} h-11 px-6 font-semibold text-sm shadow-sm`}
+                      >
+                        {isSubmittingReview ? "Enviando…" : "Publicar reseña"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB VIEW 5: UBICACIÓN Y CONTACTO */}
+            {activeTab === "contact" && (
+              <div className="space-y-6 animate-in fade-in-50 duration-200">
+                <div className={`${themeConfig.card} p-8 space-y-6`}>
+                  <div>
+                    <h2 className="font-display text-2xl font-bold">
+                      Ubicación y Canales Directos
+                    </h2>
+                    <p className="text-sm opacity-60 mt-1">
+                      Encuentra cómo llegar o envíanos un mensaje directo.
+                    </p>
+                  </div>
+
+                  {address && (
+                    <div className="p-5 rounded-2xl bg-black/5 dark:bg-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <p className="text-xs font-bold opacity-40 uppercase tracking-wider">Dirección</p>
+                        <p className="font-semibold text-base mt-0.5">{address}</p>
+                        {settings?.district && <p className="text-xs opacity-60">{settings.district}, {settings.region || "Perú"}</p>}
+                      </div>
+                      {mapUrl && (
+                        <a href={mapUrl} target="_blank" rel="noopener noreferrer">
+                          <Button variant="outline" className="rounded-xl text-xs font-semibold h-10 px-4 gap-1.5 border-current/20">
+                            Abrir en Google Maps
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Button>
+                        </a>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Contact Form */}
+                  {settings?.enableContactForm && (
+                    <div className="pt-6 border-t border-black/[0.06] dark:border-white/[0.06] space-y-4">
+                      <h3 className="font-display font-bold text-lg">
+                        Envía un Mensaje
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs font-semibold opacity-70 mb-1.5 block">Tu nombre</Label>
+                          <Input
+                            value={contactName}
+                            onChange={(e) => setContactName(e.target.value)}
+                            placeholder="Nombre completo"
+                            className="h-11 rounded-xl bg-black/5 dark:bg-white/5 border-0"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold opacity-70 mb-1.5 block">Correo electrónico</Label>
+                          <Input
+                            type="email"
+                            value={contactEmail}
+                            onChange={(e) => setContactEmail(e.target.value)}
+                            placeholder="ejemplo@correo.com"
+                            className="h-11 rounded-xl bg-black/5 dark:bg-white/5 border-0"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-semibold opacity-70 mb-1.5 block">Mensaje o consulta</Label>
+                        <Textarea
+                          rows={4}
+                          value={contactMessage}
+                          onChange={(e) => setContactMessage(e.target.value)}
+                          placeholder="Escribe aquí tu consulta o requerimiento especial…"
+                          className="rounded-xl bg-black/5 dark:bg-white/5 border-0"
+                        />
+                      </div>
+                      <Button
+                        onClick={submitContact}
+                        disabled={isSubmittingContact}
+                        className={`${themeConfig.button} h-11 px-6 font-semibold text-sm shadow-sm gap-2`}
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        {isSubmittingContact ? "Enviando…" : "Enviar mensaje"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+
+          {/* ══════════════════════════════════════════════════════════
+              RIGHT AREA: PERSISTENT MODERN SIDEBAR (STICKY ON DESKTOP)
+             ══════════════════════════════════════════════════════════ */}
+          <aside className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-20 space-y-5">
+            
+            {/* Primary Action Booking Card (Uses themeConfig.card) */}
+            <div className={`${themeConfig.card} p-6 space-y-6`}>
+              
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold uppercase tracking-wider opacity-50">
+                    Reserva tu cita
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                      isOpenNow
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        : "bg-black/5 dark:bg-white/10 opacity-70"
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOpenNow ? "bg-emerald-500 animate-pulse" : "bg-neutral-400"}`} />
+                    {isOpenNow ? "Atendiendo hoy" : "Cerrado"}
+                  </span>
+                </div>
+
+                <h3 className="font-display text-2xl font-bold">
+                  Agenda en línea
+                </h3>
+
+                {lowestPrice && (
+                  <p className="text-xs opacity-60 mt-1">
+                    Servicios disponibles desde <span className="font-bold opacity-100">S/ {lowestPrice.toFixed(2)}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Guarantees */}
+              <div className="space-y-2.5 py-1">
+                <div className="flex items-center gap-2.5 text-xs opacity-80">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Confirmación inmediata por WhatsApp y correo</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-xs opacity-80">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Sin costo por reservar en línea</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-xs opacity-80">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <span>Elige el horario que mejor te convenga</span>
+                </div>
+              </div>
+
+              {/* The Core Booking Widget trigger */}
+              {canBook ? (
+                <div className="pt-2">
                   <BookingWidget
                     services={services}
                     businessId={business.id}
@@ -282,614 +1158,239 @@ interface MicrositeData {
                     blockedDates={settings?.blockedDates}
                     blockedHours={settings?.blockedHours}
                   />
-                </CardContent>
-              </Card>
-            )}
+                </div>
+              ) : (
+                <div className="bg-black/5 dark:bg-white/5 p-4 rounded-2xl text-center">
+                  <p className="text-xs opacity-60">
+                    Las reservas automáticas están en mantenimiento. Contáctanos por WhatsApp.
+                  </p>
+                </div>
+              )}
 
-            {/* About Section - Enhanced */}
-            {(settings?.aboutUs || settings?.publicDescription || business.description) && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects}`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-gray-100">
-                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    🏢 Acerca de Nosotros
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-8">
-                  <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed">
-                    {settings?.aboutUs ? (
-                      <div dangerouslySetInnerHTML={{ __html: settings.aboutUs.replace(/\n/g, '<br>') }} />
-                    ) : (
-                      <p className="text-xl">
-                        {settings?.publicDescription || business.description || "Información no disponible."}
-                      </p>
-                    )}
+              {/* Quick Contact Buttons Row */}
+              <div className="pt-4 border-t border-black/[0.06] dark:border-white/[0.06] grid grid-cols-2 gap-2">
+                {phone && (
+                  <a
+                href={whatsappLink(phone, business.name)}
+                onClick={() => trackEvent("whatsapp_click")}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                    WhatsApp
+                  </a>
+                )}
+                {phone && (
+                  <a
+                    href={`tel:${phone}`}
+                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold transition-colors"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    Llamar
+                  </a>
+                )}
+              </div>
+            </div>
+
+            {/* Hours Card */}
+            {hoursRows.length > 0 && (
+              <div className={`${themeConfig.card} p-6 space-y-4`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 opacity-50" />
+                    <h4 className="font-display font-bold text-sm">
+                      Horarios de Atención
+                    </h4>
                   </div>
+                  <button
+                    onClick={() => setShowAllHours(!showAllHours)}
+                    className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline flex items-center gap-0.5"
+                  >
+                    {showAllHours ? "Ocultar" : "Ver todos"}
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllHours ? "rotate-180" : ""}`} />
+                  </button>
+                </div>
 
-                  {/* Professional Credentials */}
-                  {(settings?.professionalTitle || settings?.yearsOfExperience || settings?.specializations) && (
-                    <div className="mt-8 p-6 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100">
-                      <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                        🎓 Información Profesional
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {settings?.professionalTitle && (
-                          <div className="text-center p-4 bg-white rounded-lg border border-gray-100">
-                            <div className="text-2xl mb-2">👨‍💼</div>
-                            <div className="font-semibold text-gray-900">{settings.professionalTitle}</div>
-                            <div className="text-sm text-gray-600">Título Profesional</div>
-                          </div>
-                        )}
-                        {settings?.yearsOfExperience && (
-                          <div className="text-center p-4 bg-white rounded-lg border border-gray-100">
-                            <div className="text-2xl mb-2">⭐</div>
-                            <div className="font-semibold text-gray-900">{settings.yearsOfExperience} años</div>
-                            <div className="text-sm text-gray-600">de Experiencia</div>
-                          </div>
-                        )}
-                        {settings?.specializations && (
-                          <div className="text-center p-4 bg-white rounded-lg border border-gray-100">
-                            <div className="text-2xl mb-2">🔧</div>
-                            <div className="font-semibold text-gray-900">Especialista</div>
-                            <div className="text-sm text-gray-600">{settings.specializations}</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+                {/* Today's schedule banner */}
+                <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center justify-between text-xs">
+                  <span className="font-bold">
+                    Hoy ({todayRow?.label || "Hoy"})
+                  </span>
+                  <span className={todayRow?.open ? "font-bold text-emerald-600 dark:text-emerald-400" : "opacity-50"}>
+                    {todayRow?.text || "Cerrado"}
+                  </span>
+                </div>
 
-            {/* Gallery - Enhanced */}
-            {settings?.enableGallery && gallery && gallery.length > 0 && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects}`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-pink-50 to-rose-50 border-b border-gray-100">
-                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent flex items-center justify-between">
-                    <span className="flex items-center">
-                      <Camera className="w-8 h-8 mr-4 text-pink-500" />
-                      📸 Galería de Trabajos
-                    </span>
-                    <Badge variant="outline" className="bg-gradient-to-r from-pink-100 to-rose-100 text-pink-700 border-pink-200 px-4 py-2 text-lg font-bold">
-                      {gallery.length} fotos
-                    </Badge>
-                  </CardTitle>
-                  <p className="text-gray-600 mt-2 text-lg">Conoce nuestros trabajos y proyectos realizados</p>
-                </CardHeader>
-                <CardContent className="p-8">
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {gallery.map((item) => (
-                      <div key={item.id} className="relative overflow-hidden rounded-2xl shadow-lg">
-                        <div className="aspect-square">
-                          <img
-                            src={item.imageUrl}
-                            alt={item.title || "Trabajo"}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              console.log('🚨 Gallery image failed to load:', item.imageUrl);
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                            onLoad={() => {
-                              console.log('✅ Gallery image loaded successfully:', item.imageUrl.substring(0, 50) + '...');
-                            }}
-                          />
-                        </div>
-                        {item.title && (
-                          <div className="absolute bottom-0 left-0 right-0 p-4 text-white bg-gradient-to-t from-black/60 via-transparent to-transparent">
-                            <p className="font-semibold text-lg">{item.title}</p>
-                            {item.description && (
-                              <p className="text-sm opacity-90 mt-1">{item.description}</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Location & Map Section */}
-            {(settings?.streetAddress || business.address) && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-purple-50 to-violet-50 border-b border-gray-100">
-                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent group-hover:from-violet-600 group-hover:to-purple-600 transition-all duration-500 flex items-center">
-                    <MapPin className="w-8 h-8 mr-4 text-purple-500" />
-                    📍 Ubicación
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-8">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div>
-                      <div className="bg-gradient-to-r from-purple-50 to-violet-50 p-6 rounded-xl border border-purple-100">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                          <MapPin className="w-5 h-5 mr-2 text-purple-600" />
-                          Dirección
-                        </h3>
-                        <div className="space-y-2 text-gray-700">
-                          {settings?.streetAddress ? (
-                            <>
-                              <p className="font-semibold text-lg">{settings.streetAddress}</p>
-                              {settings.district && <p className="text-gray-600">{settings.district}</p>}
-                              {settings.region && <p className="text-gray-600">{settings.region}</p>}
-                              {settings.postalCode && <p className="text-gray-600">CP: {settings.postalCode}</p>}
-                              {settings.country && <p className="text-gray-600">{settings.country}</p>}
-                            </>
-                          ) : (
-                            <p className="text-lg">{business.address}</p>
-                          )}
-                        </div>
-
-                        {/* Transportation Info */}
-                        {settings?.transportationInfo && (
-                          <div className="mt-4 p-4 bg-white rounded-lg border border-purple-100">
-                            <h4 className="font-semibold text-gray-900 mb-2 flex items-center">
-                              🚇 Cómo llegar
-                            </h4>
-                            <p className="text-gray-600 text-sm">{settings.transportationInfo}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Map placeholder - can be enhanced with actual map integration */}
-                    <div className="bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl p-8 flex items-center justify-center min-h-[300px] border border-gray-200">
-                      <div className="text-center text-gray-500">
-                        <MapPin className="w-16 h-16 mx-auto mb-4" />
-                        <p className="text-lg font-semibold">Mapa Interactivo</p>
-                        <p className="text-sm mt-2">Próximamente: Mapa con ubicación exacta</p>
-                        {(settings?.streetAddress || business.address) && (
-                          <Button
-                            className="mt-4 bg-purple-600 hover:bg-purple-700"
-                            onClick={() => {
-                              const address = encodeURIComponent(settings?.streetAddress || business.address);
-                              window.open(`https://www.google.com/maps/search/${address}`, '_blank');
-                            }}
-                          >
-                            Ver en Google Maps
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Reviews - Enhanced */}
-            {(settings?.enableReviews || (reviews && reviews.length > 0)) && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-b border-gray-100">
-                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent group-hover:from-orange-600 group-hover:to-red-600 transition-all duration-500 flex items-center justify-between">
-                    <span className="flex items-center">
-                      ⭐ Reseñas de Clientes
-                    </span>
-                    {reviews && reviews.length > 0 && (
-                      <div className="flex items-center space-x-4">
-                        <Badge variant="outline" className="bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-700 border-yellow-200 px-4 py-2 text-lg font-bold">
-                          {reviews.length} reseñas
-                        </Badge>
-                        {/* Average Rating */}
-                        <div className="flex items-center bg-gradient-to-r from-yellow-100 to-orange-100 px-4 py-2 rounded-xl border border-yellow-200">
-                          <Star className="w-5 h-5 text-yellow-600 fill-yellow-600 mr-1" />
-                          <span className="font-bold text-yellow-700">
-                            {(reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)}
+                {/* All days dropdown */}
+                {showAllHours && (
+                  <div className="space-y-1.5 pt-2 border-t border-black/[0.06] dark:border-white/[0.06] animate-in fade-in-50 duration-200">
+                    {hoursRows.map((r) => {
+                      const isToday = r.day === todayKey();
+                      return (
+                        <div
+                          key={r.day}
+                          className={`flex items-center justify-between text-xs py-1.5 px-2 rounded-lg ${
+                            isToday ? "bg-red-500/10 font-semibold text-red-600 dark:text-red-400" : "opacity-60"
+                          }`}
+                        >
+                          <span>{r.label}</span>
+                          <span className={r.open ? "opacity-90 font-medium" : "opacity-40"}>
+                            {r.text}
                           </span>
                         </div>
-                      </div>
-                    )}
-                  </CardTitle>
-                  <p className="text-gray-600 mt-2 text-lg">Lo que dicen nuestros clientes sobre nosotros</p>
-                </CardHeader>
-                <CardContent className="p-8">
-                  {/* Existing Reviews */}
-                  {reviews && reviews.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                      {reviews.map((review) => (
-                        <div key={review.id} className="bg-gradient-to-r from-white/90 to-gray-50/70 rounded-xl p-6 border border-gray-100">
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center">
-                              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg mr-3">
-                                {(review.clientName ?? '?').charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <p className="font-bold text-gray-900">{review.clientName}</p>
-                                <div className="flex items-center">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star
-                                      key={i}
-                                      className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-500 bg-gray-100/70 px-3 py-1 rounded-full">
-                              {review.source === 'scraped' ? '🌐 Google' : '💬 Directo'}
-                            </div>
-                          </div>
-                          {review.comment && (
-                            <p className="text-gray-700 italic leading-relaxed text-sm">"{review.comment}"</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Review Submission Form */}
-                  {settings?.enableReviews && (
-                    <div className="border-t border-gray-200/50 pt-8">
-                      <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                        <Star className="w-6 h-6 mr-3 text-yellow-500" />
-                        Deja tu reseña
-                      </h3>
-                      <div className="bg-gradient-to-r from-yellow-50 to-orange-50 p-6 rounded-xl border border-yellow-100">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <Label htmlFor="review-name" className="text-gray-700 font-semibold text-lg">Tu nombre</Label>
-                            <Input
-                              id="review-name"
-                              placeholder="Tu nombre completo"
-                              className="mt-2 border-yellow-200 focus:border-yellow-500 focus:ring-yellow-500 transition-colors duration-300 text-lg p-3"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-gray-700 font-semibold text-lg mb-3 block">Calificación</Label>
-                            <div className="flex space-x-2">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <Star
-                                  key={star}
-                                  className="w-8 h-8 cursor-pointer text-gray-300 hover:text-yellow-400 transition-colors duration-200"
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-6">
-                          <Label htmlFor="review-comment" className="text-gray-700 font-semibold text-lg">Tu experiencia</Label>
-                          <Textarea
-                            id="review-comment"
-                            placeholder="Cuéntanos sobre tu experiencia con este negocio..."
-                            rows={4}
-                            className="mt-2 border-yellow-200 focus:border-yellow-500 focus:ring-yellow-500 transition-colors duration-300 text-lg"
-                          />
-                        </div>
-                        <Button className="w-full mt-6 bg-gradient-to-r from-yellow-600 to-orange-600 text-white shadow-lg py-4 text-lg font-bold">
-                          ⭐ Enviar Reseña
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Contact Form - Enhanced */}
-            {settings?.enableContactForm && (
-              <Card className={`${themeConfig.card} ${themeConfig.effects}`}>
-                <CardHeader className="pb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-100">
-                  <CardTitle className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent flex items-center">
-                    <MessageSquare className="w-8 h-8 mr-4 text-green-500" />
-                    💬 Enviar Mensaje
-                  </CardTitle>
-                  <p className="text-gray-600 mt-2 text-lg">¿Tienes alguna pregunta? Escríbenos</p>
-                </CardHeader>
-                <CardContent className="p-8">
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-xl border border-green-100">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <Label htmlFor="contact-name" className="text-gray-700 font-semibold text-lg">Nombre</Label>
-                        <Input
-                          id="contact-name"
-                          placeholder="Tu nombre completo"
-                          className="mt-2 border-green-200 focus:border-green-500 focus:ring-green-500 transition-colors duration-300 text-lg p-3"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="contact-email" className="text-gray-700 font-semibold text-lg">Email</Label>
-                        <Input
-                          id="contact-email"
-                          type="email"
-                          placeholder="tu@email.com"
-                          className="mt-2 border-green-200 focus:border-green-500 focus:ring-green-500 transition-colors duration-300 text-lg p-3"
-                        />
-                      </div>
-                    </div>
-                    <div className="mt-6">
-                      <Label htmlFor="contact-message" className="text-gray-700 font-semibold text-lg">Mensaje</Label>
-                      <Textarea
-                        id="contact-message"
-                        placeholder="Escribe tu mensaje o consulta..."
-                        rows={5}
-                        className="mt-2 border-green-200 focus:border-green-500 focus:ring-green-500 transition-colors duration-300 text-lg"
-                      />
-                    </div>
-                    <Button className="w-full mt-6 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 py-4 text-lg font-bold">
-                      📧 Enviar Mensaje
-                    </Button>
+                      );
+                    })}
                   </div>
-                </CardContent>
-              </Card>
+                )}
+              </div>
             )}
-          </div>
 
-          {/* Compact Sidebar - Takes 1 column */}
-          <div className="space-y-6">
-            <div className="sticky top-8 space-y-6 max-h-[calc(100vh-4rem)] overflow-y-auto">
-              {/* Quick Contact - Compact */}
-              <Card className={`${themeConfig.card} ${themeConfig.effects} group sticky top-4`}>
-                <CardHeader className="pb-4 bg-gradient-to-r from-blue-50 to-cyan-50 border-b border-gray-100">
-                  <CardTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent group-hover:from-cyan-600 group-hover:to-blue-600 transition-all duration-500">
-                    📞 Contacto Rápido
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-4">
-                  {(settings?.publicPhone || business.phone) && (
-                    <a
-                      href={`tel:${settings?.publicPhone || business.phone}`}
-                      className="flex items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg hover:shadow-md transition-all duration-300 group/contact border border-green-100"
-                    >
-                      <Phone className="w-5 h-5 mr-3 text-green-600" />
-                      <div>
-                        <div className="font-semibold text-green-700">Llamar</div>
-                        <div className="text-sm text-gray-600">{settings?.publicPhone || business.phone}</div>
-                      </div>
-                    </a>
-                  )}
+            {/* Demand heatmap: helps a visitor pick a quieter time */}
+            {popularTimesData && Object.keys(popularTimesData).length > 0 && (
+              <div className={`${themeConfig.card} p-6 space-y-3`}>
+                <PopularTimes data={popularTimesData} />
+              </div>
+            )}
 
-                  {(settings?.publicEmail || business.email) && (
-                    <a
-                      href={`mailto:${settings?.publicEmail || business.email}`}
-                      className="flex items-center p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg hover:shadow-md transition-all duration-300 group/contact border border-blue-100"
-                    >
-                      <Mail className="w-5 h-5 mr-3 text-blue-600" />
-                      <div>
-                        <div className="font-semibold text-blue-700">Email</div>
-                        <div className="text-sm text-gray-600">{settings?.publicEmail || business.email}</div>
-                      </div>
-                    </a>
-                  )}
+            {/* Location & Mini Map snippet */}
+            {address && (
+              <div className={`${themeConfig.card} p-6 space-y-3`}>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-red-500" />
+                  <h4 className="font-display font-bold text-sm">
+                    ¿Dónde estamos?
+                  </h4>
+                </div>
 
-                  {(settings?.streetAddress || business.address) && (
-                    <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-100">
-                      <div className="flex items-start">
-                        <MapPin className="w-5 h-5 mr-3 text-purple-600 mt-1" />
-                        <div>
-                          <div className="font-semibold text-purple-700 mb-1">Dirección</div>
-                          <div className="text-sm text-gray-600">
-                            {settings?.streetAddress ? (
-                              <>
-                                <div>{settings.streetAddress}</div>
-                                {settings.district && <div>{settings.district}</div>}
-                              </>
-                            ) : (
-                              business.address
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                <p className="text-xs opacity-70 leading-relaxed">
+                  {address}{settings?.district ? `, ${settings.district}` : ""}
+                </p>
 
-                  {/* Action Buttons */}
-                  <div className="space-y-2 pt-2 border-t border-gray-100">
-                    {settings?.enablePublicBooking && (
-                      <Button className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-cyan-600 hover:to-blue-600 text-white py-3 font-semibold">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Reservar Cita
-                      </Button>
-                    )}
-                    {(settings?.streetAddress || business.address) && (
-                      <Button
-                        variant="outline"
-                        className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
-                        onClick={() => {
-                          const address = encodeURIComponent(settings?.streetAddress || business.address);
-                          window.open(`https://www.google.com/maps/search/${address}`, '_blank');
-                        }}
+                {mapUrl && (
+                  <a
+                    href={mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:underline pt-1"
+                  >
+                    Ver ruta en Google Maps
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Social links */}
+            {socials.length > 0 && (
+              <div className={`${themeConfig.card} p-6`}>
+                <p className="text-xs font-bold opacity-50 uppercase tracking-wider mb-3">
+                  Redes Oficiales
+                </p>
+                <div className="flex items-center gap-2">
+                  {socials.map((s) => {
+                    const SIcon = s.icon;
+                    return (
+                      <a
+                        key={s.label}
+                        href={s.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={s.label}
+                        className="w-10 h-10 rounded-2xl bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 transition-colors shadow-sm"
                       >
-                        <MapPin className="w-4 h-4 mr-2" />
-                        Ver Mapa
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                        <SIcon className="w-4 h-4" />
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-              {/* Business Hours - Compact */}
-              <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-                <CardHeader className="pb-4 bg-gradient-to-r from-orange-50 to-yellow-50 border-b border-gray-100">
-                  <CardTitle className="text-xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent group-hover:from-yellow-600 group-hover:to-orange-600 transition-all duration-500 flex items-center">
-                    <Clock className="w-5 h-5 mr-2 text-orange-500" />
-                    🕐 Horarios
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4">
-                  {/* Priority 1: Use scraped business hours if available */}
-                  {business.hours && (Array.isArray(business.hours) ? business.hours.length > 0 : Object.keys(business.hours).length > 0) ? (
-                    <div className="space-y-2">
-                      {Array.isArray(business.hours)
-                        ? business.hours.slice(0, 7).map((hourString, index) => {
-                          const parts = hourString.split(':');
-                          if (parts.length < 2) return null;
+          </aside>
 
-                          const day = parts[0].trim();
-                          const timeRange = parts.slice(1).join(':').trim();
-                          const isOpen = !timeRange.toLowerCase().includes('closed') && !timeRange.toLowerCase().includes('cerrado');
-
-                          // Get current day to highlight
-                          const today = new Date().getDay();
-                          const dayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(day.toLowerCase());
-                          const isToday = dayIndex === today;
-
-                          return (
-                            <div key={index} className={`flex justify-between items-center p-2 rounded-lg text-sm ${isToday ? 'bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200' :
-                              isOpen ? 'bg-gradient-to-r from-green-50 to-emerald-50' : 'bg-gray-50'
-                              }`}>
-                              <span className={`font-medium ${isToday ? 'text-blue-700' : 'text-gray-700'}`}>
-                                {day.slice(0, 3)}:
-                              </span>
-                              <span className={`font-semibold ${isToday ? 'text-blue-700' :
-                                isOpen ? 'text-green-700' : 'text-gray-500'
-                                }`}>
-                                {isOpen ? timeRange : 'Cerrado'}
-                              </span>
-                            </div>
-                          );
-                        })
-                        : Object.entries(business.hours).map(([dayKey, schedule]: [string, any]) => {
-                          const isOpen = schedule && !schedule.closed && schedule.open && schedule.close;
-
-                          return (
-                            <div key={dayKey} className={`flex justify-between items-center p-2 rounded-lg text-sm ${isOpen ? 'bg-gradient-to-r from-green-50 to-emerald-50' : 'bg-gray-50'
-                              }`}>
-                              <span className="font-medium text-gray-700 capitalize">
-                                {dayKey.slice(0, 3)}:
-                              </span>
-                              <span className={`font-semibold ${isOpen ? 'text-green-700' : 'text-gray-500'}`}>
-                                {isOpen ? `${schedule.open} - ${schedule.close}` : 'Cerrado'}
-                              </span>
-                            </div>
-                          );
-                        })
-                      }
-                    </div>
-                  ) :
-                    /* Priority 2: Fallback to microsite working hours settings */
-                    settings?.workingHours ? (
-                      <div className="space-y-2">
-                        {[
-                          { dayIndex: '1', dayKey: 'monday', label: 'Lun' },
-                          { dayIndex: '2', dayKey: 'tuesday', label: 'Mar' },
-                          { dayIndex: '3', dayKey: 'wednesday', label: 'Mié' },
-                          { dayIndex: '4', dayKey: 'thursday', label: 'Jue' },
-                          { dayIndex: '5', dayKey: 'friday', label: 'Vie' },
-                          { dayIndex: '6', dayKey: 'saturday', label: 'Sáb' },
-                          { dayIndex: '0', dayKey: 'sunday', label: 'Dom' }
-                        ].map(({ dayIndex, dayKey, label }) => {
-                          const hours = settings.workingHours[dayKey] || settings.workingHours[dayIndex] || (dayIndex === '0' ? settings.workingHours['7'] : undefined);
-                          if (!hours) return null;
-
-                          const today = new Date().getDay().toString();
-                          const isToday = dayIndex === today;
-
-                          return (
-                            <div key={dayIndex} className={`flex justify-between items-center p-2 rounded-lg text-sm ${isToday ? 'bg-gradient-to-r from-blue-100 to-cyan-100 border border-blue-200' :
-                              hours.enabled ? 'bg-gradient-to-r from-green-50 to-emerald-50' : 'bg-gray-50'
-                              }`}>
-                              <span className={`font-medium ${isToday ? 'text-blue-700' : 'text-gray-700'}`}>
-                                {label}:
-                              </span>
-                              <span className={`font-semibold ${isToday ? 'text-blue-700' :
-                                hours.enabled ? 'text-green-700' : 'text-gray-500'
-                                }`}>
-                                {hours.enabled ? `${hours.start} - ${hours.end}` : 'Cerrado'}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">⏰ Horarios no disponibles</p>
-                      </div>
-                    )}
-                </CardContent>
-              </Card>
-
-              {/* Social Media - Compact */}
-              {(settings?.facebookUrl || settings?.instagramUrl || settings?.tiktokUrl || settings?.youtubeUrl) && (
-                <Card className={`${themeConfig.card} ${themeConfig.effects} group`}>
-                  <CardHeader className="pb-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-100">
-                    <CardTitle className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:from-pink-600 group-hover:to-purple-600 transition-all duration-500">
-                      🌐 Síguenos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      {settings?.facebookUrl && (
-                        <a href={settings.facebookUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center justify-center p-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl transition-all duration-300">
-                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-                          </svg>
-                          <span className="text-sm font-semibold">Facebook</span>
-                        </a>
-                      )}
-                      {settings?.instagramUrl && (
-                        <a href={settings.instagramUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center justify-center p-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl transition-all duration-300">
-                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987 6.62 0 11.987-5.367 11.987-11.987C24.014 5.367 18.637.001 12.017.001z" />
-                          </svg>
-                          <span className="text-sm font-semibold">Instagram</span>
-                        </a>
-                      )}
-                      {settings?.tiktokUrl && (
-                        <a href={settings.tiktokUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center justify-center p-3 bg-gradient-to-r from-gray-900 to-black text-white rounded-xl transition-all duration-300">
-                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-.88-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z" />
-                          </svg>
-                          <span className="text-sm font-semibold">TikTok</span>
-                        </a>
-                      )}
-                      {settings?.youtubeUrl && (
-                        <a href={settings.youtubeUrl} target="_blank" rel="noopener noreferrer"
-                          className="flex items-center justify-center p-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 transition-all duration-300 transform hover:scale-105">
-                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                          </svg>
-                          <span className="text-sm font-semibold">YouTube</span>
-                        </a>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 text-white py-8 mt-12">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <div className="flex items-center justify-center mb-4">
-              {settings?.profileImage ? (
-                <img
-                  src={settings.profileImage}
-                  alt={business.name}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-white/20 mr-3"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white font-bold text-lg mr-3">
-                  {business.name.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <h3 className="text-xl font-bold">{business.name}</h3>
-            </div>
-            <p className="text-gray-300 mb-4">
-              {settings?.professionalTitle || "Servicio profesional de calidad"}
-            </p>
-            <div className="border-t border-gray-700 pt-4">
-              <p className="text-gray-400 text-sm">
-                © 2025 {business.name}. Todos los derechos reservados.
-              </p>
-              <p className="text-gray-500 text-xs mt-1">
-                ⚡ Powered by BusinessSearchPlatform
-              </p>
+      {/* ── PHOTO LIGHTBOX MODAL ── */}
+      {selectedPhoto && (
+        <div
+          onClick={() => setSelectedPhoto(null)}
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in-50 duration-200"
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex flex-col items-center">
+            <button
+              onClick={() => setSelectedPhoto(null)}
+              className="absolute -top-12 right-0 text-white/80 hover:text-white p-2 rounded-full"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={selectedPhoto.imageUrl}
+              alt={selectedPhoto.title || ""}
+              className="max-h-[80vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl"
+            />
+            {selectedPhoto.title && (
+              <div className="mt-4 text-center text-white">
+                <p className="font-semibold text-base">{selectedPhoto.title}</p>
+                {selectedPhoto.description && (
+                  <p className="text-xs text-white/70 mt-1">{selectedPhoto.description}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MOBILE STICKY FLOATING BOTTOM BAR ── */}
+      {canBook && (
+        <div className={`lg:hidden fixed bottom-0 inset-x-0 z-30 ${themeConfig.header} p-4 shadow-2xl flex items-center justify-between gap-4 border-t border-current/10`}>
+          <div>
+            <span className="text-[11px] font-bold uppercase tracking-wider opacity-50 block">
+              {business.name}
+            </span>
+            <span className="text-sm font-bold">
+              {lowestPrice ? `Desde S/ ${lowestPrice.toFixed(2)}` : "Reserva tu cita"}
+            </span>
+          </div>
+
+          <div className="shrink-0">
+            <BookingWidget
+              services={services}
+              businessId={business.id}
+              workingHours={settings?.workingHours}
+              blockedDates={settings?.blockedDates}
+              blockedHours={settings?.blockedHours}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── FOOTER ── */}
+      <footer className="border-t border-current/10 bg-black/5 dark:bg-white/5 py-12 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white font-bold text-sm">
+              {business.name.charAt(0).toUpperCase()}
+            </span>
+            <div>
+              <p className="font-display font-bold text-sm">{business.name}</p>
+              <p className="text-xs opacity-50">© 2026 Todos los derechos reservados.</p>
             </div>
           </div>
+
+          <a
+            href="/"
+            className="inline-flex items-center gap-2 text-xs opacity-60 hover:opacity-100 transition-opacity"
+          >
+            <span>Micrositio potenciado por</span>
+            <span className="font-display font-bold">MiCita</span>
+          </a>
         </div>
       </footer>
 
       {/* Theme Selector Modal */}
-      <MicrositeThemeSelector
-        isOpen={isThemeSelectorOpen}
-        onClose={() => setIsThemeSelectorOpen(false)}
-      />
+      <MicrositeThemeSelector isOpen={isThemeSelectorOpen} onClose={() => setIsThemeSelectorOpen(false)} />
     </div>
   );
 }

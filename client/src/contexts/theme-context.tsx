@@ -19,7 +19,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(false);
   const [currentTheme, setCurrentTheme] = useState<ThemeId>('clasico');
-  const [primaryColor, setPrimaryColorState] = useState('#dc2626');
+  const [primaryColor, setPrimaryColorState] = useState('#C13A2E');
   const [isLoading, setIsLoading] = useState(true);
   const [isDashboard, setIsDashboard] = useState(false);
 
@@ -32,7 +32,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         if (response.ok) {
           const prefs = await response.json();
           const themeId = (prefs.dashboardTheme || 'clasico') as ThemeId;
-          const color = prefs.primaryColor || '#dc2626';
+          const color = prefs.primaryColor || '#C13A2E';
           const dark = prefs.isDarkMode || false;
           
           setCurrentTheme(themeId);
@@ -77,7 +77,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         }
         
         applyTheme('clasico', savedTheme === "dark" || (!savedTheme && prefersDark), isDashboard);
-        applyPrimaryColor('#dc2626');
+        applyPrimaryColor('#C13A2E');
       } finally {
         setIsLoading(false);
       }

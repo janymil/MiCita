@@ -12,6 +12,8 @@ import { ProtectedRoute } from "@/components/protected-route";
 // Public pages
 import BusinessLandingPage from "@/pages/business-landing";
 import BusinessMicrosite from "@/pages/business-microsite";
+import ExplorePage from "@/pages/explore";
+import AppointmentManagePage from "@/pages/appointment-manage";
 
 // Auth pages
 import AuthCallback from "@/pages/auth/callback";
@@ -50,6 +52,7 @@ function Router() {
       {/* Public routes */}
       <Route path="/" component={BusinessLandingPage} />
       <Route path="/business" component={BusinessLandingPage} />
+      <Route path="/buscar" component={ExplorePage} />
 
       {/* Auth routes */}
       <Route path="/login" component={Login} />
@@ -124,6 +127,9 @@ function Router() {
 
       {/* Documentation route */}
       <Route path="/documentation" component={Documentation} />
+
+      {/* Self-service appointment management (token from reminder emails) */}
+      <Route path="/cita/:token" component={AppointmentManagePage} />
 
       {/* Admin routes */}
       <Route path="/admin" component={AdminLogin} />

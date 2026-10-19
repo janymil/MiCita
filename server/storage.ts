@@ -18,6 +18,11 @@ import type {
   BusinessSettings,
   ApifyBusiness,
   PublicBusiness,
+  Payment,
+  MicrositeEvent,
+  InsertMicrositeEvent,
+  ContactMessage,
+  InsertContactMessage,
 } from "../shared/schema.js";
 
 /**
@@ -80,12 +85,32 @@ export interface IStorage {
 
   // Reviews
   getReviewsByBusinessId(businessId: number): Promise<Review[]>;
+  getApprovedReviewsByBusinessId(businessId: number): Promise<Review[]>;
+  getReview(id: number): Promise<Review | undefined>;
   createReview(review: InsertReview): Promise<Review>;
+  updateReview(id: number, review: Partial<InsertReview>): Promise<Review>;
   deleteReview(id: number): Promise<void>;
+  recomputeBusinessRating(businessId: number): Promise<void>;
 
   // Business settings
   getBusinessSettings(businessId: number): Promise<BusinessSettings | undefined>;
+  getBusinessSettingsByCustomUrl(customUrl: string): Promise<BusinessSettings | undefined>;
+  getPublishedMicrosites(): Promise<Array<{ businessId: number; customUrl: string; businessName: string; updatedAt: Date | null }>>;
   updateBusinessSettings(businessId: number, settings: InsertBusinessSettings): Promise<BusinessSettings>;
+
+  // Microsite traffic
+  createMicrositeEvent(event: InsertMicrositeEvent): Promise<MicrositeEvent>;
+  getMicrositeEvents(businessId: number, fromISO: string, toISO: string): Promise<MicrositeEvent[]>;
+
+  // Contact inbox
+  createContactMessage(message: InsertContactMessage): Promise<ContactMessage>;
+  getContactMessages(businessId: number, status?: string): Promise<ContactMessage[]>;
+  updateContactMessage(id: number, patch: Partial<InsertContactMessage> & { status?: string }): Promise<ContactMessage | undefined>;
+
+  // Lifecycle
+  getAppointmentByCancelToken(token: string): Promise<Appointment | undefined>;
+  getAppointmentsNeedingReminder(fromISO: string, toISO: string): Promise<Appointment[]>;
+  getPaymentsByBusinessId(businessId: number): Promise<Payment[]>;
 
   // Apify / scraped businesses
   getApifyBusiness(placeId: string): Promise<ApifyBusiness | undefined>;

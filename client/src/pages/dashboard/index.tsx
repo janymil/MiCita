@@ -41,23 +41,51 @@ interface AppointmentRow {
   price?: string | null;
 }
 
+interface MetricBucket {
+  key: string;
+  label: string;
+  start: string;
+  end: string;
+  revenue: number;
+  completed: number;
+  created: number;
+  cancelled: number;
+}
+
 interface DashboardAnalytics {
   pendingAppointments?: number;
   confirmedToday?: number;
   totalClients?: number;
   totalServices?: number;
+  /** 7-point legacy series (oldest → newest) */
   weeklyRevenue?: number[];
+  weeklyRevenueLabels?: string[];
+  buckets?: MetricBucket[];
+  granularity?: "day" | "week" | "month";
   totalRevenue?: number;
+  revenue?: number;
+  revenueGrowth?: number | null;
+  completedGrowth?: number | null;
+  collected?: number;
+  receivable?: number;
   pendingPayments?: number;
   averageAppointmentValue?: number;
   completedAppointments?: number;
+  cancelledInPeriod?: number;
+  noShowInPeriod?: number;
+  cancelRate?: number;
+  noShowRate?: number;
+  retentionRate?: number;
+  occupancyRate?: number;
+  newClients?: number;
+  appointmentsInPeriod?: number;
   upcomingAppointments?: AppointmentRow[];
   [key: string]: unknown;
 }
 
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
-  const [revenueChartView, setRevenueChartView] = useState("weekly");
+  const [revenueChartView, setRevenueChartView] = useState<"day" | "week" | "month">("week");
 
 
   const { data: businesses, isLoading: businessesLoading } = useQuery<DashboardBusiness[]>({
@@ -67,7 +95,7 @@ export default function Dashboard() {
   const businessId = businesses?.[0]?.id;
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<DashboardAnalytics>({
-    queryKey: [`/api/dashboard/businesses/${businessId}/analytics`],
+    queryKey: [`/api/dashboard/businesses/${businessId}/analytics`, { period: "last30Days", granularity: revenueChartView }],
     enabled: !!businessId,
   });
 
@@ -124,9 +152,12 @@ export default function Dashboard() {
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-              <p className="text-gray-600">
-                Bienvenido de vuelta, aquí tienes un resumen de tu negocio
+              <p className="font-hand text-2xl leading-tight text-[hsl(var(--brand-manta))]">
+                ¡Hola{user?.name ? `, ${user.name.split(" ")[0]}` : ""}!
+              </p>
+              <h1 className="text-3xl font-display font-bold tracking-tight text-[hsl(var(--brand-tinta))]">Tu negocio hoy</h1>
+              <p className="text-[hsl(var(--brand-tinta-soft))]">
+                Citas, clientes e ingresos de {currentBusiness?.name || "tu emprendimiento"} en un solo lugar
               </p>
             </div>
             <div className="flex items-center space-x-4">
@@ -146,7 +177,7 @@ export default function Dashboard() {
                 </Link>
               )}
               <Link href="/dashboard/citas">
-                <Button className="bg-red-600 hover:bg-red-700">
+                <Button className="brand-btn-primary border-0">
                   <Plus className="w-4 h-4 mr-2" />
                   Nueva Cita
                 </Button>
@@ -155,7 +186,60 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* KPI Cards */}
+        {/* Onboarding checklist — a new business must reach a bookable micrositio */}
+        {(!businessSettings?.customUrl || (analytics?.totalServices ?? 0) === 0) && (
+          <Card className="brand-card mb-8 border-dashed border-2">
+            <CardContent className="p-5">
+              <h3 className="font-display font-bold text-[hsl(var(--brand-tinta))] mb-1">
+                Completa tu puesta en marcha
+              </h3>
+              <p className="text-sm text-[hsl(var(--brand-tinta-soft))] mb-4">
+                Tres pasos para empezar a recibir reservas en tu micrositio.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Link href="/dashboard/micrositio">
+                  <div className="flex items-center gap-3 rounded-xl border p-3 hover:bg-muted/40">
+                    <span className={businessSettings?.customUrl ? "text-green-600" : "text-amber-600"}>
+                      {businessSettings?.customUrl ? "✓" : "1"}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">Publica tu URL</p>
+                      <p className="text-xs text-muted-foreground">
+                        {businessSettings?.customUrl ? `/${businessSettings.customUrl}` : "Elige tu dirección pública"}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+                <Link href="/dashboard/servicios">
+                  <div className="flex items-center gap-3 rounded-xl border p-3 hover:bg-muted/40">
+                    <span className={(analytics?.totalServices ?? 0) > 0 ? "text-green-600" : "text-amber-600"}>
+                      {(analytics?.totalServices ?? 0) > 0 ? "✓" : "2"}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium">Crea tus servicios</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(analytics?.totalServices ?? 0) > 0
+                          ? `${analytics?.totalServices} servicios activos`
+                          : "Precio y duración"}
+                      </p>
+                    </div>
+                  </div>
+                </Link>
+                <Link href="/dashboard/configuracion">
+                  <div className="flex items-center gap-3 rounded-xl border p-3 hover:bg-muted/40">
+                    <span className="text-[#B8720B]">3</span>
+                    <div>
+                      <p className="text-sm font-medium">Define tu horario</p>
+                      <p className="text-xs text-muted-foreground">Así se generan los horarios disponibles</p>
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+
         {analyticsLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {[...Array(4)].map((_, i) => (
@@ -171,77 +255,77 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 border-orange-200">
+            <Card className="brand-card">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Citas Pendientes</p>
-                    <p className="text-2xl font-bold text-orange-600">
+                    <p className="text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">Citas Pendientes</p>
+                    <p className="text-2xl font-bold text-[hsl(var(--brand-tinta))]">
                       {analytics?.pendingAppointments || 0}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-orange-600" />
+                  <div className="w-12 h-12 rounded-xl bg-[hsl(38_85%_92%)] flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-[#B8720B]" />
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-orange-600">
+                <div className="mt-2 text-sm font-medium text-[#B8720B]">
                   Ver más →
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+            <Card className="brand-card">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Citas Confirmadas Hoy</p>
-                    <p className="text-2xl font-bold text-green-600">
+                    <p className="text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">Citas Confirmadas Hoy</p>
+                    <p className="text-2xl font-bold text-[hsl(var(--brand-tinta))]">
                       {analytics?.confirmedToday || 0}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Calendar className="w-6 h-6 text-green-600" />
+                  <div className="w-12 h-12 rounded-xl bg-[hsl(175_45%_93%)] flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-[hsl(var(--brand-teal))]" />
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-green-600">
+                <div className="mt-2 text-sm font-medium text-[hsl(var(--brand-teal))]">
                   Ver más →
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+            <Card className="brand-card">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Clientes</p>
-                    <p className="text-2xl font-bold text-blue-600">
+                    <p className="text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">Total Clientes</p>
+                    <p className="text-2xl font-bold text-[hsl(var(--brand-tinta))]">
                       {analytics?.totalClients || 0}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Users className="w-6 h-6 text-blue-600" />
+                  <div className="w-12 h-12 rounded-xl bg-[hsl(5_80%_94%)] flex items-center justify-center">
+                    <Users className="w-6 h-6 text-[hsl(var(--brand-manta))]" />
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-blue-600">
+                <div className="mt-2 text-sm font-medium text-[hsl(var(--brand-manta))]">
                   Ver más →
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+            <Card className="brand-card">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Servicios</p>
-                    <p className="text-2xl font-bold text-purple-600">
+                    <p className="text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">Total Servicios</p>
+                    <p className="text-2xl font-bold text-[hsl(var(--brand-tinta))]">
                       {analytics?.totalServices || 0}
                     </p>
                   </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <BarChart3 className="w-6 h-6 text-purple-600" />
+                  <div className="w-12 h-12 rounded-xl bg-[hsl(36_35%_92%)] flex items-center justify-center">
+                    <BarChart3 className="w-6 h-6 text-[hsl(var(--brand-tinta))]" />
                   </div>
                 </div>
-                <div className="mt-2 text-sm text-purple-600">
+                <div className="mt-2 text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">
                   Ver más →
                 </div>
               </CardContent>
@@ -255,40 +339,51 @@ export default function Dashboard() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Ingresos por Período</CardTitle>
-                <Select value={revenueChartView} onValueChange={setRevenueChartView}>
+                <Select value={revenueChartView} onValueChange={(value) => setRevenueChartView(value as "day" | "week" | "month")}>
                   <SelectTrigger className="w-40">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="daily">Ingresos Diarios</SelectItem>
-                    <SelectItem value="weekly">Ingresos Semanales</SelectItem>
-                    <SelectItem value="monthly">Ingresos Mensuales</SelectItem>
+                  <SelectItem value="day">Ingresos Diarios</SelectItem>
+                  <SelectItem value="week">Ingresos Semanales</SelectItem>
+                  <SelectItem value="month">Ingresos Mensuales</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <p className="text-sm text-gray-600">
-                Solo citas completadas (pagadas) generan ingresos
+                Ingresos facturados por fecha de servicio (citas completadas)
               </p>
             </CardHeader>
             <CardContent>
-              <div className="h-64 flex items-end justify-between space-x-2 p-4">
-                {analytics?.weeklyRevenue?.map((amount: number, index: number) => {
-                  const days = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-                  const maxHeight = Math.max(...(analytics.weeklyRevenue || [1]));
-                  const height = (amount / maxHeight) * 200;
-                  
+              {(() => {
+                const buckets = analytics?.buckets ?? [];
+                const maxRevenue = Math.max(1, ...buckets.map((bucket) => bucket.revenue));
+                if (buckets.length === 0) {
                   return (
-                    <div key={index} className="flex flex-col items-center">
-                      <div
-                        className="bg-red-500 rounded-t w-8 mb-2 transition-all hover:bg-red-600"
-                        style={{ height: `${height}px` }}
-                        title={`S/ ${amount}`}
-                      ></div>
-                      <span className="text-xs text-gray-600">{days[index]}</span>
+                    <div className="h-64 flex flex-col items-center justify-center text-gray-500">
+                      <BarChart3 className="h-8 w-8 mb-2" />
+                      <p className="text-sm">Aún no hay datos en este período</p>
                     </div>
                   );
-                })}
-              </div>
+                }
+                return (
+                  <div className="h-64 flex items-end justify-between gap-1 p-4 overflow-hidden">
+                    {buckets.map((bucket) => {
+                      const height = maxRevenue > 0 ? (bucket.revenue / maxRevenue) * 200 : 0;
+                      return (
+                        <div key={bucket.key} className="flex flex-col items-center flex-1 min-w-0">
+                          <div
+                            className="rounded-t-lg w-full max-w-10 mb-2 transition-all hover:opacity-85 hover:scale-y-105 origin-bottom bg-gradient-to-t from-[hsl(var(--brand-manta))] to-[hsl(var(--brand-gold))]"
+                            style={{ height: `${Math.max(height, bucket.revenue > 0 ? 4 : 0)}px` }}
+                            title={`${bucket.label}: S/ ${bucket.revenue.toFixed(2)} · ${bucket.completed} citas`}
+                          ></div>
+                          <span className="text-[10px] text-gray-600 truncate w-full text-center">{bucket.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 
@@ -318,9 +413,9 @@ export default function Dashboard() {
               ) : analytics?.upcomingAppointments && analytics.upcomingAppointments.length > 0 ? (
                 <div className="space-y-4">
                   {analytics.upcomingAppointments.map((appointment: any) => (
-                    <div key={appointment.id} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Calendar className="w-6 h-6 text-blue-600" />
+                    <div key={appointment.id} className="flex items-center space-x-4 p-3 rounded-xl border border-[hsl(var(--brand-crema-deep))] bg-[hsl(var(--brand-crema)/0.6)]">
+                      <div className="w-12 h-12 rounded-full bg-[hsl(5_80%_94%)] flex items-center justify-center">
+                        <Calendar className="w-6 h-6 text-[hsl(var(--brand-manta))]" />
                       </div>
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">
@@ -334,7 +429,7 @@ export default function Dashboard() {
                           {new Date(appointment.date).toLocaleDateString()} - {appointment.time}
                         </div>
                       </div>
-                      <div className="text-lg font-semibold text-red-600">
+                      <div className="text-lg font-semibold text-[hsl(var(--brand-manta))]">
                         S/ {appointment.price}
                       </div>
                     </div>
@@ -353,7 +448,7 @@ export default function Dashboard() {
         {/* Financial Summary */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Resumen Financiero</h3>
+            <h3 className="text-xl font-display font-bold text-[hsl(var(--brand-tinta))]">Resumen Financiero</h3>
             <Link href="/dashboard/finanzas">
               <Button variant="outline" size="sm" className="text-teal-600 hover:text-teal-700">
                 Ver Finanzas Completas
@@ -361,58 +456,63 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+            <Card className="brand-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Ingresos Totales</p>
-                    <p className="text-xl font-bold text-green-600">
-                      S/ {analytics?.totalRevenue?.toFixed(2) || "0.00"}
+                    <p className="text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">Facturado (30 días)</p>
+                    <p className="text-xl font-bold text-[hsl(var(--brand-teal))]">
+                      S/ {(analytics?.revenue ?? 0).toFixed(2)}
                     </p>
+                    {typeof analytics?.revenueGrowth === "number" && (
+                      <p className={`text-xs font-medium ${analytics.revenueGrowth >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {analytics.revenueGrowth >= 0 ? "▲" : "▼"} {Math.abs(analytics.revenueGrowth).toFixed(0)}% vs período anterior
+                      </p>
+                    )}
                   </div>
-                  <DollarSign className="w-8 h-8 text-green-600" />
+                  <DollarSign className="w-8 h-8 text-[hsl(var(--brand-teal))]" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-orange-50 to-red-50 border-orange-200">
+            <Card className="brand-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Pagos Pendientes</p>
-                    <p className="text-xl font-bold text-orange-600">
-                      S/ {analytics?.pendingPayments?.toFixed(2) || "0.00"}
+                    <p className="text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">Por cobrar (próximas)</p>
+                    <p className="text-xl font-bold text-[#B8720B]">
+                      S/ {(analytics?.pendingPayments ?? 0).toFixed(2)}
                     </p>
                   </div>
-                  <Clock className="w-8 h-8 text-orange-600" />
+                  <Clock className="w-8 h-8 text-[#B8720B]" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200">
+            <Card className="brand-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Valor Promedio</p>
-                    <p className="text-xl font-bold text-blue-600">
-                      S/ {analytics?.averageAppointmentValue?.toFixed(2) || "0.00"}
+                    <p className="text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">Ticket promedio</p>
+                    <p className="text-xl font-bold text-[hsl(var(--brand-manta))]">
+                      S/ {(analytics?.averageAppointmentValue ?? 0).toFixed(2)}
                     </p>
                   </div>
-                  <TrendingUp className="w-8 h-8 text-blue-600" />
+                  <TrendingUp className="w-8 h-8 text-[hsl(var(--brand-manta))]" />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
+            <Card className="brand-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Citas Completadas</p>
-                    <p className="text-xl font-bold text-purple-600">
+                    <p className="text-sm font-medium text-[hsl(var(--brand-tinta-soft))]">Citas Completadas</p>
+                    <p className="text-xl font-bold text-[hsl(var(--brand-tinta))]">
                       {analytics?.completedAppointments || 0}
                     </p>
                   </div>
-                  <Calendar className="w-8 h-8 text-purple-600" />
+                  <Calendar className="w-8 h-8 text-[hsl(var(--brand-tinta))]" />
                 </div>
               </CardContent>
             </Card>
@@ -421,34 +521,34 @@ export default function Dashboard() {
 
         {/* Quick Actions */}
         <div className="mt-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
+          <h3 className="text-xl font-display font-bold text-[hsl(var(--brand-tinta))] mb-4">Acciones Rápidas</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Link href="/dashboard/citas">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card className="brand-card cursor-pointer">
                 <CardContent className="p-6 text-center">
-                  <Calendar className="mx-auto h-8 w-8 text-blue-600 mb-2" />
-                  <h4 className="font-medium text-gray-900">Gestionar Citas</h4>
-                  <p className="text-sm text-gray-600">Ver y organizar tu calendario</p>
+                  <Calendar className="mx-auto h-8 w-8 text-[hsl(var(--brand-manta))] mb-2" />
+                  <h4 className="font-semibold text-[hsl(var(--brand-tinta))]">Gestionar Citas</h4>
+                  <p className="text-sm text-[hsl(var(--brand-tinta-soft))]">Ver y organizar tu calendario</p>
                 </CardContent>
               </Card>
             </Link>
 
             <Link href="/dashboard/clientes">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card className="brand-card cursor-pointer">
                 <CardContent className="p-6 text-center">
-                  <Users className="mx-auto h-8 w-8 text-green-600 mb-2" />
-                  <h4 className="font-medium text-gray-900">Administrar Clientes</h4>
-                  <p className="text-sm text-gray-600">Base de datos de clientes</p>
+                  <Users className="mx-auto h-8 w-8 text-[hsl(var(--brand-teal))] mb-2" />
+                  <h4 className="font-semibold text-[hsl(var(--brand-tinta))]">Administrar Clientes</h4>
+                  <p className="text-sm text-[hsl(var(--brand-tinta-soft))]">Base de datos de clientes</p>
                 </CardContent>
               </Card>
             </Link>
 
             <Link href="/dashboard/servicios">
-              <Card className="hover:shadow-md transition-shadow cursor-pointer">
+              <Card className="brand-card cursor-pointer">
                 <CardContent className="p-6 text-center">
-                  <BarChart3 className="mx-auto h-8 w-8 text-purple-600 mb-2" />
-                  <h4 className="font-medium text-gray-900">Configurar Servicios</h4>
-                  <p className="text-sm text-gray-600">Precios y descripciones</p>
+                  <BarChart3 className="mx-auto h-8 w-8 text-[#B8720B] mb-2" />
+                  <h4 className="font-semibold text-[hsl(var(--brand-tinta))]">Configurar Servicios</h4>
+                  <p className="text-sm text-[hsl(var(--brand-tinta-soft))]">Precios y descripciones</p>
                 </CardContent>
               </Card>
             </Link>

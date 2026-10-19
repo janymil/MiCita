@@ -2,10 +2,13 @@ import { ApifyScrapingService, ScrapingSources, FacebookBusinessData, InstagramB
 import { DataMergingService } from './data-merger';
 import { DataCleaningService } from './data-processor';
 import { AIContentEnhancer } from './ai-enhancer';
+import { storage } from '../server/storage.js';
 
 export interface ScrapingJob {
   id: string;
   businessId: string;
+  /** Owner of the job — required so status/results cannot be read by others. */
+  userId?: number;
   status: 'pending' | 'running' | 'completed' | 'failed';
   sources: ScrapingSources;
   progress: number;
@@ -69,6 +72,7 @@ export class ScrapingOrchestrator {
 
   async createAndStartScraping(config: {
     businessId: string;
+    userId?: number;
     urls: {
       facebook?: string;
       instagram?: string;
@@ -91,6 +95,7 @@ export class ScrapingOrchestrator {
     const job: ScrapingJob = {
       id: jobId,
       businessId: config.businessId,
+      userId: config.userId,
       status: 'pending',
       sources: {
         businessName: config.metadata?.businessName,
@@ -375,10 +380,80 @@ export class ScrapingOrchestrator {
       ScrapingOrchestrator.jobs.set(jobId, job);
       
       console.log('✅ Job completed and stored in memory with processed data');
+
+      // Persist to the real business record (previously a TODO: results were
+      // only ever kept in memory and lost on restart).
+      await this.persistResults(job, results.processedData);
     }
-    
-    // TODO: Implement real database update
-    // TODO: Update business_settings table with scraped data
+  }
+
+  /**
+   * Write scraped data into `businesses` / `business_settings` / `gallery`.
+   * Only fills fields the owner has not set, so automation can never destroy
+   * hand-written copy.
+   */
+  private async persistResults(job: ScrapingJob, data: ProcessedBusinessData): Promise<void> {
+    const businessId = Number.parseInt(job.businessId, 10);
+    if (!Number.isFinite(businessId)) {
+      console.log('ℹ️ Skipping persistence: job has no real businessId yet');
+      return;
+    }
+
+    try {
+      const business = await storage.getBusiness(businessId);
+      if (!business) return;
+
+      const businessUpdates: Record<string, unknown> = {};
+      if (!business.description && data.description) businessUpdates.description = data.description;
+      if (!business.phone && data.phone) businessUpdates.phone = data.phone;
+      if (!business.email && data.email) businessUpdates.email = data.email;
+      if (!business.address && data.address) businessUpdates.address = data.address;
+      if (!business.website && data.website) businessUpdates.website = data.website;
+      if (!business.logo && data.profileImage) businessUpdates.logo = data.profileImage;
+      if (!business.coverImage && data.coverImage) businessUpdates.coverImage = data.coverImage;
+
+      if (Object.keys(businessUpdates).length > 0) {
+        await storage.updateBusiness(businessId, businessUpdates as any);
+      }
+
+      const settings = await storage.getBusinessSettings(businessId);
+      const settingsUpdates: Record<string, unknown> = {};
+      if (!settings?.publicDescription && data.description) settingsUpdates.publicDescription = data.description;
+      if (!settings?.profileImage && data.profileImage) settingsUpdates.profileImage = data.profileImage;
+      if (!settings?.coverImage && data.coverImage) settingsUpdates.coverImage = data.coverImage;
+      if (!settings?.streetAddress && data.address) settingsUpdates.streetAddress = data.address;
+      if (!settings?.facebookUrl && data.socialMedia?.facebook) settingsUpdates.facebookUrl = data.socialMedia.facebook;
+      if (!settings?.instagramUrl && data.socialMedia?.instagram) settingsUpdates.instagramUrl = data.socialMedia.instagram;
+      if (!settings?.tiktokUrl && data.socialMedia?.tiktok) settingsUpdates.tiktokUrl = data.socialMedia.tiktok;
+      if (!settings?.youtubeUrl && data.socialMedia?.youtube) settingsUpdates.youtubeUrl = data.socialMedia.youtube;
+
+      if (!settings?.workingHours && data.hours) {
+        settingsUpdates.workingHours = Object.fromEntries(
+          Object.entries(data.hours).map(([day, value]) => [
+            day,
+            { enabled: !value.closed, start: value.open || '09:00', end: value.close || '17:00' },
+          ]),
+        );
+      }
+
+      if (Object.keys(settingsUpdates).length > 0) {
+        await storage.updateBusinessSettings(businessId, settingsUpdates as any);
+      }
+
+      if (Array.isArray(data.galleryImages) && data.galleryImages.length > 0) {
+        const existing = await storage.getGalleryByBusinessId(businessId);
+        const known = new Set(existing.map((item) => item.imageUrl));
+        for (const imageUrl of data.galleryImages.slice(0, 20)) {
+          if (!imageUrl || known.has(imageUrl)) continue;
+          await storage.createGalleryItem({ businessId, imageUrl, caption: null } as any).catch(() => undefined);
+          known.add(imageUrl);
+        }
+      }
+
+      console.log(`💾 Persisted scraped data for business ${businessId}`);
+    } catch (error) {
+      console.error('❌ Failed to persist scraped data:', error);
+    }
   }
 
   private async failJob(jobId: string, error: string): Promise<void> {
@@ -393,8 +468,6 @@ export class ScrapingOrchestrator {
       
       console.log('❌ Job marked as failed in memory');
     }
-    
-    // TODO: Implement real database update
   }
 
   private calculateQualityScore(data: ProcessedBusinessData): number {

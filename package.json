@@ -12,7 +12,8 @@
     "db:push": "drizzle-kit push",
     "db:ensure-auth": "node scripts/ensure-auth-schema.mjs",
     "db:verify": "node scripts/verify-neon.mjs",
-    "smoke:auth": "tsx scripts/smoke-auth.mjs"
+    "smoke:auth": "tsx scripts/smoke-auth.mjs",
+    "test:unit": "node --import tsx --test \"server/lib/__tests__/*.test.ts\""
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^1.16.10",

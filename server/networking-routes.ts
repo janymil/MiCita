@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { networkingService } from "./networking-service";
+import { requireAuth, type AuthenticatedRequest } from "./auth-middleware";
+import { storage } from "./storage";
 import { 
   insertBusinessConnectionSchema,
   insertNetworkingPostSchema,
@@ -13,6 +15,43 @@ import {
 } from "@shared/schema";
 
 const router = Router();
+
+// Every networking endpoint requires a session…
+router.use(requireAuth);
+
+// …and every business referenced by the request must belong to that session.
+// Previously these routes were fully anonymous, so anyone could post, like or
+// delete content as any other business.
+router.use(async (req: AuthenticatedRequest, res, next) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ error: "No autorizado" });
+
+    const businesses = await storage.getBusinessesByUserId(user.id);
+    const ownedIds = new Set(businesses.map((business) => business.id));
+    const body = (req.body ?? {}) as Record<string, unknown>;
+
+    const candidates = [req.params.businessId, body.businessId, req.query.businessId, body.requesterId]
+      .filter((value) => value !== undefined && value !== null && value !== "");
+
+    for (const raw of candidates) {
+      const id = Number(raw);
+      if (Number.isFinite(id) && !ownedIds.has(id)) {
+        return res.status(403).json({ error: "No tienes acceso a este negocio" });
+      }
+    }
+
+    // Content created from the dashboard is always attributed to the caller.
+    if (req.method !== "GET" && businesses.length > 0 && "requesterId" in body) {
+      body.requesterId = businesses[0].id;
+    }
+
+    next();
+  } catch (error: any) {
+    console.error("Networking authorization failed:", error);
+    res.status(500).json({ error: "Error de autorización" });
+  }
+});
 
 // ===================== BUSINESS CONNECTIONS =====================
 

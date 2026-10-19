@@ -1,8 +1,21 @@
 import { Request, Response, Router } from 'express';
 import { z } from 'zod';
 import { ScrapingOrchestrator } from '../../services/scraping-orchestrator';
+import { requireAuth, type AuthenticatedRequest } from '../auth-middleware';
+import { storage } from '../storage';
 
 const router = Router();
+
+/** Scraping spawns paid Apify jobs, so every endpoint is authenticated. */
+async function assertBusinessAccess(req: AuthenticatedRequest, businessIdRaw: string | number): Promise<boolean> {
+  const businessId = Number(businessIdRaw);
+  if (!Number.isFinite(businessId)) {
+    // "temp-create-business" is used during onboarding before the row exists.
+    return typeof businessIdRaw === 'string' && businessIdRaw.startsWith('temp-');
+  }
+  const business = await storage.getBusiness(businessId);
+  return Boolean(business && req.user && business.userId === Number(req.user.id));
+}
 
 const StartScrapingSchema = z.object({
   businessId: z.union([z.string(), z.number()]).transform(String),
@@ -21,18 +34,23 @@ const JobStatusSchema = z.object({
 });
 
 // Start a new scraping job
-router.post('/start', async (req: Request, res: Response) => {
+router.post('/start', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     console.log('🚀 Starting scraping job via API...');
 
     // Validate request body
     const validatedData = StartScrapingSchema.parse(req.body);
 
+    if (!(await assertBusinessAccess(req, validatedData.businessId))) {
+      return res.status(403).json({ success: false, message: 'No tienes acceso a este negocio' });
+    }
+
     const orchestrator = new ScrapingOrchestrator();
 
     // Start the comprehensive scraping process
     const result = await orchestrator.createAndStartScraping({
       businessId: validatedData.businessId,
+      userId: req.user?.id,
       urls: {
         facebook: validatedData.facebookUrl,
         instagram: validatedData.instagramUrl,
@@ -77,7 +95,7 @@ router.post('/start', async (req: Request, res: Response) => {
 });
 
 // Get job status
-router.get('/status/:jobId', async (req: Request, res: Response) => {
+router.get('/status/:jobId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { jobId } = req.params;
 
@@ -91,6 +109,13 @@ router.get('/status/:jobId', async (req: Request, res: Response) => {
         success: false,
         message: 'Job not found'
       });
+    }
+
+    const allowed = job.userId
+      ? job.userId === Number(req.user?.id)
+      : await assertBusinessAccess(req, job.businessId);
+    if (!allowed) {
+      return res.status(403).json({ success: false, message: 'No tienes acceso a este trabajo' });
     }
 
     res.status(200).json({
@@ -118,7 +143,7 @@ router.get('/status/:jobId', async (req: Request, res: Response) => {
 });
 
 // Get job results
-router.get('/results/:jobId', async (req: Request, res: Response) => {
+router.get('/results/:jobId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { jobId } = req.params;
 
@@ -132,6 +157,13 @@ router.get('/results/:jobId', async (req: Request, res: Response) => {
         success: false,
         message: 'Job not found'
       });
+    }
+
+    const allowed = job.userId
+      ? job.userId === Number(req.user?.id)
+      : await assertBusinessAccess(req, job.businessId);
+    if (!allowed) {
+      return res.status(403).json({ success: false, message: 'No tienes acceso a este trabajo' });
     }
 
     if (job.status !== 'completed') {

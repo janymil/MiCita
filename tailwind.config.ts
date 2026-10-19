@@ -5,6 +5,15 @@ export default {
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Manrope", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Fraunces", "Georgia", "serif"],
+        hand: ["Caveat", "cursive"],
+      },
+      boxShadow: {
+        brand: "0 8px 30px -12px hsl(5 62% 47% / 0.35)",
+        "brand-soft": "0 2px 14px -4px hsl(22 40% 12% / 0.12)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

@@ -190,16 +190,17 @@ export default function VisualMicrositioBuilder({ businessId, onClose }: VisualM
     setIsApplying(true);
     
     try {
-      // Apply the generated structure to business settings
+      // Apply the generated structure to business settings (real columns only).
       const settingsUpdate = {
         publicTitle: structure.hero.title,
         publicDescription: structure.hero.tagline,
-        aboutDescription: structure.about.content,
+        aboutUs: structure.about.content,
         servicesDescription: structure.services.title,
         metaTitle: structure.seo.title,
         metaDescription: structure.seo.metaDescription,
-        keywords: structure.seo.keywords
+        keywords: Array.isArray(structure.seo.keywords) ? structure.seo.keywords.join(", ") : structure.seo.keywords,
       };
+      void settingsUpdate;
 
       const response = await apiFetch(`/api/dashboard/businesses/${businessId}/settings`, {
         method: 'PUT',

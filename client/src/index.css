@@ -721,22 +721,36 @@
   --popover-foreground: hsl(20, 14.3%, 4.1%);
   --card: hsl(0, 0%, 100%);
   --card-foreground: hsl(20, 14.3%, 4.1%);
-  --border: hsl(20, 5.9%, 90%);
-  --input: hsl(20, 5.9%, 90%);
-  --primary: hsl(347, 77%, 50%);
-  --primary-foreground: hsl(0, 0%, 98%);
-  --secondary: hsl(60, 4.8%, 95.9%);
-  --secondary-foreground: hsl(24, 9.8%, 10%);
-  --accent: hsl(60, 4.8%, 95.9%);
-  --accent-foreground: hsl(24, 9.8%, 10%);
+  --border: hsl(30, 25%, 86%);
+  --input: hsl(30, 25%, 86%);
+  --primary: hsl(5, 62%, 47%);
+  --primary-foreground: hsl(40, 74%, 97%);
+  --secondary: hsl(40, 60%, 93%);
+  --secondary-foreground: hsl(22, 40%, 14%);
+  --accent: hsl(35, 80%, 94%);
+  --accent-foreground: hsl(22, 40%, 14%);
   --destructive: hsl(0, 84.2%, 60.2%);
   --destructive-foreground: hsl(60, 9.1%, 97.8%);
   --ring: hsl(20, 14.3%, 4.1%);
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+
+  /* ================= MiCita Brand — "Atardecer Andino" ================= */
+  /* Paleta: Rojo Manta (tierra), Oro Inti (sol), Crema, Tinta, Teal Andino */
+  --brand-manta: 5 62% 47%;        /* Rojo Manta — acento principal */
+  --brand-manta-deep: 6 65% 36%;   /* Rojo oscuro para hover/contraste */
+  --brand-gold: 35 80% 57%;        /* Oro Inti — acento solar */
+  --brand-gold-soft: 38 85% 92%;   /* Oro suave para fondos */
+  --brand-crema: 39 74% 96%;       /* Crema Andina — fondo base */
+  --brand-crema-deep: 36 55% 92%;  /* Crema más intensa */
+  --brand-tinta: 22 40% 12%;       /* Tinta cálida — texto */
+  --brand-tinta-soft: 24 22% 35%;  /* Tinta suave — texto secundario */
+  --brand-teal: 174 53% 30%;       /* Teal Andino — acento complementario */
+  --brand-teal-soft: 175 45% 93%;  /* Teal suave para fondos */
+  --brand-radius: 1rem;
 
   /* Peruvian Colors */
-  --peru-red: hsl(347, 77%, 50%);
-  --peru-gold: hsl(41, 96%, 48%);
+  --peru-red: hsl(5, 62%, 47%);
+  --peru-gold: hsl(35, 80%, 57%);
   
   /* Theme Variables - Default to Clásico Peruano */
   --theme-primary: 0 84% 60%;
@@ -947,4 +961,112 @@
 @keyframes scaleIn {
   from { transform: scale(0.95); opacity: 0; }
   to { transform: scale(1); opacity: 1; }
+}
+
+/* ======================================================================
+   MiCita Brand Utilities — "Atardecer Andino"
+   Usadas en landing, micrositios y dashboard para una marca coherente.
+   ====================================================================== */
+
+@layer utilities {
+  /* Texto con degradado marca (Rojo Manta → Oro Inti) */
+  .text-brand-gradient {
+    background: linear-gradient(115deg, hsl(var(--brand-manta)) 15%, hsl(var(--brand-gold)) 85%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Fondo degradado marca (para botones, logos, banners) */
+  .bg-brand-gradient {
+    background-image: linear-gradient(115deg, hsl(var(--brand-manta)) 0%, #E8503A 55%, hsl(var(--brand-gold)) 110%);
+  }
+
+  /* Fondo crema cálido con sol andino (hero sections) */
+  .bg-brand-hero {
+    background:
+      radial-gradient(ellipse 60% 50% at 85% -10%, hsl(var(--brand-gold) / 0.28), transparent 70%),
+      radial-gradient(ellipse 50% 40% at 5% 110%, hsl(var(--brand-manta) / 0.12), transparent 70%),
+      hsl(var(--brand-crema));
+  }
+
+  /* Motivo andino escalonado ("chakana") como textura de fondo */
+  .bg-chakana {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cpath d='M36 4l8 8h-8v8h8v8h8v8h8l8 8-8 8v-8h-8v8h-8v8l-8 8-8-8h8v-8h-8v-8h-8v-8l-8-8 8-8v8h8v-8h8v-8h8z' fill='none' stroke='%23C13A2E' stroke-opacity='0.055' stroke-width='2'/%3E%3C/svg%3E");
+  }
+
+  /* Motivo chakana claro para fondos oscuros */
+  .bg-chakana-light {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cpath d='M36 4l8 8h-8v8h8v8h8v8h8l8 8-8 8v-8h-8v8h-8v8l-8 8-8-8h8v-8h-8v-8h-8v-8l-8-8 8-8v8h8v-8h8v-8h8z' fill='none' stroke='%23FBF3E4' stroke-opacity='0.08' stroke-width='2'/%3E%3C/svg%3E");
+  }
+
+  /* Anillo/halo dorado para avatares */
+  .ring-brand {
+    box-shadow: 0 0 0 3px hsl(var(--brand-crema)), 0 0 0 5px hsl(var(--brand-gold) / 0.7);
+  }
+}
+
+@layer components {
+  /* Tarjeta marca: crema, borde cálido, sombra suave, acento dorado al hover */
+  .brand-card {
+    background: hsl(0 0% 100% / 0.85);
+    border: 1px solid hsl(var(--brand-crema-deep));
+    border-radius: var(--brand-radius);
+    box-shadow: 0 1px 3px hsl(var(--brand-tinta) / 0.06), 0 8px 24px -16px hsl(var(--brand-tinta) / 0.18);
+    transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+  }
+  .brand-card:hover {
+    border-color: hsl(var(--brand-gold) / 0.55);
+    box-shadow: 0 2px 6px hsl(var(--brand-tinta) / 0.08), 0 16px 40px -16px hsl(var(--brand-manta) / 0.28);
+    transform: translateY(-2px);
+  }
+
+  /* Botón primario marca */
+  .brand-btn-primary {
+    background-image: linear-gradient(115deg, hsl(var(--brand-manta)) 0%, #E8503A 60%, hsl(var(--brand-gold)) 130%);
+    color: hsl(40 74% 97%);
+    border-radius: calc(var(--brand-radius) - 2px);
+    box-shadow: 0 8px 24px -10px hsl(var(--brand-manta) / 0.55);
+    transition: box-shadow 0.25s ease, transform 0.15s ease, filter 0.2s ease;
+  }
+  .brand-btn-primary:hover {
+    filter: brightness(1.06) saturate(1.05);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 32px -10px hsl(var(--brand-manta) / 0.65);
+  }
+  .brand-btn-primary:active {
+    transform: translateY(0);
+  }
+
+  /* Chip/pill marca para filtros y categorías */
+  .brand-chip {
+    border: 1px solid hsl(var(--brand-crema-deep));
+    background: hsl(0 0% 100% / 0.7);
+    border-radius: 9999px;
+    color: hsl(var(--brand-tinta-soft));
+    transition: all 0.2s ease;
+  }
+  .brand-chip:hover {
+    border-color: hsl(var(--brand-gold));
+    color: hsl(var(--brand-tinta));
+  }
+  .brand-chip[data-active="true"] {
+    background: hsl(var(--brand-manta));
+    border-color: hsl(var(--brand-manta));
+    color: hsl(40 74% 97%);
+  }
+
+  /* Titular de sección con la voz de la marca */
+  .brand-heading {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    color: hsl(var(--brand-tinta));
+  }
+
+  /* Acento manuscrito (Caveat) para frases cálidas */
+  .brand-accent-script {
+    font-family: 'Caveat', cursive;
+    color: hsl(var(--brand-gold));
+  }
 }

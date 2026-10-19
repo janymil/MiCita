@@ -263,7 +263,9 @@ export const services = pgTable("services", {
   duration: integer("duration"), // in minutes
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  businessIdx: index("services_business_idx").on(table.businessId),
+}));
 
 // Clients/customers
 export const clients = pgTable("clients", {
@@ -274,7 +276,9 @@ export const clients = pgTable("clients", {
   phone: text("phone"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  businessIdx: index("clients_business_idx").on(table.businessId),
+}));
 
 // Appointments
 export const appointments = pgTable("appointments", {
@@ -290,7 +294,13 @@ export const appointments = pgTable("appointments", {
   clientNotes: text("client_notes"), // Customer notes during booking
   price: decimal("price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
-});
+  // Lifecycle: reminder delivery + self-service cancel/reschedule link
+  reminderSentAt: timestamp("reminder_sent_at"),
+  cancelToken: text("cancel_token"),
+}, (table) => ({
+  businessDateIdx: index("appointments_business_date_idx").on(table.businessId, table.date),
+  statusIdx: index("appointments_status_idx").on(table.status),
+}));
 
 // Business gallery
 export const gallery = pgTable("gallery", {
@@ -324,8 +334,60 @@ export const reviews = pgTable("reviews", {
   clientName: text("client_name").notNull(),
   rating: integer("rating").notNull(),
   comment: text("comment"),
+  // Where the review came from: microsite | google | facebook | manual
+  source: text("source").default("microsite"),
+  // Moderation: pending | approved | rejected
+  status: text("status").default("pending"),
+  ownerReply: text("owner_reply"),
+  ownerRepliedAt: timestamp("owner_replied_at"),
+  appointmentId: integer("appointment_id"),
+  clientEmail: text("client_email"),
+  ipHash: text("ip_hash"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  businessStatusIdx: index("reviews_business_status_idx").on(table.businessId, table.status),
+}));
+
+// ---------------------------------------------------------------------------
+// Micrositio traffic + lead capture (additive)
+// ---------------------------------------------------------------------------
+
+/** Anonymous, cookie-less microsite event stream used for the traffic funnel. */
+export const micrositeEvents = pgTable("microsite_events", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  slug: text("slug"),
+  type: text("type").notNull(), // view | whatsapp_click | book_click | booking_completed
+  path: text("path"),
+  referrer: text("referrer"),
+  source: text("source"), // direct | whatsapp | instagram | google | other
+  device: text("device"), // mobile | desktop | tablet
+  sessionId: text("session_id"),
+  day: text("day").notNull(), // YYYY-MM-DD in America/Lima (indexed for range scans)
+  metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  businessDayIdx: index("microsite_events_business_day_idx").on(table.businessId, table.day),
+  typeIdx: index("microsite_events_type_idx").on(table.type),
+}));
+
+/** Contact messages sent from a public microsite (previously only a `mailto:`). */
+export const contactMessages = pgTable("contact_messages", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  message: text("message").notNull(),
+  status: text("status").notNull().default("new"), // new | read | replied | archived
+  source: text("source").default("microsite"),
+  ipHash: text("ip_hash"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  businessStatusIdx: index("contact_messages_business_status_idx").on(table.businessId, table.status),
+}));
+
 
 // Business settings and customization
 export const businessSettings = pgTable("business_settings", {
@@ -374,6 +436,19 @@ export const businessSettings = pgTable("business_settings", {
   enablePublicBooking: boolean("enable_public_booking").default(true),
   enableContactForm: boolean("enable_contact_form").default(true),
   enableGallery: boolean("enable_gallery").default(true),
+  enableReviews: boolean("enable_reviews").default(true),
+
+  // "Sobre nosotros" block (previously rendered by the microsite but never stored)
+  aboutUs: text("about_us"),
+  yearsOfExperience: text("years_of_experience"),
+  specializations: text("specializations"),
+
+  // SEO / AI-generated microsite copy
+  publicTitle: text("public_title"),
+  servicesDescription: text("services_description"),
+  metaTitle: text("meta_title"),
+  metaDescription: text("meta_description"),
+  keywords: text("keywords"),
 
   // Schedule Notes
   scheduleNotes: text("schedule_notes"),
@@ -417,7 +492,10 @@ export const businessSettings = pgTable("business_settings", {
 
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  businessIdx: index("business_settings_business_idx").on(table.businessId),
+  customUrlIdx: uniqueIndex("business_settings_custom_url_uq").on(table.customUrl),
+}));
 
 // Apify Businesses - Enhanced businesses scraped from Apify
 export const apifyBusinesses = pgTable("apify_businesses", {
@@ -547,6 +625,32 @@ export const insertPublicBusinessSchema = createInsertSchema(publicBusinesses).o
 export const insertReviewSchema = createInsertSchema(reviews).omit({
   id: true,
   createdAt: true,
+});
+
+/**
+ * What an anonymous visitor is allowed to submit. Everything moderation-related
+ * (`status`, `source`, `ipHash`, `ownerReply`) is set server-side only.
+ */
+export const publicReviewSchema = z.object({
+  businessId: z.number().int().positive(),
+  clientName: z.string().trim().min(2).max(80),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().trim().max(1200).optional().or(z.literal("")),
+  clientEmail: z.string().email().max(160).optional().or(z.literal("")),
+  appointmentId: z.number().int().positive().optional(),
+});
+
+export const insertMicrositeEventSchema = createInsertSchema(micrositeEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  status: true,
+  ipHash: true,
 });
 
 export const insertBusinessSettingsSchema = createInsertSchema(businessSettings).omit({
@@ -882,6 +986,12 @@ export type InsertReview = z.infer<typeof insertReviewSchema>;
 
 export type BusinessSettings = typeof businessSettings.$inferSelect;
 export type InsertBusinessSettings = typeof businessSettings.$inferInsert;
+
+export type MicrositeEvent = typeof micrositeEvents.$inferSelect;
+export type InsertMicrositeEvent = typeof micrositeEvents.$inferInsert;
+
+export type ContactMessage = typeof contactMessages.$inferSelect;
+export type InsertContactMessage = typeof contactMessages.$inferInsert;
 
 export type ApifyBusiness = typeof apifyBusinesses.$inferSelect;
 export type InsertApifyBusiness = typeof apifyBusinesses.$inferInsert;
