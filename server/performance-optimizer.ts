@@ -249,7 +249,7 @@ export class SpatialClusterer {
     // Convert clusters to representative businesses
     const clusteredBusinesses: any[] = [];
     
-    clusters.forEach(cluster => {
+    clusters.forEach((cluster, clusterKey) => {
       if (cluster.length === 1) {
         clusteredBusinesses.push(cluster[0]);
       } else {

@@ -18,31 +18,66 @@ import {
 import DashboardLayout from "@/components/dashboard-layout";
 import { formatDatePeruvian } from "@/lib/utils";
 
+interface DashboardBusiness {
+  id: number;
+  name: string;
+}
+
+interface AnalyticsData {
+  revenue: number;
+  totalClients: number;
+  weeklyRevenue: number[];
+  [key: string]: unknown;
+}
+
+interface AppointmentRow {
+  id: number;
+  date: string;
+  time: string;
+  status: string;
+  createdAt?: string;
+  price?: string | null;
+  clientName?: string;
+}
+
+interface ClientRow {
+  id: number;
+  name: string;
+  email?: string | null;
+}
+
+interface ServiceRow {
+  id: number;
+  name: string;
+  price?: string | null;
+  duration?: number | null;
+}
+
 export default function Analytics() {
   // Get user's businesses first
-  const { data: businesses } = useQuery({
+  const { data: businesses } = useQuery<DashboardBusiness[]>({
     queryKey: ["/api/dashboard/businesses"],
   });
 
   // Use the first business (in a real app, should handle multiple businesses)
   const businessId = businesses?.[0]?.id;
 
-  const { data: analytics, isLoading } = useQuery({
+  const { data: analytics, isLoading } = useQuery<AnalyticsData>({
     queryKey: [`/api/dashboard/businesses/${businessId}/analytics`],
     enabled: !!businessId,
   });
 
-  const { data: appointments } = useQuery({
+  const { data: appointments } = useQuery<AppointmentRow[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/appointments`],
     enabled: !!businessId,
   });
 
-  const { data: clients } = useQuery({
+  const { data: clients } = useQuery<ClientRow[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/clients`],
     enabled: !!businessId,
   });
 
-  const { data: services } = useQuery({
+  const { data: services } = useQuery<ServiceRow[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/services`],
     enabled: !!businessId,
   });
@@ -77,12 +112,12 @@ export default function Analytics() {
   ).length || 0;
 
   const monthlyRevenue = analytics?.revenue || 0;
-  const averageServicePrice = services?.length > 0 
-    ? services.reduce((sum: number, s: any) => sum + parseFloat(s.price || "0"), 0) / services.length
+  const averageServicePrice = (services?.length ?? 0) > 0 
+    ? (services ?? []).reduce((sum: number, s) => sum + parseFloat(s.price || "0"), 0) / (services?.length || 1)
     : 0;
 
-  const clientRetentionRate = clients?.length > 0 
-    ? Math.round((completedAppointments / clients.length) * 100)
+  const clientRetentionRate = (clients?.length ?? 0) > 0 
+    ? Math.round((completedAppointments / (clients?.length || 1)) * 100)
     : 0;
 
   return (
@@ -191,7 +226,7 @@ export default function Analytics() {
               <div className="h-64 flex items-end justify-between space-x-2 p-4">
                 {analytics?.weeklyRevenue?.map((amount: number, index: number) => {
                   const days = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-                  const maxHeight = Math.max(...(analytics.weeklyRevenue || [1]));
+                  const maxHeight = Math.max(...(analytics?.weeklyRevenue?.length ? analytics.weeklyRevenue : [1]));
                   const height = (amount / maxHeight) * 200;
 
                   return (
@@ -207,7 +242,7 @@ export default function Analytics() {
                 })}
               </div>
               <div className="mt-4 text-center text-sm text-gray-600">
-                Total semanal: S/ {analytics?.weeklyRevenue?.reduce((a: number, b: number) => a + b, 0).toLocaleString()}
+                Total semanal: S/ {(analytics?.weeklyRevenue ?? []).reduce((a, b) => a + b, 0).toLocaleString()}
               </div>
             </CardContent>
           </Card>
@@ -265,8 +300,8 @@ export default function Analytics() {
                   </div>
                   <div className="text-right">
                     <p className="text-2xl font-bold text-orange-600">
-                      {services?.length > 0 
-                        ? Math.round(services.reduce((sum: number, s: any) => sum + s.duration, 0) / services.length)
+                      {services && services.length > 0 
+                        ? Math.round(services.reduce((sum: number, s) => sum + (s.duration ?? 0), 0) / services.length)
                         : 0} min
                     </p>
                   </div>
@@ -288,8 +323,8 @@ export default function Analytics() {
                   a.serviceId === service.id
                 ).length || 0;
 
-                const popularity = services.length > 0 
-                  ? (serviceAppointments / appointments?.length || 0) * 100
+                const popularity = (services?.length ?? 0) > 0 
+                  ? (serviceAppointments / (appointments?.length || 1)) * 100
                   : 0;
 
                 return (

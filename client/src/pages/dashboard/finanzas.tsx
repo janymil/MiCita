@@ -26,22 +26,46 @@ import DashboardLayout from "@/components/dashboard-layout";
 
 const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#6366F1'];
 
+interface DashboardBusiness {
+  id: number;
+  name: string;
+  category?: string;
+}
+
+interface FinancialData {
+  totalRevenue: number;
+  pendingPayments: number;
+  averageAppointmentValue: number;
+  completedAppointments: number;
+  monthlyData: Array<{ month: string; revenue: number; appointments: number }>;
+  paymentStatusData: Array<{ name: string; value: number }>;
+  recentTransactions: Array<{
+    id: number;
+    clientName?: string;
+    serviceName?: string;
+    date?: string;
+    time?: string;
+    amount?: number;
+    status?: string;
+  }>;
+}
+
 export default function Finanzas() {
   const [selectedPeriod, setSelectedPeriod] = useState("thisMonth");
   const [activeTab, setActiveTab] = useState("resumen");
 
-  const { data: businesses, isLoading: businessesLoading } = useQuery({
+  const { data: businesses, isLoading: businessesLoading } = useQuery<DashboardBusiness[]>({
     queryKey: ["/api/dashboard/businesses"],
   });
 
   const businessId = businesses?.[0]?.id;
 
-  const { data: financialData, isLoading: financialLoading } = useQuery({
-    queryKey: [`/api/dashboard/businesses/${businessId}/financials`, selectedPeriod],
+  const { data: financialData, isLoading: financialLoading } = useQuery<FinancialData>({
+    queryKey: [`/api/dashboard/businesses/${businessId}/financials?period=${selectedPeriod}`],
     enabled: !!businessId,
   });
 
-  const { data: analytics } = useQuery({
+  const { data: analytics } = useQuery<Record<string, unknown>>({
     queryKey: [`/api/dashboard/businesses/${businessId}/analytics`],
     enabled: !!businessId,
   });
@@ -363,7 +387,7 @@ export default function Finanzas() {
                           <TableCell>{transaction.date} {transaction.time}</TableCell>
                           <TableCell>{transaction.clientName}</TableCell>
                           <TableCell>{transaction.serviceName}</TableCell>
-                          <TableCell>{formatCurrency(transaction.amount)}</TableCell>
+                          <TableCell>{formatCurrency(transaction.amount ?? 0)}</TableCell>
                           <TableCell>
                             <Badge variant={transaction.status === 'completed' ? 'default' : 'secondary'}>
                               {transaction.status === 'completed' ? 'Completado' : 'Pendiente'}

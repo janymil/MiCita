@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { applyTheme, getCurrentTheme, getCurrentPrimaryColor, applyPrimaryColor, type ThemeId } from "@/lib/themes";
-import { stackClientApp } from "../../../stack/client";
+import { apiFetch } from "@/lib/auth-api";
 
 interface ThemeContextType {
   isDark: boolean;
@@ -27,24 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Load user preferences from API
     const loadUserPreferences = async () => {
       try {
-        // Get Stack Auth token for authenticated requests
-        const headers: HeadersInit = {};
-        try {
-          const user = await stackClientApp.getUser();
-          if (user) {
-            const { accessToken } = await user.getAuthJson();
-            if (accessToken) {
-              headers["x-stack-access-token"] = accessToken;
-            }
-          }
-        } catch (error) {
-          console.log('No authenticated user for theme preferences');
-        }
-
-        const response = await fetch('/api/user/preferences', {
-          headers,
-          credentials: 'include'
-        });
+        const response = await apiFetch('/api/user/preferences', { method: 'GET' });
         
         if (response.ok) {
           const prefs = await response.json();
@@ -105,26 +88,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const savePreferences = async (theme: ThemeId, color: string, dark: boolean) => {
     try {
-      // Get Stack Auth token for authenticated requests
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      try {
-        const user = await stackClientApp.getUser();
-        if (user) {
-          const { accessToken } = await user.getAuthJson();
-          if (accessToken) {
-            headers["x-stack-access-token"] = accessToken;
-          }
-        }
-      } catch (error) {
-        console.log('No authenticated user for saving theme preferences');
-      }
-
-      await fetch('/api/user/preferences', {
+      await apiFetch('/api/user/preferences', {
         method: 'PUT',
-        headers,
-        credentials: 'include',
         body: JSON.stringify({
           dashboardTheme: theme,
           primaryColor: color,

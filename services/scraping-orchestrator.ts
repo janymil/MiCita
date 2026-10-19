@@ -152,7 +152,7 @@ export class ScrapingOrchestrator {
 
       console.log(`✅ Scraping job completed: ${jobId}`);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Scraping job failed: ${jobId}`, error);
       await this.failJob(jobId, error instanceof Error ? error.message : String(error));
     }
@@ -283,7 +283,7 @@ export class ScrapingOrchestrator {
 
       await this.updateJobStatus(jobId, 'running', 90, 'Contenido mejorado con IA');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('AI enhancement failed, using original data:', error);
     }
 

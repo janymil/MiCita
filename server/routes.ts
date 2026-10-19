@@ -1,9 +1,11 @@
-import { insertAppointmentSchema, insertBusinessSchema, insertBusinessSettingsSchema, insertClientSchema, insertReviewSchema, insertServiceSchema, insertUserSchema } from "@shared/schema";
+import { insertAppointmentSchema, insertBusinessSchema, insertBusinessSettingsSchema, insertClientSchema, insertReviewSchema, insertServiceSchema, insertUserSchema, type Business, type InsertApifyBusiness } from "@shared/schema";
 import express, { type Express } from "express";
 import fs from "fs";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import path from "path";
+import authRoutes from "./auth-routes.js";
+import paymentRoutes from "./payment-routes.js";
 import { adminBusinessRoutes } from "./admin-business-routes.js";
 import { registerAdminScrapingRoutes } from "./admin-scraping-routes.js";
 import { getAuthenticatedUser, verifyBusinessOwnership, verifyClientOwnership, verifyServiceOwnership } from "./auth-helpers.js";
@@ -24,9 +26,10 @@ import { searchAnalytics } from "./search-analytics.js";
 // @ts-ignore - JavaScript modules without TypeScript declarations
 import { apifyBusinesses, openstreetBusinesses } from "@shared/schema";
 import { and, asc, desc, eq, gte, isNotNull, ne, sql } from "drizzle-orm";
-import { stackServerApp } from "../stack/server.js";
 import { db } from "./db.js";
 import { performanceOptimizer, SpatialClusterer } from "./performance-optimizer";
+import { googlePlacesService } from "./google-places-service.js";
+// @ts-ignore - JavaScript module without TypeScript declarations
 import { searchPersonalization } from "./personalization.js";
 
 
@@ -71,7 +74,7 @@ async function sendStatusChangeEmail(appointment: any, previousAppointment: any,
     }
 
     console.log(`Status change email sent for appointment ${appointment.id}: ${previousAppointment.status} → ${appointment.status}`);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error sending status change email:', error);
   }
 }
@@ -140,15 +143,24 @@ class SmartScheduler {
     existingAppointments: any[],
     serviceDuration: number,
     bufferMinutes: number = 15 // 15-minute buffer between appointments
-  ): any[] {
-    const slots = [];
-    const selectedDate = new Date(date);
-    // Convert JavaScript day (0=Sunday) to business day (1=Monday)
+  ): Promise<any[]> {
+    const slots: any[] = [];
+    if (!workingHours) return slots;
+
+    // Parse YYYY-MM-DD in local time to avoid UTC day-shift issues
+    const dateParts = date.split('-').map(Number);
+    const selectedDate = dateParts.length === 3
+      ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
+      : new Date(date);
+
+    // Convert JavaScript day (0=Sunday) to business day (1=Monday .. 7=Sunday) and English day name
     const jsDay = selectedDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
     const businessDay = jsDay === 0 ? 7 : jsDay; // Sunday becomes 7, Monday stays 1
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayName = dayNames[jsDay];
 
-    // Check if the day is a working day
-    const daySchedule = workingHours[businessDay.toString()];
+    // Check if the day is a working day (support both English day names and numeric keys)
+    const daySchedule = workingHours[dayName] || workingHours[businessDay.toString()] || workingHours[jsDay.toString()];
     if (!daySchedule || !daySchedule.enabled) {
       return slots;
     }
@@ -164,8 +176,8 @@ class SmartScheduler {
       return slots;
     }
 
-    const startTime = daySchedule.start;
-    const endTime = daySchedule.end;
+    const startTime = daySchedule.start || '09:00';
+    const endTime = daySchedule.end || '17:00';
     const startMinutes = this.timeToMinutes(startTime);
     const endMinutes = this.timeToMinutes(endTime);
 
@@ -254,30 +266,36 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Sanitize a user segment so it can never escape the uploads directory.
+function safeUserSegment(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9._-]/g, '_').slice(0, 64) || 'unknown';
+}
+
 // Configure multer for file uploads
 const multerStorage = multer.diskStorage({
   destination: (req: any, file, cb) => {
     try {
       // Default uploads directory
       let uploadPath = uploadsDir;
-      
+
       // If user is authenticated, create user-specific directory
       if (req.user && req.user.email) {
-        uploadPath = path.join(uploadsDir, 'users', req.user.email);
-        
+        uploadPath = path.join(uploadsDir, 'users', safeUserSegment(req.user.email));
+
         // Create the directory if it doesn't exist
         fs.mkdirSync(uploadPath, { recursive: true });
       }
-      
+
       cb(null, uploadPath);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating upload directory:', error);
       cb(error, uploadsDir);
     }
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const safeExt = path.extname(file.originalname).toLowerCase().replace(/[^a-z0-9.]/g, '');
+    cb(null, uniqueSuffix + safeExt);
   }
 });
 
@@ -301,86 +319,11 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
-  // Authentication routes
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const userData = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByEmail(userData.email);
+  // Authentication routes (self-hosted: password, Google OAuth, email/phone OTP)
+  app.use("/api/auth", authRoutes);
 
-      if (existingUser) {
-        return res.status(400).json({ message: "Email ya está registrado" });
-      }
-
-      const user = await storage.createUser(userData);
-      res.json({ user: { id: user.id, email: user.email, name: user.name } });
-    } catch (error) {
-      res.status(400).json({ message: "Datos inválidos" });
-    }
-  });
-
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-      const user = await storage.getUserByEmail(email);
-
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Credenciales inválidas" });
-      }
-
-      res.json({ user: { id: user.id, email: user.email, name: user.name } });
-    } catch (error) {
-      res.status(400).json({ message: "Error en el login" });
-    }
-  });
-
-  // Stack Auth user sync endpoint
-  app.post("/api/auth/sync", async (req, res) => {
-    try {
-      // Get the authorization header
-      const authHeader = req.headers.authorization;
-
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'No authorization token provided' });
-      }
-
-      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-      // Verify the token with Stack Auth
-      const stackUser = await stackServerApp.verifyToken(token);
-
-      if (!stackUser) {
-        return res.status(401).json({ message: 'Invalid or expired token' });
-      }
-
-      // Import the sync function
-      const { syncUserWithDatabase, getUserByStackId } = await import('./auth-sync.js');
-
-      // Try to get existing user first
-      let dbUser;
-      try {
-        dbUser = await getUserByStackId(stackUser.id);
-      } catch (error) {
-        // If user doesn't exist, sync will create them
-        dbUser = await syncUserWithDatabase(stackUser.id);
-      }
-
-      // Get user's businesses
-      const businesses = await storage.getBusinessesByUserId(dbUser.id);
-
-      res.json({
-        user: {
-          id: dbUser.id,
-          email: dbUser.email,
-          name: dbUser.name,
-          stackAuthId: dbUser.stackAuthId
-        },
-        businesses
-      });
-    } catch (error) {
-      console.error('Error syncing user:', error);
-      res.status(500).json({ message: "Error syncing user with database" });
-    }
-  });
+  // Payment routes (MercadoPago: Checkout Pro + Preapproval subscriptions)
+  app.use("/api/payments", paymentRoutes);
 
   // Get subcategories by category
   app.get("/api/subcategories/:category", async (req, res) => {
@@ -388,7 +331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { category } = req.params;
       const subcategoriesResult = await storage.getSubcategoriesByCategory(category, true);
       res.json(subcategoriesResult);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching subcategories:', error);
       res.status(500).json({ message: "Error fetching subcategories" });
     }
@@ -399,7 +342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const subcategoriesResult = await storage.getAllSubcategories();
       res.json(subcategoriesResult);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching all subcategories:', error);
       res.status(500).json({ message: "Error fetching subcategories" });
     }
@@ -544,75 +487,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Build the main query
-      let dbQuery = db.select().from(apifyBusinesses);
-      if (dbConditions.length > 0) {
-        dbQuery = dbQuery.where(and(...dbConditions));
-      }
+      const whereCondition = dbConditions.length > 0 ? and(...dbConditions) : undefined;
 
-      // Apply sorting
-      switch (searchQuery.sortBy) {
-        case 'rating':
-          dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating));
-          break;
-        case 'reviews':
-          dbQuery = dbQuery.orderBy(desc(apifyBusinesses.reviewCount));
-          break;
-        case 'name':
-          dbQuery = dbQuery.orderBy(asc(apifyBusinesses.name));
-          break;
-        default:
-          // Default relevance sort
-          dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount));
-      }
+      const ordering =
+        searchQuery.sortBy === 'rating'
+          ? [desc(apifyBusinesses.rating)]
+          : searchQuery.sortBy === 'reviews'
+            ? [desc(apifyBusinesses.reviewCount)]
+            : searchQuery.sortBy === 'name'
+              ? [asc(apifyBusinesses.name)]
+              : [desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount)];
 
-      // Get total count
-      let countQuery = db.select({ count: sql<number>`count(*)` }).from(apifyBusinesses);
-      if (dbConditions.length > 0) {
-        countQuery = countQuery.where(and(...dbConditions));
-      }
+      const fullBusinessQuery = (whereCondition
+        ? db.select().from(apifyBusinesses).where(whereCondition)
+        : db.select().from(apifyBusinesses)
+      ).orderBy(...ordering);
 
-      // Execute queries with performance optimization
-      // For map view with many results, use optimized field selection
-      if (isMapView) {
-        const optimizedFields = performanceOptimizer.getOptimizedFields('map');
-        dbQuery = db.select({
-          placeId: apifyBusinesses.placeId,
-          name: apifyBusinesses.name,
-          address: apifyBusinesses.address,
-          category: apifyBusinesses.category,
-          rating: apifyBusinesses.rating,
-          reviewCount: apifyBusinesses.reviewCount,
-          district: apifyBusinesses.district,
-          latitude: apifyBusinesses.latitude,
-          longitude: apifyBusinesses.longitude,
-          phone: apifyBusinesses.phone,
-          website: apifyBusinesses.website
-        }).from(apifyBusinesses);
+      const countQuery = whereCondition
+        ? db.select({ count: sql<number>`count(*)` }).from(apifyBusinesses).where(whereCondition)
+        : db.select({ count: sql<number>`count(*)` }).from(apifyBusinesses);
 
-        // Re-apply conditions for optimized query
-        if (dbConditions.length > 0) {
-          dbQuery = dbQuery.where(and(...dbConditions));
-        }
-
-        // Apply same sorting
-        switch (searchParams.sortBy) {
-          case 'rating':
-            dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating));
-            break;
-          case 'reviews':
-            dbQuery = dbQuery.orderBy(desc(apifyBusinesses.reviewCount));
-            break;
-          case 'name':
-            dbQuery = dbQuery.orderBy(asc(apifyBusinesses.name));
-            break;
-          default:
-            dbQuery = dbQuery.orderBy(desc(apifyBusinesses.rating), desc(apifyBusinesses.reviewCount));
-        }
-      }
+      // Map view returns the same row shape (the client only reads the fields
+      // it needs); this keeps a single, type-safe query path.
+      const apifyResultQuery = isMapView
+        ? fullBusinessQuery
+        : fullBusinessQuery.limit(searchParams.limit).offset((searchParams.page - 1) * searchParams.limit);
 
       // Also search OpenStreetMap businesses with similar filters
-      let osmQuery = db.select().from(openstreetBusinesses);
-      const osmConditions = [];
+      const osmConditions: any[] = [];
 
       // Apply same search conditions to OSM data
       if (searchQuery.query && searchQuery.query.trim()) {
@@ -643,22 +545,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         osmConditions.push(and(isNotNull(openstreetBusinesses.email), ne(openstreetBusinesses.email, '')));
       }
 
-      if (osmConditions.length > 0) {
-        osmQuery = osmQuery.where(and(...osmConditions));
-      }
+      const osmWhereCondition = osmConditions.length > 0 ? and(...osmConditions) : undefined;
 
       // Apply OSM sorting (no ratings, so sort by name or contact quality)
-      osmQuery = osmQuery.orderBy(asc(openstreetBusinesses.name));
+      const osmQuery = (osmWhereCondition
+        ? db.select().from(openstreetBusinesses).where(osmWhereCondition)
+        : db.select().from(openstreetBusinesses)
+      ).orderBy(asc(openstreetBusinesses.name));
 
       // Count OSM businesses
-      let osmCountQuery = db.select({ count: sql<number>`count(*)` }).from(openstreetBusinesses);
-      if (osmConditions.length > 0) {
-        osmCountQuery = osmCountQuery.where(and(...osmConditions));
-      }
+      const osmCountQuery = osmWhereCondition
+        ? db.select({ count: sql<number>`count(*)` }).from(openstreetBusinesses).where(osmWhereCondition)
+        : db.select({ count: sql<number>`count(*)` }).from(openstreetBusinesses);
 
       // Execute all queries
       const [apifyBusinessesList, totalCountResult, osmBusinessesList, osmCountResult] = await Promise.all([
-        isMapView ? dbQuery : dbQuery.limit(searchParams.limit).offset((searchParams.page - 1) * searchParams.limit),
+        apifyResultQuery,
         countQuery,
         isMapView ? osmQuery : osmQuery.limit(Math.max(5, searchParams.limit - 10)), // Get some OSM results
         osmCountQuery
@@ -746,7 +648,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Add registered businesses to the beginning of results for priority
-      let registeredBusinesses = [];
+      let registeredBusinesses: Business[] = [];
 
       try {
         // Only fetch registered businesses if they match search criteria
@@ -757,7 +659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         console.log('🏢 Registered businesses found:', registeredBusinesses.length);
-      } catch (error) {
+      } catch (error: any) {
         console.error('❌ Registered business search error:', error);
         registeredBusinesses = [];
       }
@@ -930,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Apply category normalization for frontend display
       const normalizeCategory = (category: string): string => {
-        const categoryMap = {
+        const categoryMap: Record<string, string> = {
           'gastronomía': 'gastronomia',
           'belleza': 'belleza',
           'salud': 'salud',
@@ -971,7 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Apply personalization to paginated results only
       const userId = req.headers['x-user-id'] as string || null;
-      const sessionId = req.sessionID || req.headers['x-session-id'] as string || null;
+      const sessionId = (req.headers['x-session-id'] as string) || 'anonymous';
       const personalizedResults = searchPersonalization.personalizeResults(
         paginatedResults,
         userId,
@@ -1039,7 +941,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         searchTime: searchResult.searchMetrics.searchTime,
         userAgent: req.headers['user-agent'],
         ip: req.ip,
-        sessionId: req.sessionID || req.headers['x-session-id'],
+        sessionId: (req.headers['x-session-id'] as string) || 'anonymous',
         userId: userId
       });
 
@@ -1066,7 +968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         resultsCount: totalResults
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Enhanced search error:', error);
       res.status(500).json({ message: "Error en la búsqueda" });
     }
@@ -1078,7 +980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { timeframe = '24h' } = req.query;
       const analytics = searchAnalytics.getAnalyticsSummary(timeframe as string);
       res.json(analytics);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Analytics error:', error);
       res.status(500).json({ message: "Error retrieving analytics" });
     }
@@ -1088,7 +990,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const performance = searchAnalytics.getPerformanceMetrics();
       res.json(performance);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Performance analytics error:', error);
       res.status(500).json({ message: "Error retrieving performance data" });
     }
@@ -1099,7 +1001,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { limit = 10 } = req.query;
       const popular = searchAnalytics.getPopularCategories(parseInt(limit as string));
       res.json(popular);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Popular analytics error:', error);
       res.status(500).json({ message: "Error retrieving popular data" });
     }
@@ -1113,7 +1015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!q || (q as string).length < 2) {
         // Return trending searches if no query
         const trending = searchAnalytics.getTrendingSearches(parseInt(limit as string));
-        return res.json(trending.map(item => ({
+        return res.json(trending.map((item: any) => ({
           value: item.query.toLowerCase(),
           label: item.query,
           type: 'trending',
@@ -1148,7 +1050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .slice(0, parseInt(limit as string));
 
       res.json(uniqueSuggestions);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Search suggestions error:', error);
       res.status(500).json({ message: "Error obteniendo sugerencias" });
     }
@@ -1174,7 +1076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }));
 
       res.json(normalizedCounts);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching category counts:', error);
       res.status(500).json({ error: "Failed to fetch category counts" });
     }
@@ -1187,7 +1089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { includeCounts } = req.query;
 
       // Normalize category name to match database format
-      const categoryMap = {
+      const categoryMap: Record<string, string> = {
         'gastronomia': 'Gastronomía',
         'belleza': 'belleza',
         'salud': 'salud',
@@ -1204,7 +1106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const subcategories = await storage.getSubcategoriesByCategory(normalizedCategory);
         res.json(subcategories);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error getting subcategories:', error);
       res.status(500).json({ message: "Error obteniendo subcategorías" });
     }
@@ -1215,7 +1117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const subcategories = await storage.getAllSubcategories();
       res.json(subcategories);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error getting all subcategories:', error);
       res.status(500).json({ message: "Error obteniendo subcategorías" });
     }
@@ -1242,7 +1144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `Found ${cachedResults.length} businesses from Apify cache`,
           count: cachedResults.length
         };
-      } catch (error) {
+      } catch (error: any) {
         results.cached = {
           status: 'error',
           message: `Cached data error: ${error.message}`,
@@ -1269,7 +1171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             count: 0
           };
         }
-      } catch (error) {
+      } catch (error: any) {
         results.apify = {
           status: 'error',
           message: `Apify API error: ${error.message}`,
@@ -1278,7 +1180,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(results);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
@@ -1296,7 +1198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data: result.sampleData,
         error: result.error
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Test scraping error:', error);
       res.status(500).json({
         success: false,
@@ -1328,7 +1230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           businesses: businesses.slice(0, 5) // Return first 5 as sample
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Category scraping error:', error);
       res.status(500).json({
         success: false,
@@ -1358,7 +1260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('❌ Comprehensive scraping failed:', error);
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Comprehensive scraping error:', error);
       res.status(500).json({
         success: false,
@@ -1394,7 +1296,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       return res.status(404).json({ message: "Negocio no encontrado en los datos almacenados" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching place details:", error);
       res.status(500).json({ message: "Error obteniendo detalles del negocio" });
     }
@@ -1404,8 +1306,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/apify/pull-fresh", async (req, res) => {
     try {
       console.log('🔄 Pulling fresh data from Apify dataset...');
+      const apifyToken = process.env.APIFY_API_TOKEN;
+      if (!apifyToken) {
+        return res.status(500).json({ message: "APIFY_API_TOKEN is not configured" });
+      }
 
-      const response = await fetch('https://api.apify.com/v2/datasets/jC3uI7WSuQKRTj2i1/items?token=apify_api_SThnhfb7cGOxixoqRUbdxCnjvoP6Kc33SbEq&clean=true&format=json&limit=2000');
+      const response = await fetch(`https://api.apify.com/v2/datasets/jC3uI7WSuQKRTj2i1/items?token=${apifyToken}&clean=true&format=json&limit=2000`);
 
       if (!response.ok) {
         throw new Error(`Apify API error: ${response.status}`);
@@ -1437,9 +1343,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             isRegistered: false
           };
 
-          await storage.addApifyBusiness(cacheData);
+          await storage.addApifyBusiness(cacheData as InsertApifyBusiness);
           processed++;
-        } catch (error) {
+        } catch (error: any) {
           console.error(`❌ Error processing business: ${error.message}`);
         }
       }
@@ -1451,7 +1357,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         total: apifyData.length
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error pulling fresh Apify data:', error);
       res.status(500).json({
         success: false,
@@ -1505,7 +1411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })),
         summary: stats
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error getting wave status:", error);
       res.status(500).json({ message: "Error obteniendo estado de las olas" });
     }
@@ -1530,7 +1436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error(`❌ Wave ${waveId} failed:`, error);
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error starting wave:", error);
       res.status(500).json({
         success: false,
@@ -1558,7 +1464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.error('❌ Wave execution failed:', error);
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error starting all waves:", error);
       res.status(500).json({
         success: false,
@@ -1602,7 +1508,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       res.json(availableSlots);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error getting availability:", error);
       res.status(500).json({ message: "Error obteniendo disponibilidad" });
     }
@@ -1635,7 +1541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const proposedStartMinutes = SmartScheduler.timeToMinutes(appointmentData.time);
       const conflictCheck = await SmartScheduler.detectConflicts(
         proposedStartMinutes,
-        service.duration,
+        service.duration ?? 30,
         existingAppointments,
         appointmentData.date
       );
@@ -1655,7 +1561,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         settings?.blockedDates || [],
         settings?.blockedHours || [],
         existingAppointments,
-        service.duration
+        service.duration ?? 30
       );
 
       const requestedSlot = availableSlots.find(slot => slot.time === appointmentData.time);
@@ -1670,7 +1576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create or find client (with duplicate prevention)
       let client = await storage.getClientsByBusinessId(appointmentData.businessId)
         .then(clients => clients.find(c =>
-          c.email.toLowerCase() === appointmentData.clientEmail.toLowerCase()
+          (c.email ?? '').toLowerCase() === appointmentData.clientEmail.toLowerCase()
         ));
 
       // If no email match, check phone as secondary option
@@ -1697,7 +1603,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         serviceId: appointmentData.serviceId,
         date: appointmentData.date,
         time: appointmentData.time,
-        duration: service.duration,
+        duration: service.duration ?? 30,
         status: 'pending', // Always start as pending for public bookings
         notes: `Reserva online - ${service.name}`,
         clientNotes: appointmentData.clientNotes || null,
@@ -1714,15 +1620,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (business) {
         const emailData: AppointmentData = {
           clientName: client.name,
-          clientEmail: client.email,
-          clientPhone: client.phone,
+          clientEmail: client.email ?? '',
+          clientPhone: client.phone ?? '',
           businessName: business.name,
           businessEmail: businessSettings?.publicEmail || business.email || 'no-reply@example.com',
           serviceName: service.name,
           date: appointmentData.date,
           time: appointmentData.time,
-          duration: service.duration,
-          price: service.price,
+          duration: service.duration ?? 30,
+          price: Number(service.price ?? 0),
           notes: appointmentData.clientNotes || undefined
         };
 
@@ -1730,7 +1636,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const emailResults = await emailService.sendAppointmentEmails(emailData);
           console.log('Email send results:', emailResults);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Error sending emails:', error);
         }
       }
@@ -1741,7 +1647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ...appointment,
           serviceName: service.name,
           clientName: client.name,
-          duration: service.duration
+          duration: service.duration ?? 30
         },
         message: "Cita creada exitosamente",
         bookingDetails: {
@@ -1752,7 +1658,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: `S/ ${service.price}`
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating appointment:", error);
       res.status(500).json({ message: "Error creando la cita" });
     }
@@ -1777,7 +1683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const conflictCheck = await SmartScheduler.detectConflicts(
         proposedStartMinutes,
-        service.duration,
+        service.duration ?? 30,
         existingAppointments,
         date
       );
@@ -1787,11 +1693,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         conflicts: conflictCheck.conflictingAppointments,
         serviceInfo: {
           name: service.name,
-          duration: service.duration,
+          duration: service.duration ?? 30,
           price: service.price
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error checking availability:", error);
       res.status(500).json({ message: "Error verificando disponibilidad" });
     }
@@ -1828,7 +1734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       res.json(featuredWithCustomUrl);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Error obteniendo negocios destacados" });
     }
   });
@@ -1850,7 +1756,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ]);
 
       res.json({ business, services, gallery, reviews });
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Error obteniendo negocio" });
     }
   });
@@ -1866,7 +1772,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const businesses = await storage.getBusinessesByUserId(dbUser.id);
       console.log('🏢 Found businesses for user:', businesses.length, businesses.map(b => ({ id: b.id, name: b.name })));
       res.json(businesses);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting businesses:', error);
       res.status(500).json({ message: "Error obteniendo negocios" });
     }
@@ -1896,7 +1802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(business);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating business:', error);
       res.status(400).json({ message: "Error creando negocio" });
     }
@@ -1912,7 +1818,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const services = await storage.getServicesByBusinessId(businessId);
       res.json(services);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting services:', error);
       res.status(500).json({ message: "Error obteniendo servicios" });
     }
@@ -1964,7 +1870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const service = await storage.updateService(id, serviceData);
       res.json(service);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating service:', error);
       res.status(400).json({ message: "Error actualizando servicio" });
     }
@@ -1979,7 +1885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.deleteService(id);
       res.json({ message: "Servicio eliminado" });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting service:', error);
       res.status(500).json({ message: "Error eliminando servicio" });
     }
@@ -1996,7 +1902,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const client = await storage.updateClient(id, clientData);
       res.json(client);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating client:', error);
       res.status(400).json({ message: "Error actualizando cliente" });
     }
@@ -2011,7 +1917,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.deleteClient(id);
       res.json({ message: "Cliente eliminado exitosamente" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting client:", error);
       res.status(500).json({ message: "Error eliminando cliente" });
     }
@@ -2027,7 +1933,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const clients = await storage.getClientsByBusinessId(businessId);
       res.json(clients);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error getting clients:', error);
       res.status(500).json({ message: "Error obteniendo clientes" });
     }
@@ -2048,7 +1954,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(client);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating client:', error);
       res.status(400).json({ message: "Error creando cliente" });
     }
@@ -2072,7 +1978,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(appointments);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Error obteniendo citas" });
     }
   });
@@ -2093,7 +1999,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(appointment);
-    } catch (error) {
+    } catch (error: any) {
       res.status(400).json({ message: "Error creando cita" });
     }
   });
@@ -2136,7 +2042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const proposedStartMinutes = SmartScheduler.timeToMinutes(newTime);
         const conflictCheck = await SmartScheduler.detectConflicts(
           proposedStartMinutes,
-          service.duration,
+          service.duration ?? 30,
           otherAppointments,
           newDate
         );
@@ -2159,7 +2065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(appointment);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating appointment:", error);
       res.status(500).json({ message: "Error actualizando la cita" });
     }
@@ -2183,7 +2089,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.deleteAppointment(appointmentId);
       res.json({ message: "Cita eliminada exitosamente" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting appointment:", error);
       res.status(500).json({ message: "Error eliminando la cita" });
     }
@@ -2299,15 +2205,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       res.json(analytics);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ message: "Error obteniendo analytics" });
     }
   });
 
   // Financial data endpoint
-  app.get("/api/dashboard/businesses/:businessId/financials", async (req, res) => {
+  app.get("/api/dashboard/businesses/:businessId/financials", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
       const { period = 'thisMonth' } = req.query;
 
       const [appointments, services] = await Promise.all([
@@ -2416,7 +2325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       res.json(financialData);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error getting financial data:", error);
       res.status(500).json({ message: "Error obteniendo datos financieros" });
     }
@@ -2466,7 +2375,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         gallery,
         reviews
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in micrositio route:", error);
       res.status(500).json({ error: "Error obteniendo datos del negocio" });
     }
@@ -2474,12 +2383,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Reviews routes
   // Get reviews for a business (both scraped and customer reviews)
-  app.get("/api/dashboard/businesses/:businessId/reviews", async (req, res) => {
+  app.get("/api/dashboard/businesses/:businessId/reviews", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
       const reviews = await storage.getReviewsByBusinessId(businessId);
       res.json(reviews);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching reviews:", error);
       res.status(500).json({ message: "Error obteniendo reseñas" });
     }
@@ -2493,22 +2405,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add source to identify this as a customer review
       const newReview = await storage.createReview({
         ...reviewData,
-        source: 'customer', // vs 'scraped' for Google Maps reviews
-        createdAt: new Date().toISOString()
       });
 
       res.status(201).json(newReview);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating review:", error);
       res.status(500).json({ message: "Error creando reseña" });
     }
   });
 
   // Delete a review (dashboard only)
-  app.delete("/api/dashboard/businesses/:businessId/reviews/:reviewId", async (req, res) => {
+  app.delete("/api/dashboard/businesses/:businessId/reviews/:reviewId", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.businessId);
       const reviewId = parseInt(req.params.reviewId);
+
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
 
       // Verify review belongs to business
       const review = await storage.getReviewsByBusinessId(businessId);
@@ -2518,47 +2431,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await storage.deleteReview(reviewId);
       res.json({ message: "Reseña eliminada" });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting review:", error);
       res.status(500).json({ message: "Error eliminando reseña" });
     }
   });
 
   // Business settings routes
-  app.get("/api/dashboard/businesses/:id/settings", async (req, res) => {
+  app.get("/api/dashboard/businesses/:id/settings", requireAuth, async (req: AuthenticatedRequest, res) => {
     const businessId = parseInt(req.params.id);
     try {
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
       const settings = await storage.getBusinessSettings(businessId);
       res.json(settings);
-    } catch (error) {
+    } catch (error: any) {
       res.status(500).json({ error: "Error obteniendo configuración" });
     }
   });
 
-  app.put("/api/dashboard/businesses/:id/settings", async (req, res) => {
+  const updateBusinessSettingsHandler = async (req: AuthenticatedRequest, res: any) => {
     const businessId = parseInt(req.params.id);
     try {
-      console.log("Received settings update request:", req.body);
-      const body = insertBusinessSettingsSchema.parse(req.body);
-      console.log("Parsed settings data:", body);
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
 
-      // customUrl is stored in settings ONLY - do NOT touch business slug
-
+      const body = insertBusinessSettingsSchema.partial().parse(req.body);
       const settings = await storage.updateBusinessSettings(businessId, body);
-      console.log("Settings updated successfully:", settings);
       res.json(settings);
     } catch (error: any) {
       console.error("Error updating settings:", error);
       res.status(500).json({ error: "Error actualizando configuración", details: error?.message || "Unknown error" });
     }
+  };
+
+  app.put("/api/dashboard/businesses/:id/settings", requireAuth, updateBusinessSettingsHandler);
+  app.patch("/api/dashboard/businesses/:id/settings", requireAuth, updateBusinessSettingsHandler);
+
+  // Update business profile and hours
+  app.put("/api/dashboard/businesses/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
+    const businessId = parseInt(req.params.id);
+    try {
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
+      const businessData = insertBusinessSchema.partial().parse(req.body);
+      const updatedBusiness = await storage.updateBusiness(businessId, businessData);
+
+      // Also sync workingHours to businessSettings if hours JSON was provided
+      if (businessData.hours) {
+        try {
+          const parsedHours = typeof businessData.hours === 'string'
+            ? JSON.parse(businessData.hours)
+            : businessData.hours;
+          await storage.updateBusinessSettings(businessId, { workingHours: parsedHours });
+        } catch (err) {
+          console.error("Error syncing hours to businessSettings:", err);
+        }
+      }
+
+      res.json(updatedBusiness);
+    } catch (error: any) {
+      console.error("Error updating business:", error);
+      res.status(400).json({ message: "Error actualizando negocio", details: error?.message });
+    }
   });
 
-  app.delete("/api/dashboard/businesses/:id", async (req, res) => {
+  app.delete("/api/dashboard/businesses/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
       const businessId = parseInt(req.params.id);
+      const dbUser = await verifyBusinessOwnership(req, res, businessId);
+      if (!dbUser) return;
+
       await storage.deleteBusiness(businessId);
       res.json({ message: "Negocio eliminado exitosamente" });
-    } catch (error) {
+    } catch (error: any) {
       res.status(404).json({ message: error instanceof Error ? error.message : "Error eliminando negocio" });
     }
   });
@@ -2566,6 +2514,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Google Places enrichment endpoint
   app.post("/api/dashboard/businesses/:id/enrich-google", async (req, res) => {
     try {
+      if (!googlePlacesService.isConfigured()) {
+        return res.status(503).json({
+          message: "La integración con Google Places no está configurada (GOOGLE_MAPS_API_KEY)",
+        });
+      }
+
       const businessId = parseInt(req.params.id);
       const business = await storage.getBusiness(businessId);
 
@@ -2597,7 +2551,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         rating: enrichedData.rating,
         reviewCount: enrichedData.reviewCount,
         photosCount: enrichedData.photos?.length || 0,
-        reviewsCount: enrichedData.reviews?.length || 0
       });
 
       // Return the enriched data
@@ -2606,7 +2559,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Negocio enriquecido exitosamente con datos de Google Places"
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error enriching business with Google Places:", error);
       res.status(500).json({
         message: "Error enriqueciendo negocio con Google Places",
@@ -2616,7 +2569,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Image upload endpoint
-  app.post("/api/upload", requireAuth, upload.single('image'), async (req, res) => {
+  app.post("/api/upload", requireAuth, upload.single('image'), async (req: AuthenticatedRequest, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No se proporcionó ninguna imagen" });
@@ -2625,7 +2578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the correct URL path for user-specific uploads
       let imageUrl: string;
       if (req.user && req.user.email) {
-        imageUrl = `/uploads/users/${req.user.email}/${req.file.filename}`;
+        imageUrl = `/uploads/users/${safeUserSegment(req.user.email)}/${req.file.filename}`;
       } else {
         imageUrl = `/uploads/${req.file.filename}`;
       }
@@ -2655,23 +2608,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register gallery API routes
   app.use('/api/gallery', galleryRoutes);
 
-  // Debug endpoint to check email configuration (remove in production)
-  app.get("/api/debug/email-config", (req, res) => {
-    const hasSendGridKey = !!process.env.SENDGRID_API_KEY;
-    const hasVerifiedSender = !!process.env.SENDGRID_VERIFIED_SENDER;
-
-    res.json({
-      emailService: 'SendGrid',
-      configured: hasSendGridKey && hasVerifiedSender,
-      hasSendGridKey,
-      hasVerifiedSender,
-      apiKey: hasSendGridKey ? 'SG.' + process.env.SENDGRID_API_KEY?.substring(3, 6) + '***' : 'NOT SET',
-      verifiedSender: process.env.SENDGRID_VERIFIED_SENDER || 'NOT SET'
-    });
-  });
-
   // Serve uploaded files
-  app.use('/uploads', express.static(uploadsDir));
+  app.use('/uploads', express.static(uploadsDir, { index: false, dotfiles: 'deny' }));
 
   return httpServer;
 }

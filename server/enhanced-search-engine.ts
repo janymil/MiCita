@@ -2,6 +2,7 @@ import { eq, and, or, sql, ilike, desc, asc, gte, lte, ne, isNotNull, count, not
 import { db } from "./db";
 import { apifyBusinesses } from "@shared/schema";
 import type { ApifyBusiness } from "@shared/schema";
+// @ts-ignore - JavaScript module without TypeScript declarations
 import { FuzzySearch } from "./fuzzy-search.js";
 
 /**
@@ -75,7 +76,7 @@ export class EnhancedSearchEngine {
       }
 
       // Add individual words from name
-      business.name.toLowerCase().split(/\s+/).forEach(word => {
+      business.name.toLowerCase().split(/\s+/).forEach((word: string) => {
         if (word.length > 2) terms.add(word);
       });
     }
@@ -266,23 +267,22 @@ export class EnhancedSearchEngine {
     const whereConditions = this.buildWhereConditions(searchQuery, fuzzyQueryData);
 
     // Build the main query
-    let queryBuilder = db.select().from(apifyBusinesses);
+    const whereCondition = whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
-    if (whereConditions.length > 0) {
-      queryBuilder = queryBuilder.where(and(...whereConditions));
-    }
+    const baseQuery = whereCondition
+      ? db.select().from(apifyBusinesses).where(whereCondition)
+      : db.select().from(apifyBusinesses);
 
     // Apply sorting
-    queryBuilder = this.applySorting(queryBuilder, sortBy, query);
+    const queryBuilder = this.applySorting(baseQuery, sortBy, query);
 
     // Get total count for pagination
-    const totalCountQuery = db
-      .select({ count: sql<number>`count(*)` })
-      .from(apifyBusinesses);
-
-    if (whereConditions.length > 0) {
-      totalCountQuery.where(and(...whereConditions));
-    }
+    const totalCountQuery = whereCondition
+      ? db
+          .select({ count: sql<number>`count(*)` })
+          .from(apifyBusinesses)
+          .where(whereCondition)
+      : db.select({ count: sql<number>`count(*)` }).from(apifyBusinesses);
 
     const [businesses, totalCountResult] = await Promise.all([
       queryBuilder.limit(limit).offset((page - 1) * limit),
@@ -294,7 +294,7 @@ export class EnhancedSearchEngine {
     const searchTime = Date.now() - startTime;
 
     // Calculate relevance scores for metrics
-    const relevanceScores = businesses.map(business => 
+    const relevanceScores = businesses.map((business: ApifyBusiness) => 
       this.calculateRelevanceScore(business, query, queryAnalysis)
     );
 
@@ -367,7 +367,7 @@ export class EnhancedSearchEngine {
       // Build search conditions using expanded terms from fuzzy search
       const searchTerms = fuzzyQueryData?.expandedTerms || [originalQuery];
       
-      const searchConditions = searchTerms.map(term => 
+      const searchConditions = searchTerms.map((term: string) => 
         or(
           ilike(apifyBusinesses.searchTerms, `%${term}%`),
           ilike(apifyBusinesses.name, `%${term}%`),
@@ -463,10 +463,10 @@ export class EnhancedSearchEngine {
       const { north, south, east, west } = searchQuery.bounds;
       conditions.push(
         and(
-          gte(apifyBusinesses.latitude, south),
-          lte(apifyBusinesses.latitude, north),
-          gte(apifyBusinesses.longitude, west),
-          lte(apifyBusinesses.longitude, east)
+          gte(apifyBusinesses.latitude, String(south)),
+          lte(apifyBusinesses.latitude, String(north)),
+          gte(apifyBusinesses.longitude, String(west)),
+          lte(apifyBusinesses.longitude, String(east))
         )
       );
     }
@@ -575,7 +575,7 @@ export class EnhancedSearchEngine {
 
       if (businesses.length === 0) break;
 
-      const updates = businesses.map(business => {
+      const updates = businesses.map((business: ApifyBusiness) => {
         const searchTerms = EnhancedSearchEngine.generateSearchTerms(business);
         return db.update(apifyBusinesses)
           .set({ searchTerms })

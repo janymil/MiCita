@@ -2,25 +2,9 @@ import express from 'express';
 import { db } from './db.js';
 import { apifyBusinesses } from '../shared/schema.js';
 import { eq, and, or, gte, lte, like, sql, desc, asc, count, inArray } from 'drizzle-orm';
+import { adminAuth } from './admin-auth.js';
 
 const router = express.Router();
-
-// Admin authentication middleware
-const adminAuth = (req: any, res: any, next: any) => {
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No authorization header' });
-  }
-  
-  const token = authHeader.split(' ')[1];
-  if (token !== adminPassword) {
-    return res.status(401).json({ error: 'Invalid admin token' });
-  }
-  
-  next();
-};
 
 // Apply admin auth to all routes
 router.use(adminAuth);
@@ -81,7 +65,7 @@ router.get('/stats', async (req, res) => {
       qualityStats,
       recentBusinesses
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin stats error:', error);
     res.status(500).json({ error: 'Failed to fetch admin stats' });
   }
@@ -96,7 +80,7 @@ router.get('/test', async (req, res) => {
       businessCount: businesses.length,
       sampleBusiness: businesses[0] || null
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Test error:', error);
     res.status(500).json({ error: 'Test failed', details: error.message });
   }
@@ -247,7 +231,7 @@ router.get('/businesses', async (req, res) => {
       hasPrev: page > 1
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching businesses:', error);
     res.status(500).json({ error: 'Failed to fetch businesses' });
   }
@@ -311,7 +295,7 @@ router.get('/businesses/filter-options', async (req, res) => {
       districts
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching filter options:', error);
     res.status(500).json({ error: 'Failed to fetch filter options' });
   }
@@ -338,7 +322,7 @@ router.get('/businesses/:id', async (req, res) => {
     
     res.json(business[0]);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching business:', error);
     res.status(500).json({ error: 'Failed to fetch business' });
   }
@@ -383,7 +367,7 @@ router.post('/businesses', async (req, res) => {
     
     res.status(201).json(newBusiness[0]);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating business:', error);
     res.status(500).json({ error: 'Failed to create business' });
   }
@@ -422,7 +406,7 @@ router.put('/businesses/:id', async (req, res) => {
     
     res.json(updatedBusiness[0]);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating business:', error);
     res.status(500).json({ error: 'Failed to update business' });
   }
@@ -455,7 +439,7 @@ router.delete('/businesses/:id', async (req, res) => {
     
     res.json({ message: 'Business deleted successfully' });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting business:', error);
     res.status(500).json({ error: 'Failed to delete business' });
   }
@@ -497,7 +481,7 @@ router.patch('/businesses/bulk', async (req, res) => {
       businesses: updatedBusinesses
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error bulk updating businesses:', error);
     res.status(500).json({ error: 'Failed to bulk update businesses' });
   }
@@ -530,7 +514,7 @@ router.delete('/businesses/bulk', async (req, res) => {
       deletedCount: deletedBusinesses.length
     });
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error bulk deleting businesses:', error);
     res.status(500).json({ error: 'Failed to bulk delete businesses' });
   }
@@ -616,7 +600,7 @@ router.get('/businesses/export', async (req, res) => {
       res.status(400).json({ error: 'Unsupported export format. Use csv or json.' });
     }
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error exporting businesses:', error);
     res.status(500).json({ error: 'Failed to export businesses' });
   }
@@ -649,21 +633,21 @@ router.get('/businesses/stats', async (req, res) => {
     });
     
     // Calculate averages
-    const validRatings = businesses.filter(b => b.rating && parseFloat(b.rating.toString()) > 0);
+    const validRatings = businesses.filter(b => b.rating != null && parseFloat(b.rating.toString()) > 0);
     if (validRatings.length > 0) {
-      stats.averageRating = validRatings.reduce((sum, b) => sum + parseFloat(b.rating.toString()), 0) / validRatings.length;
+      stats.averageRating = validRatings.reduce((sum, b) => sum + parseFloat(b.rating?.toString() ?? '0'), 0) / validRatings.length;
     }
     
-    const validQuality = businesses.filter(b => b.qualityScore && b.qualityScore > 0);
+    const validQuality = businesses.filter(b => b.qualityScore != null && b.qualityScore > 0);
     if (validQuality.length > 0) {
-      stats.averageQuality = validQuality.reduce((sum, b) => sum + b.qualityScore, 0) / validQuality.length;
+      stats.averageQuality = validQuality.reduce((sum, b) => sum + (b.qualityScore ?? 0), 0) / validQuality.length;
     }
     
     stats.totalReviews = businesses.reduce((sum, b) => sum + (b.reviewCount || 0), 0);
     
     res.json(stats);
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching business stats:', error);
     res.status(500).json({ error: 'Failed to fetch business statistics' });
   }

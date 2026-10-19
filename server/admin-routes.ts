@@ -2,30 +2,32 @@ import express from 'express';
 import { storage } from './storage.js';
 import { apifyBusinesses } from '../shared/schema.js';
 import { db } from './db.js';
-import { eq, and, ilike, desc, asc, count, sql } from 'drizzle-orm';
+import { eq, and, or, ilike, desc, asc, count, sql, gte, lte, isNotNull } from 'drizzle-orm';
+import { requireAdmin } from './auth-middleware.js';
+import { config } from './config.js';
+import crypto from 'crypto';
 
 const router = express.Router();
 
-// Admin authentication middleware
-const adminAuth = (req: any, res: any, next: any) => {
-  // Simple admin check - in production, use proper JWT/session auth
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-  const authHeader = req.headers.authorization;
+// Legacy bearer-token admin auth (deprecated, replaced by requireAdmin session auth).
+// Kept only for the standalone admin token flow during migration.
+const legacyAdminToken = (req: any, res: any, next: any) => {
+  const token = (req.headers.authorization || '').split(' ')[1];
 
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No authorization header' });
+  if (config.admin.password && token) {
+    const a = Buffer.from(token);
+    const b = Buffer.from(config.admin.password);
+    if (a.length === b.length && crypto.timingSafeEqual(a, b)) {
+      return next();
+    }
   }
 
-  const token = authHeader.split(' ')[1]; // Bearer token
-  if (token !== adminPassword) {
-    return res.status(401).json({ error: 'Invalid admin token' });
-  }
-
-  next();
+  // Fall back to authenticated + admin-role/allow-listed user.
+  return requireAdmin(req, res, next);
 };
 
 // Apply admin auth to all routes
-router.use(adminAuth);
+router.use(legacyAdminToken);
 
 // Get admin dashboard stats
 router.get('/stats', async (req, res) => {
@@ -74,7 +76,7 @@ router.get('/stats', async (req, res) => {
       qualityStats: qualityStats[0] || {},
       recentBusinesses: recentCount[0]?.count || 0
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin stats error:', error);
     res.status(500).json({ error: 'Failed to fetch admin stats' });
   }
@@ -127,7 +129,7 @@ router.get('/v2/businesses/filter-options', async (req, res) => {
       statuses: statuses.map(s => s.status).filter(Boolean),
       districts: districts.map(d => d.district).filter(Boolean)
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Filter options error:', error);
     res.status(500).json({ error: 'Failed to fetch filter options' });
   }
@@ -230,17 +232,12 @@ router.get('/v2/businesses', async (req, res) => {
     console.log(`Total businesses before filtering: ${totalBeforeFilter[0]?.count || 0}`);
 
     // Main query
-    let businessQuery = db.select().from(apifyBusinesses);
-
-    if (whereCondition) {
-      businessQuery = businessQuery.where(whereCondition);
-    }
-
-    businessQuery = sortDirection === 'asc' 
-      ? businessQuery.orderBy(asc(sortColumn))
-      : businessQuery.orderBy(desc(sortColumn));
-
-    const businesses = await businessQuery.limit(limit).offset(offset);
+    const businesses = await (whereCondition
+      ? db.select().from(apifyBusinesses).where(whereCondition)
+      : db.select().from(apifyBusinesses))
+      .orderBy(sortDirection === 'asc' ? asc(sortColumn) : desc(sortColumn))
+      .limit(limit)
+      .offset(offset);
 
     // Debug filtering effects
     if (!isNaN(maxRating)) {
@@ -250,11 +247,9 @@ router.get('/v2/businesses', async (req, res) => {
     }
 
     // Count query
-    let countQuery = db.select({ count: count() }).from(apifyBusinesses);
-    if (whereCondition) {
-      countQuery = countQuery.where(whereCondition);
-    }
-    const totalResult = await countQuery;
+    const totalResult = await (whereCondition
+      ? db.select({ count: count() }).from(apifyBusinesses).where(whereCondition)
+      : db.select({ count: count() }).from(apifyBusinesses));
     const total = totalResult[0]?.count || 0;
 
     res.json({
@@ -269,7 +264,7 @@ router.get('/v2/businesses', async (req, res) => {
         hasPrev: page > 1
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin v2 businesses fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch businesses' });
   }
@@ -323,24 +318,17 @@ router.get('/businesses', async (req, res) => {
                       apifyBusinesses.createdAt;
 
     // Main query
-    let businessQuery = db.select().from(apifyBusinesses);
-
-    if (whereCondition) {
-      businessQuery = businessQuery.where(whereCondition);
-    }
-
-    businessQuery = sortOrder === 'asc' 
-      ? businessQuery.orderBy(asc(sortColumn))
-      : businessQuery.orderBy(desc(sortColumn));
-
-    const businesses = await businessQuery.limit(limit).offset(offset);
+    const businesses = await (whereCondition
+      ? db.select().from(apifyBusinesses).where(whereCondition)
+      : db.select().from(apifyBusinesses))
+      .orderBy(sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn))
+      .limit(limit)
+      .offset(offset);
 
     // Count query
-    let countQuery = db.select({ count: count() }).from(apifyBusinesses);
-    if (whereCondition) {
-      countQuery = countQuery.where(whereCondition);
-    }
-    const totalResult = await countQuery;
+    const totalResult = await (whereCondition
+      ? db.select({ count: count() }).from(apifyBusinesses).where(whereCondition)
+      : db.select({ count: count() }).from(apifyBusinesses));
     const total = totalResult[0]?.count || 0;
 
     res.json({
@@ -354,7 +342,7 @@ router.get('/businesses', async (req, res) => {
         hasPrev: page > 1
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin businesses fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch businesses' });
   }
@@ -363,7 +351,6 @@ router.get('/businesses', async (req, res) => {
 // Get single business by ID
 router.get('/businesses/:id', async (req, res) => {
   try {
-    const db = storage.getDb();
     const id = parseInt(req.params.id);
 
     const business = await db
@@ -377,7 +364,7 @@ router.get('/businesses/:id', async (req, res) => {
     }
 
     res.json(business[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin business fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch business' });
   }
@@ -386,7 +373,6 @@ router.get('/businesses/:id', async (req, res) => {
 // Create new business
 router.post('/businesses', async (req, res) => {
   try {
-    const db = storage.getDb();
     const businessData = req.body;
 
     // Validate required fields
@@ -417,7 +403,7 @@ router.post('/businesses', async (req, res) => {
     const result = await db.insert(apifyBusinesses).values(newBusiness).returning();
 
     res.status(201).json(result[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin business create error:', error);
     res.status(500).json({ error: 'Failed to create business' });
   }
@@ -426,7 +412,6 @@ router.post('/businesses', async (req, res) => {
 // Update business
 router.put('/businesses/:id', async (req, res) => {
   try {
-    const db = storage.getDb();
     const id = parseInt(req.params.id);
     const updateData = req.body;
 
@@ -462,7 +447,7 @@ router.put('/businesses/:id', async (req, res) => {
     }
 
     res.json(result[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin business update error:', error);
     res.status(500).json({ error: 'Failed to update business' });
   }
@@ -471,7 +456,6 @@ router.put('/businesses/:id', async (req, res) => {
 // Delete business
 router.delete('/businesses/:id', async (req, res) => {
   try {
-    const db = storage.getDb();
     const id = parseInt(req.params.id);
 
     const result = await db
@@ -484,7 +468,7 @@ router.delete('/businesses/:id', async (req, res) => {
     }
 
     res.json({ message: 'Business deleted successfully', business: result[0] });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin business delete error:', error);
     res.status(500).json({ error: 'Failed to delete business' });
   }
@@ -493,7 +477,6 @@ router.delete('/businesses/:id', async (req, res) => {
 // Bulk operations
 router.post('/businesses/bulk-update', async (req, res) => {
   try {
-    const db = storage.getDb();
     const { ids, updateData } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -517,13 +500,13 @@ router.post('/businesses/bulk-update', async (req, res) => {
         if (result.length > 0) {
           results.push(result[0]);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Error updating business ${id}:`, error);
       }
     }
 
     res.json({ message: `Updated ${results.length} businesses`, businesses: results });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bulk update error:', error);
     res.status(500).json({ error: 'Failed to bulk update businesses' });
   }
@@ -531,7 +514,6 @@ router.post('/businesses/bulk-update', async (req, res) => {
 
 router.delete('/businesses/bulk-delete', async (req, res) => {
   try {
-    const db = storage.getDb();
     const { ids } = req.body;
 
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -549,13 +531,13 @@ router.delete('/businesses/bulk-delete', async (req, res) => {
         if (result.length > 0) {
           results.push(result[0]);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Error deleting business ${id}:`, error);
       }
     }
 
     res.json({ message: `Deleted ${results.length} businesses`, businesses: results });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bulk delete error:', error);
     res.status(500).json({ error: 'Failed to bulk delete businesses' });
   }
@@ -564,7 +546,6 @@ router.delete('/businesses/bulk-delete', async (req, res) => {
 // Export/Import operations
 router.get('/businesses/export', async (req, res) => {
   try {
-    const db = storage.getDb();
     const format = req.query.format as string || 'json';
 
     const businesses = await db.select().from(apifyBusinesses);
@@ -588,7 +569,7 @@ router.get('/businesses/export', async (req, res) => {
       res.setHeader('Content-Disposition', 'attachment; filename=businesses.json');
       res.json(businesses);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin export error:', error);
     res.status(500).json({ error: 'Failed to export businesses' });
   }
@@ -597,7 +578,6 @@ router.get('/businesses/export', async (req, res) => {
 // Search and filters
 router.get('/businesses/search', async (req, res) => {
   try {
-    const db = storage.getDb();
     const query = req.query.q as string;
     const limit = parseInt(req.query.limit as string) || 10;
 
@@ -609,14 +589,16 @@ router.get('/businesses/search', async (req, res) => {
       .select()
       .from(apifyBusinesses)
       .where(
-        `${apifyBusinesses.name.name} ILIKE '%${query}%' OR 
-         ${apifyBusinesses.address.name} ILIKE '%${query}%' OR 
-         ${apifyBusinesses.searchTerms.name} ILIKE '%${query}%'`
+        or(
+          ilike(apifyBusinesses.name, `%${query}%`),
+          ilike(apifyBusinesses.address, `%${query}%`),
+          ilike(apifyBusinesses.searchTerms, `%${query}%`),
+        )
       )
       .limit(limit);
 
     res.json(businesses);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin search error:', error);
     res.status(500).json({ error: 'Failed to search businesses' });
   }
@@ -625,7 +607,6 @@ router.get('/businesses/search', async (req, res) => {
 // Get unique values for filters
 router.get('/filter-options', async (req, res) => {
   try {
-    const db = storage.getDb();
 
     const categories = await db
       .selectDistinct({ category: apifyBusinesses.category })
@@ -644,7 +625,7 @@ router.get('/filter-options', async (req, res) => {
       statuses: statuses.map(s => s.status),
       sources: sources.map(s => s.source)
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin filter options error:', error);
     res.status(500).json({ error: 'Failed to fetch filter options' });
   }
@@ -699,7 +680,7 @@ router.post('/v2/businesses/bulk', async (req, res) => {
       message: `${action} completed for ${ids.length} businesses`,
       affectedCount: result.count || ids.length
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Bulk operation error:', error);
     res.status(500).json({ error: 'Failed to perform bulk operation' });
   }
@@ -768,12 +749,9 @@ router.get('/v2/businesses/export', async (req, res) => {
     const whereCondition = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Get all businesses matching filters
-    let businessQuery = db.select().from(apifyBusinesses);
-    if (whereCondition) {
-      businessQuery = businessQuery.where(whereCondition);
-    }
-    
-    const businesses = await businessQuery;
+    const businesses = await (whereCondition
+      ? db.select().from(apifyBusinesses).where(whereCondition)
+      : db.select().from(apifyBusinesses));
 
     // Convert to CSV format
     const csvHeaders = [
@@ -809,7 +787,7 @@ router.get('/v2/businesses/export', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="businesses-export.csv"');
     res.send(csvContent);
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Export error:', error);
     res.status(500).json({ error: 'Failed to export businesses' });
   }

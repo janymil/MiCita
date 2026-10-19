@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { Lock, User, AlertCircle } from 'lucide-react';
+import { Lock, AlertCircle } from 'lucide-react';
 
 export default function AdminLogin() {
   const [password, setPassword] = useState('');
@@ -14,7 +14,8 @@ export default function AdminLogin() {
     setError('');
 
     try {
-      // Test the admin token
+      // Legacy bearer-token flow. Admins with a role=admin account can also
+      // sign in through the normal /login and reach /admin while authenticated.
       const response = await fetch('/api/admin/stats', {
         headers: {
           'Authorization': `Bearer ${password}`
@@ -22,14 +23,15 @@ export default function AdminLogin() {
       });
 
       if (response.ok) {
-        // Store the admin token
-        localStorage.setItem('adminToken', password);
+        sessionStorage.setItem('adminToken', password);
         setLocation('/admin/dashboard');
+      } else if (response.status === 401 || response.status === 403) {
+        setError('Credenciales de administrador inválidas');
       } else {
-        setError('Invalid admin password');
+        setError('No se pudo verificar el acceso. Intenta nuevamente.');
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
+      setError('Error de conexión. Intenta nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export default function AdminLogin() {
           Admin Access
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Enter your admin password to access the dashboard
+          Enter your admin token to access the dashboard
         </p>
       </div>
 
@@ -56,12 +58,9 @@ export default function AdminLogin() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Admin Password
+                Admin token
               </label>
               <div className="mt-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
                 <input
                   id="password"
                   name="password"
@@ -70,14 +69,14 @@ export default function AdminLogin() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Enter admin password"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Enter admin token"
                 />
               </div>
             </div>
 
             {error && (
-              <div className="flex items-center space-x-2 text-red-600 text-sm">
+              <div className="flex items-center space-x-2 text-red-600 text-sm" role="alert">
                 <AlertCircle className="w-4 h-4" />
                 <span>{error}</span>
               </div>
@@ -98,6 +97,10 @@ export default function AdminLogin() {
             </div>
           </form>
 
+          <p className="mt-4 text-xs text-gray-500 text-center">
+            El token se guarda solo en esta pestaña (sessionStorage) y nunca se escribe en el
+            almacenamiento persistente.
+          </p>
         </div>
       </div>
     </div>

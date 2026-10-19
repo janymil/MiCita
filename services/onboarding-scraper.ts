@@ -140,7 +140,7 @@ export class OnboardingScrapingService {
         errors: errors.length > 0 ? errors : undefined
       };
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Onboarding failed:', error);
       
       return {
@@ -236,7 +236,7 @@ export class OnboardingScrapingService {
             caption: 'Imagen extraída automáticamente',
             isActive: true
           });
-        } catch (error) {
+        } catch (error: any) {
           console.log('⚠️ Skipping duplicate image');
         }
       }
@@ -253,7 +253,7 @@ export class OnboardingScrapingService {
             rating: review.rating || 5,
             comment: review.comment || ''
           });
-        } catch (error) {
+        } catch (error: any) {
           console.log('⚠️ Skipping duplicate review');
         }
       }

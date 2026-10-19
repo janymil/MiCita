@@ -351,7 +351,7 @@ export class MarketingAIAnalyzer {
           })
           .where(eq(apifyBusinesses.id, business.id));
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Error analyzing business ${business.id}:`, error);
       }
     }

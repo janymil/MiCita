@@ -7,9 +7,10 @@ node_modules
 npm-debug.log
 yarn-error.log
 
-# Environment files (will be mounted as volumes)
-.env.local
-.env.development
+# Environment files - NEVER bake secrets into the image
+.env
+.env.*
+!.env.example
 
 # Development files
 *.md

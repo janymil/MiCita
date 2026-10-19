@@ -55,7 +55,7 @@ export class AIContentEnhancer {
         short: this.createShortVersion(enhanced)
       };
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ AI enhancement failed:', error);
       return { enhanced: rawDescription };
     }
@@ -96,7 +96,7 @@ export class AIContentEnhancer {
         return [];
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ AI service extraction failed:', error);
       return [];
     }
@@ -134,7 +134,7 @@ export class AIContentEnhancer {
       console.log('✅ Business summary generated with AI');
       return summary;
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ AI summary generation failed:', error);
       return `${data.name} - ${data.category || 'Negocio'} en ${data.address || 'Lima, Perú'}`;
     }
@@ -178,7 +178,7 @@ export class AIContentEnhancer {
       console.log('✅ Business name improved with AI');
       return improvedName;
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ AI name improvement failed:', error);
       return originalName;
     }
@@ -243,7 +243,7 @@ export class AIContentEnhancer {
       console.log('✅ Comprehensive content enhancement completed');
       return enhanced;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error enhancing content:', error);
       return businessData; // Return original data if enhancement fails
     }

@@ -7,6 +7,7 @@ interface ApifyPlace {
   address: string;
   phone?: string;
   website?: string;
+  email?: string;
   rating?: number;
   reviewsCount?: number;
   priceLevel?: number;
@@ -17,6 +18,12 @@ interface ApifyPlace {
   openingHours?: string[];
   placeId?: string;
   url?: string;
+  isOpenNow?: boolean;
+  streetViewUrl?: string;
+  popularTimes?: unknown;
+  currentPopularity?: number;
+  livePopularityStatus?: string;
+  description?: string;
 }
 
 export class ApifyScraper {
@@ -71,30 +78,29 @@ export class ApifyScraper {
 
   // Convert Apify place to our business format
   private convertToCache(place: ApifyPlace): InsertApifyBusiness {
-    const businessData = {
+    const businessData: InsertApifyBusiness = {
       placeId: place.placeId || `apify_${Date.now()}_${Math.random()}`,
       name: place.title,
       address: place.address || 'Lima, Peru',
       category: this.mapToOurCategory(place.categoryName || ''),
-      rating: place.rating || 0,
+      rating: String(place.rating ?? 0),
       reviewCount: place.reviewsCount || 0,
       priceLevel: place.priceLevel || 0,
       phone: place.phone || null,
       website: place.website || null,
       email: place.email || null, // From contacts enrichment
       photoUrl: place.imageUrls?.[0] || null,
-      latitude: place.latitude || -12.05,
-      longitude: place.longitude || -77.05,
+      latitude: String(place.latitude ?? -12.05),
+      longitude: String(place.longitude ?? -77.05),
       openNow: place.isOpenNow || null,
       hours: place.openingHours || null,
       lastUpdated: new Date(),
-      source: 'apify',
       searchTerms: null,
       
       // Enhanced data for modern UI
       streetViewUrl: place.streetViewUrl || null,
       photos: place.imageUrls || [],
-      popularTimes: place.popularTimes || null,
+      popularTimes: (place.popularTimes as InsertApifyBusiness['popularTimes']) ?? null,
       currentPopularity: place.currentPopularity || null,
       livePopularityStatus: place.livePopularityStatus || null,
       description: place.description || null
@@ -175,10 +181,10 @@ export class ApifyScraper {
       console.log(`📍 Found ${items.length} places for ${category}`);
 
       // Convert to our format
-      const businesses = items.map((item: ApifyPlace) => this.convertToCache(item));
+      const businesses = (items as unknown as ApifyPlace[]).map((item) => this.convertToCache(item));
       
       return businesses;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`❌ Error scraping ${category}:`, error);
       return [];
     }
@@ -218,7 +224,7 @@ export class ApifyScraper {
             return saved.length;
           }
           return 0;
-        } catch (error) {
+        } catch (error: any) {
           const errorMsg = `Failed to scrape ${category}: ${error.message}`;
           console.error('❌', errorMsg);
           errors.push(errorMsg);
@@ -271,7 +277,7 @@ export class ApifyScraper {
           error: 'No businesses found in test scraping'
         };
       }
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         sampleData: null,

@@ -5,7 +5,7 @@ export default function AdminNav() {
   const [location, setLocation] = useLocation();
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
+    sessionStorage.removeItem('adminToken');
     setLocation('/admin/login');
   };
 

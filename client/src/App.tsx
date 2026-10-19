@@ -4,19 +4,23 @@ import { AuthProvider } from "@/contexts/auth-context";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { MicrositeThemeProvider } from "@/contexts/MicrositeThemeContext";
 import NotFound from "@/pages/not-found";
-import { StackHandler, StackProvider, StackTheme } from "@stackframe/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Route, Switch, useLocation } from "wouter";
-import { stackClientApp } from "../../stack/client";
 import { queryClient } from "./lib/queryClient";
+import { ProtectedRoute } from "@/components/protected-route";
 
-// Public pages  
+// Public pages
 import BusinessLandingPage from "@/pages/business-landing";
 import BusinessMicrosite from "@/pages/business-microsite";
 
 // Auth pages
+import AuthCallback from "@/pages/auth/callback";
+import ForgotPassword from "@/pages/auth/forgot-password";
 import Login from "@/pages/auth/login";
+import OtpLogin from "@/pages/auth/otp-login";
 import Register from "@/pages/auth/register";
+import ResetPassword from "@/pages/auth/reset-password";
+import VerifyEmail from "@/pages/auth/verify-email";
 
 // Dashboard pages
 import Analytics from "@/pages/dashboard/analytics";
@@ -41,13 +45,6 @@ import AdminLogin from "@/pages/admin/login";
 import AdminOpenStreetBusinesses from "@/pages/admin/openstreet-businesses";
 
 function Router() {
-  const [location] = useLocation();
-
-  // Handle Stack auth routes
-  if (location.startsWith('/handler/')) {
-    return <StackHandler app={stackClientApp} location={location} fullPage />;
-  }
-
   return (
     <Switch>
       {/* Public routes */}
@@ -57,20 +54,73 @@ function Router() {
       {/* Auth routes */}
       <Route path="/login" component={Login} />
       <Route path="/registro" component={Register} />
+      <Route path="/otp" component={OtpLogin} />
+      <Route path="/verify-email" component={VerifyEmail} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/auth/callback" component={AuthCallback} />
 
-      {/* Dashboard routes */}
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/dashboard/citas" component={Appointments} />
-      <Route path="/dashboard/calendario" component={Calendar} />
-      <Route path="/dashboard/clientes" component={Clients} />
-      <Route path="/dashboard/servicios" component={Services} />
-      <Route path="/dashboard/resenas" component={Reviews} />
-      <Route path="/dashboard/analytics" component={Analytics} />
-      <Route path="/dashboard/finanzas" component={Finanzas} />
-      <Route path="/dashboard/configuracion" component={Settings} />
-      <Route path="/dashboard/create-business" component={CreateBusiness} />
-      <Route path="/dashboard/micrositio" component={MicrositioBuilder} />
-      <Route path="/dashboard/networking" component={Networking} />
+      {/* Dashboard routes (authenticated) */}
+      <Route path="/dashboard">
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/citas">
+        <ProtectedRoute>
+          <Appointments />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/calendario">
+        <ProtectedRoute>
+          <Calendar />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/clientes">
+        <ProtectedRoute>
+          <Clients />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/servicios">
+        <ProtectedRoute>
+          <Services />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/resenas">
+        <ProtectedRoute>
+          <Reviews />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/analytics">
+        <ProtectedRoute>
+          <Analytics />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/finanzas">
+        <ProtectedRoute>
+          <Finanzas />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/configuracion">
+        <ProtectedRoute>
+          <Settings />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/create-business">
+        <ProtectedRoute>
+          <CreateBusiness />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/micrositio">
+        <ProtectedRoute>
+          <MicrositioBuilder />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/dashboard/networking">
+        <ProtectedRoute>
+          <Networking />
+        </ProtectedRoute>
+      </Route>
 
       {/* Documentation route */}
       <Route path="/documentation" component={Documentation} />
@@ -94,22 +144,18 @@ function Router() {
 
 function App() {
   return (
-    <StackProvider app={stackClientApp}>
-      <StackTheme>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <ThemeProvider>
-              <MicrositeThemeProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Router />
-                </TooltipProvider>
-              </MicrositeThemeProvider>
-            </ThemeProvider>
-          </AuthProvider>
-        </QueryClientProvider>
-      </StackTheme>
-    </StackProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ThemeProvider>
+          <MicrositeThemeProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </MicrositeThemeProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }
 

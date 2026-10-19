@@ -173,11 +173,10 @@ router.post('/businesses/:businessId/apply-scraped-data', requireAuth, async (re
           await storage.createGalleryItem({
             businessId,
             imageUrl,
-            caption: 'Imagen extraída automáticamente',
-            isActive: true
+            caption: 'Imagen extraída automáticamente'
           });
           fieldsUpdated++;
-        } catch (error) {
+        } catch (error: any) {
           console.log('⚠️ Skipping duplicate image:', imageUrl);
         }
       }
@@ -195,7 +194,7 @@ router.post('/businesses/:businessId/apply-scraped-data', requireAuth, async (re
             comment: review.comment || ''
           });
           fieldsUpdated++;
-        } catch (error) {
+        } catch (error: any) {
           console.log('⚠️ Skipping duplicate review:', review.author);
         }
       }
@@ -213,7 +212,7 @@ router.post('/businesses/:businessId/apply-scraped-data', requireAuth, async (re
       reviewsAdded: scrapedData.reviews?.length || 0
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error applying scraped data:', error);
     
     if (error instanceof z.ZodError) {

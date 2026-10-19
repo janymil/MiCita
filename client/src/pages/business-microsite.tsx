@@ -16,13 +16,57 @@ import { useState } from "react";
 import { useParams } from "wouter";
 
 export default function BusinessMicrosite() {
+interface MicrositeBusiness {
+  id: number;
+  name: string;
+  category: string;
+  description?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  hours?: unknown;
+  [key: string]: unknown;
+}
+
+interface MicrositeService {
+  id: number;
+  name: string;
+  description?: string | null;
+  duration: number | null;
+  price: string | null;
+}
+
+interface MicrositeGalleryItem {
+  id: number;
+  imageUrl: string;
+  title?: string | null;
+  description?: string | null;
+}
+
+interface MicrositeReview {
+  id: number;
+  rating: number;
+  comment?: string | null;
+  clientName?: string | null;
+  source?: string | null;
+  createdAt?: string | null;
+}
+
+interface MicrositeData {
+  business: MicrositeBusiness;
+  settings?: Record<string, any> | null;
+  services: MicrositeService[];
+  gallery: MicrositeGalleryItem[];
+  reviews: MicrositeReview[];
+}
+
   const { slug } = useParams<{ slug: string }>();
   const { theme } = useMicrositeTheme();
   const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
 
   console.log("BusinessMicrosite: slug =", slug);
 
-  const { data: micrositeData, isLoading, error } = useQuery({
+  const { data: micrositeData, isLoading, error } = useQuery<MicrositeData>({
     queryKey: [`/api/micrositio/${slug}`],
     enabled: Boolean(slug),
   });
@@ -55,7 +99,7 @@ export default function BusinessMicrosite() {
     );
   }
 
-  const { business, settings, services, gallery, reviews } = micrositeData || {};
+  const { business, settings, services = [], gallery = [], reviews = [] } = micrositeData;
   const categoryInfo = categories.find(c => c.id === business.category);
   const themeConfig = getThemeClasses(theme);
 
@@ -446,7 +490,7 @@ export default function BusinessMicrosite() {
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center">
                               <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-lg mr-3">
-                                {review.clientName.charAt(0).toUpperCase()}
+                                {(review.clientName ?? '?').charAt(0).toUpperCase()}
                               </div>
                               <div>
                                 <p className="font-bold text-gray-900">{review.clientName}</p>
@@ -715,15 +759,15 @@ export default function BusinessMicrosite() {
                     settings?.workingHours ? (
                       <div className="space-y-2">
                         {[
-                          { dayIndex: '1', label: 'Lun' },
-                          { dayIndex: '2', label: 'Mar' },
-                          { dayIndex: '3', label: 'Mié' },
-                          { dayIndex: '4', label: 'Jue' },
-                          { dayIndex: '5', label: 'Vie' },
-                          { dayIndex: '6', label: 'Sáb' },
-                          { dayIndex: '0', label: 'Dom' }
-                        ].map(({ dayIndex, label }) => {
-                          const hours = settings.workingHours[dayIndex];
+                          { dayIndex: '1', dayKey: 'monday', label: 'Lun' },
+                          { dayIndex: '2', dayKey: 'tuesday', label: 'Mar' },
+                          { dayIndex: '3', dayKey: 'wednesday', label: 'Mié' },
+                          { dayIndex: '4', dayKey: 'thursday', label: 'Jue' },
+                          { dayIndex: '5', dayKey: 'friday', label: 'Vie' },
+                          { dayIndex: '6', dayKey: 'saturday', label: 'Sáb' },
+                          { dayIndex: '0', dayKey: 'sunday', label: 'Dom' }
+                        ].map(({ dayIndex, dayKey, label }) => {
+                          const hours = settings.workingHours[dayKey] || settings.workingHours[dayIndex] || (dayIndex === '0' ? settings.workingHours['7'] : undefined);
                           if (!hours) return null;
 
                           const today = new Date().getDay().toString();

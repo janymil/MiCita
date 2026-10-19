@@ -57,7 +57,7 @@ router.post('/start', async (req: Request, res: Response) => {
       estimatedDuration: '2-3 minutes',
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Scraping job failed:', error);
 
     if (error instanceof z.ZodError) {
@@ -106,7 +106,7 @@ router.get('/status/:jobId', async (req: Request, res: Response) => {
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Failed to get job status:', error);
 
     res.status(500).json({
@@ -155,7 +155,7 @@ router.get('/results/:jobId', async (req: Request, res: Response) => {
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Failed to get job results:', error);
 
     res.status(500).json({

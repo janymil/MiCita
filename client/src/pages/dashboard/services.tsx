@@ -25,6 +25,7 @@ import { z } from "zod";
 import DashboardLayout from "@/components/dashboard-layout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { BusinessSummary, ServiceRecord } from "@/lib/api-types";
 
 const serviceSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -45,13 +46,13 @@ export default function Services() {
   const queryClient = useQueryClient();
 
   // Get user's businesses first
-  const { data: businesses } = useQuery({
+  const { data: businesses } = useQuery<BusinessSummary[]>({
     queryKey: ["/api/dashboard/businesses"],
   });
 
   const businessId = businesses?.[0]?.id;
 
-  const { data: services, isLoading } = useQuery({
+  const { data: services, isLoading } = useQuery<ServiceRecord[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/services`],
     enabled: !!businessId,
   });

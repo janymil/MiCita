@@ -1,26 +1,11 @@
 import express from 'express';
 import { storage } from './storage.js';
 import { db } from './db.js';
+import { eq, inArray } from 'drizzle-orm';
 import { apifyBusinesses } from '../shared/schema.js';
+import { adminAuth } from './admin-auth.js';
 
 const router = express.Router();
-
-// Admin authentication middleware
-const adminAuth = (req: any, res: any, next: any) => {
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No authorization header' });
-  }
-  
-  const token = authHeader.split(' ')[1];
-  if (token !== adminPassword) {
-    return res.status(401).json({ error: 'Invalid admin token' });
-  }
-  
-  next();
-};
 
 // Apply admin auth to all routes
 router.use(adminAuth);
@@ -81,7 +66,7 @@ router.get('/stats', async (req, res) => {
       qualityStats,
       recentBusinesses
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin stats error:', error);
     res.status(500).json({ error: 'Failed to fetch admin stats' });
   }
@@ -167,12 +152,12 @@ router.get('/businesses', async (req, res) => {
     // Filter by review count
     if (!isNaN(minReviews)) {
       const beforeCount = businesses.length;
-      businesses = businesses.filter(b => b.reviewCount >= minReviews);
+      businesses = businesses.filter(b => (b.reviewCount ?? 0) >= minReviews);
       console.log(`After minReviews filter (>= ${minReviews}): ${beforeCount} -> ${businesses.length}`);
     }
     if (!isNaN(maxReviews)) {
       const beforeCount = businesses.length;
-      businesses = businesses.filter(b => b.reviewCount <= maxReviews);
+      businesses = businesses.filter(b => (b.reviewCount ?? 0) <= maxReviews);
       console.log(`After maxReviews filter (<= ${maxReviews}): ${beforeCount} -> ${businesses.length}`);
     }
     
@@ -202,8 +187,8 @@ router.get('/businesses', async (req, res) => {
           bValue = new Date(b.createdAt || 0).getTime();
           break;
         default:
-          aValue = a[sortBy] || '';
-          bValue = b[sortBy] || '';
+          aValue = (a as Record<string, any>)[sortBy] ?? '';
+          bValue = (b as Record<string, any>)[sortBy] ?? '';
       }
       
       if (sortOrder === 'asc') {
@@ -230,7 +215,7 @@ router.get('/businesses', async (req, res) => {
         hasPrev: page > 1
       }
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin businesses fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch businesses' });
   }
@@ -248,7 +233,7 @@ router.get('/businesses/:id', async (req, res) => {
     }
     
     res.json(business);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin business fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch business' });
   }
@@ -285,7 +270,7 @@ router.post('/businesses', async (req, res) => {
     });
     
     res.status(201).json(newBusiness);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin business create error:', error);
     res.status(500).json({ error: 'Failed to create business' });
   }
@@ -305,7 +290,7 @@ router.get('/filter-options', async (req, res) => {
       statuses,
       sources
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin filter options error:', error);
     res.status(500).json({ error: 'Failed to fetch filter options' });
   }
@@ -352,7 +337,7 @@ router.get('/businesses/export', async (req, res) => {
     } else {
       res.status(400).json({ error: 'Unsupported export format' });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin export error:', error);
     res.status(500).json({ error: 'Failed to export businesses' });
   }
@@ -378,7 +363,7 @@ router.get('/businesses/search', async (req, res) => {
     );
     
     res.json(filteredBusinesses.slice(0, limit));
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin search error:', error);
     res.status(500).json({ error: 'Failed to search businesses' });
   }
@@ -394,13 +379,13 @@ router.delete('/businesses/bulk-delete', async (req, res) => {
     }
     
     // Delete multiple businesses
-    await db.delete(apifyBusinesses).where(db.sql`id = ANY(${ids})`);
+    await db.delete(apifyBusinesses).where(inArray(apifyBusinesses.id, ids));
     
     res.json({ 
       message: `Successfully deleted ${ids.length} businesses`,
       deletedCount: ids.length 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bulk delete error:', error);
     res.status(500).json({ error: 'Failed to bulk delete businesses' });
   }
@@ -425,13 +410,13 @@ router.put('/businesses/bulk-update', async (req, res) => {
         ...updates,
         lastUpdated: new Date()
       })
-      .where(db.sql`id = ANY(${ids})`);
+      .where(inArray(apifyBusinesses.id, ids));
     
     res.json({ 
       message: `Successfully updated ${ids.length} businesses`,
       updatedCount: ids.length 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bulk update error:', error);
     res.status(500).json({ error: 'Failed to bulk update businesses' });
   }
@@ -451,10 +436,10 @@ router.delete('/businesses/:id', async (req, res) => {
     }
     
     // Delete the business
-    await db.delete(apifyBusinesses).where(db.sql`id = ${id}`);
+    await db.delete(apifyBusinesses).where(eq(apifyBusinesses.id, id));
     
     res.json({ message: 'Business deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin delete business error:', error);
     res.status(500).json({ error: 'Failed to delete business' });
   }
@@ -470,13 +455,13 @@ router.delete('/businesses/bulk-delete', async (req, res) => {
     }
     
     // Delete multiple businesses
-    await db.delete(apifyBusinesses).where(db.sql`id = ANY(${ids})`);
+    await db.delete(apifyBusinesses).where(inArray(apifyBusinesses.id, ids));
     
     res.json({ 
       message: `Successfully deleted ${ids.length} businesses`,
       deletedCount: ids.length 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bulk delete error:', error);
     res.status(500).json({ error: 'Failed to bulk delete businesses' });
   }
@@ -502,11 +487,11 @@ router.put('/businesses/:id', async (req, res) => {
         ...updates,
         lastUpdated: new Date()
       })
-      .where(db.sql`id = ${id}`)
+      .where(eq(apifyBusinesses.id, id))
       .returning();
     
     res.json(updatedBusiness);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin update business error:', error);
     res.status(500).json({ error: 'Failed to update business' });
   }
@@ -531,13 +516,13 @@ router.put('/businesses/bulk-update', async (req, res) => {
         ...updates,
         lastUpdated: new Date()
       })
-      .where(db.sql`id = ANY(${ids})`);
+      .where(inArray(apifyBusinesses.id, ids));
     
     res.json({ 
       message: `Successfully updated ${ids.length} businesses`,
       updatedCount: ids.length 
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin bulk update error:', error);
     res.status(500).json({ error: 'Failed to bulk update businesses' });
   }

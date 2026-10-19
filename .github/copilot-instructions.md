@@ -3,10 +3,11 @@
 ## Big Picture Architecture
 
 This is a **full-stack Peruvian business discovery and appointment management platform** combining:
-- **Frontend**: React 18 + TypeScript + Vite with Shadcn/UI components and Tailwind CSS
+- **Frontend**: React 19 + TypeScript + Vite with Shadcn/UI components and Tailwind CSS
 - **Backend**: Express.js API with TypeScript ES modules  
-- **Database**: PostgreSQL with Drizzle ORM and schema-first approach
-- **Auth**: Stack Auth for authentication with local database sync
+- **Database**: PostgreSQL (Neon) with Drizzle ORM and schema-first approach
+- **Auth**: **Self-hosted** — JWT access tokens + rotating refresh cookies, argon2id passwords, Google OAuth, email + phone OTP
+- **Payments**: MercadoPago (Checkout Pro + Preapproval subscriptions)
 - **Data Sources**: Apify web scraping + OpenStreet business data + user-generated content
 
 ## Critical Project Structure
@@ -15,48 +16,71 @@ This is a **full-stack Peruvian business discovery and appointment management pl
 /client/                    # React frontend (Vite build)
   /src/pages/dashboard/     # Business owner dashboard pages
   /src/pages/admin/         # Admin panel for data management
+  /src/pages/auth/          # Login, register, OTP, password reset
   /src/components/          # Shadcn/UI components
-  /src/contexts/auth-context.tsx  # Stack Auth integration
+  /src/contexts/auth-context.tsx  # Auth provider (useAuth)
+  /src/lib/auth-api.ts      # Typed auth client + authenticated fetch
 /server/                    # Express backend
-  /routes.ts               # Main API routes (2,470+ lines)
-  /auth-middleware.ts      # Stack Auth token verification  
-  /auth-helpers.ts         # Business ownership verification
-  /performance-optimizer.ts # Search caching & optimization
-/shared/schema.ts          # Database schema (620+ lines) - SINGLE SOURCE OF TRUTH
-/stack/                    # Stack Auth configuration
-/scrapers/                 # Web scraping scripts for data acquisition
-/*.js                      # Data import/analysis scripts (120+ files)
+  /config.ts               # Central env config (fail-fast in production)
+  /routes.ts               # Main API routes
+  /auth-routes.ts          # Self-hosted auth endpoints
+  /auth/                   # password, tokens, otp, google, refresh services
+  /payment-routes.ts       # MercadoPago endpoints + webhook
+  /payments/mercadopago.ts # MercadoPago REST client
+  /auth-middleware.ts      # requireAuth / optionalAuth / requireAdmin
+  /auth-helpers.ts         # Business/service/client ownership checks
+/shared/schema.ts          # Database schema - SINGLE SOURCE OF TRUTH
+/scripts/                  # ensure-auth-schema, verify-neon, smoke-auth, verify-email
 ```
 
 ## Development Workflow
 
 ### Key Commands
-- `npm run dev` - Full-stack development server with HMR
-- `npm run build` - Production build (client + server)
-- `npm run db:push` - Apply schema changes to database
-- `npm start` - Production server
+- `npm run dev` — full-stack dev server with HMR
+- `npm run build` — production build (client + server)
+- `npm start` — production server
+- `npm run typecheck` — `tsc --noEmit` (must pass; CI blocks on it)
+- `npm run db:ensure-auth` — additive, idempotent auth/payment schema
+- `npm run db:verify` — inspect live Neon tables/counts
+- `npm run smoke:auth` — runtime checks for auth/payments modules
 
 ### Database Workflow
-1. **Schema changes**: Edit `/shared/schema.ts` (Drizzle + Zod validation)
-2. **Apply changes**: `npm run db:push` 
-3. **Data scripts**: Use `.js` files in root for data import/analysis
+1. **Schema changes**: edit `/shared/schema.ts` (includes `auth_identities`, `refresh_tokens`, `verification_otps`, `payments`, `subscriptions`, `auth_audit_log`).
+2. **Apply**: `npm run db:push`, or add an idempotent statement to `scripts/ensure-auth-schema.mjs`.
+3. The additive schema is also applied automatically at server startup.
 
 ## Authentication Architecture
 
-**Hybrid Stack Auth + Local Database Pattern:**
-- Stack Auth handles authentication, tokens, and user sessions
-- Local `users` table synced via `stack_auth_id` foreign key
-- All business data owned by local user records
-- API routes protected with `requireAuth` middleware + ownership verification
+**Self-hosted, no external auth provider:**
+- Passwords: argon2id (`server/auth/password.ts`); legacy bcrypt hashes auto-upgraded.
+- Tokens: 15-minute JWT access token + rotating refresh token in an HttpOnly cookie, hashed at rest with reuse detection.
+- Providers share `auth_identities`: `password`, `google`, `email_otp`, `phone_otp`.
+- All auth events are written to `auth_audit_log`.
 
 ```typescript
-// Pattern for protected business operations
+// Protected business operation pattern
 app.post("/api/dashboard/businesses", requireAuth, async (req: AuthenticatedRequest, res) => {
   const dbUser = await getAuthenticatedUser(req, res);
-  const isOwner = await verifyBusinessOwnership(req, res, businessId);
+  const owns = await verifyBusinessOwnership(req, res, businessId);
   // ... business logic
 });
 ```
+
+Admin routes (`/api/admin/*`) use the shared `adminAuth` gate in
+`server/admin-auth.ts`: an authenticated user with `role='admin'` / an
+allow-listed email, or a constant-time-compared legacy bearer token.
+Never reintroduce a hardcoded admin password fallback.
+
+## Frontend Auth Pattern
+
+```typescript
+// All requests go through apiFetch, which attaches the access token,
+// refreshes it transparently, and sends the CSRF header on writes.
+import { apiFetch } from "@/lib/auth-api";
+const res = await apiFetch("/api/dashboard/businesses");
+```
+
+Never call the Stack Auth APIs or use `x-stack-access-token`; that system was removed.
 
 ## Data Architecture Layers
 
@@ -124,25 +148,24 @@ const categories = {
 
 ### API Request Pattern
 ```typescript
-// All requests auto-include Stack Auth token
-const response = await fetch('/api/dashboard/businesses', {
-  headers: { 
-    'x-stack-access-token': localStorage.getItem('stack-access-token') 
-  }
-});
+// All requests go through apiFetch, which attaches the access token,
+// refreshes it transparently on 401, and sends the CSRF header on writes.
+import { apiFetch } from "@/lib/auth-api";
+const response = await apiFetch('/api/dashboard/businesses');
 ```
 
 ## Common Debugging Patterns
 
 ### Authentication Issues
-1. Check Stack Auth token in browser localStorage
-2. Verify user sync: `node debug-list-users.js`
-3. Test ownership: `node test-auth-fix.js`
+1. Auth endpoints live in `server/auth-routes.ts`; check the audit trail in `auth_audit_log`.
+2. Inspect users: `node scripts/check-users.mjs`
+3. Runtime auth checks: `npm run smoke:auth`
+4. Email/SMTP health: `node scripts/verify-email.mjs you@example.com`
 
 ### Database Issues  
-1. Schema validation: `node check-schema.js`
-2. Data analysis: `node analyze-complete.js`
-3. Import status: `node check-osm-import-status.js`
+1. Live Neon tables/counts: `npm run db:verify`
+2. Apply additive auth schema: `npm run db:ensure-auth`
+3. Health probe: `GET /api/health`
 
 ### Performance Issues
 1. Check cache stats via `performanceOptimizer.getCacheStats()`
@@ -152,9 +175,10 @@ const response = await fetch('/api/dashboard/businesses', {
 ## Key Integration Points
 
 - **Google Maps**: Business locations, district detection, street view
-- **SendGrid**: Email notifications for appointments
+- **SMTP (nodemailer)**: Email OTP, password reset, appointment notifications
 - **Apify**: Professional web scraping for business data
 - **Neon Database**: PostgreSQL hosting with connection pooling
-- **Stack Auth**: Enterprise authentication with React integration
+- **MercadoPago**: Checkout Pro (one-off) + Preapproval (subscriptions)
+- **Google OAuth**: Sign in with Google (Authorization Code + PKCE)
 
-This codebase prioritizes Peruvian market needs, performance optimization, and hybrid authentication patterns. Focus on understanding the data flow between external sources → database → API → React UI.
+This codebase prioritizes Peruvian market needs, performance optimization, and self-hosted authentication. Focus on understanding the data flow between external sources → database → API → React UI.

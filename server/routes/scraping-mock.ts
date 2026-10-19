@@ -27,6 +27,7 @@ export interface ScrapingJob {
 
 import { Router } from 'express';
 const router = Router();
+const mockJobs = new Map<string, { sources: any }>();
 
 // Start scraping job
 router.post('/api/scraping/start', async (req, res) => {
@@ -36,6 +37,7 @@ router.post('/api/scraping/start', async (req, res) => {
     // For now, return a mock response
     // Later this will integrate with Apify
     const jobId = `job_${Date.now()}`;
+    mockJobs.set(jobId, { sources: sources || {} });
     
     // Simulate progress updates
     setTimeout(() => {
@@ -48,7 +50,7 @@ router.post('/api/scraping/start', async (req, res) => {
       status: 'started',
       estimatedCompletion: '2-3 minutes'
     });
-  } catch (error) {
+  } catch (error: any) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     res.status(400).json({ error: errorMessage });
   }

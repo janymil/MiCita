@@ -7,7 +7,9 @@ import { Badge } from '../../components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
 import DashboardLayout from '../../components/dashboard-layout';
+import type { BusinessSummary } from "@/lib/api-types";
 
 interface Review {
   id: number;
@@ -34,34 +36,26 @@ export default function ReviewsPage() {
   const [filterSource, setFilterSource] = useState<string>('all');
 
   // Fetch businesses first to get the current business
-  const { data: businesses, isLoading: businessesLoading } = useQuery({
+  const { data: businesses, isLoading: businessesLoading } = useQuery<BusinessSummary[]>({
     queryKey: ["/api/dashboard/businesses"],
   });
 
   const currentBusiness = businesses?.[0];
-  const businessId = currentBusiness?.id || 1; // Fallback to 1 for now
+  const businessId = currentBusiness?.id;
 
   // Fetch reviews
-  const { data: reviews = [], isLoading: reviewsLoading } = useQuery({
-    queryKey: ['reviews', businessId],
-    queryFn: async () => {
-      const response = await fetch(`/api/dashboard/businesses/${businessId}/reviews`);
-      if (!response.ok) throw new Error('Failed to fetch reviews');
-      return response.json();
-    },
-    enabled: Boolean(businessId), // Only run when we have a businessId
+  const { data: reviews = [], isLoading: reviewsLoading } = useQuery<Review[]>({
+    queryKey: [`/api/dashboard/businesses/${businessId}/reviews`],
+    enabled: Boolean(businessId),
   });
 
   // Delete review mutation
   const deleteReviewMutation = useMutation({
     mutationFn: async (reviewId: number) => {
-      const response = await fetch(`/api/dashboard/businesses/${businessId}/reviews/${reviewId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete review');
+      await apiRequest('DELETE', `/api/dashboard/businesses/${businessId}/reviews/${reviewId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reviews', businessId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/reviews`] });
       toast({
         title: "Éxito",
         description: "Reseña eliminada exitosamente",

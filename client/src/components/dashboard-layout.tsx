@@ -94,10 +94,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   // Helper function to get user initials
   const getUserInitials = () => {
-    if (user?.displayName) {
-      return user.displayName
+    if (user?.name) {
+      return user.name
         .split(' ')
-        .map(name => name.charAt(0))
+        .map((name) => name.charAt(0))
         .join('')
         .toUpperCase()
         .slice(0, 2);
@@ -125,9 +125,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     try {
       // Prepare context for AI
       const context: ChatContext = {
-        userId: user?.id || '',
+        userId: String(user?.id ?? ''),
         businessId: currentBusiness?.id,
-        userDisplayName: user?.displayName || user?.email || 'Usuario',
+        userDisplayName: user?.name || user?.email || 'Usuario',
         businessName: currentBusiness?.name || businessName
       };
 
@@ -281,7 +281,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         </div>
                       )}
                       <span className="hidden sm:block text-sm font-medium theme-text-primary">
-                        {user?.displayName || user?.email}
+                        {user?.name || user?.email}
                       </span>
                       <ChevronDown className="h-4 w-4 theme-text-secondary" />
                     </div>
@@ -309,7 +309,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={logout}
+                    onClick={async () => {
+                      await logout();
+                      window.location.href = "/login";
+                    }}
                     className="flex items-center text-red-600 focus:text-red-600"
                   >
                     <LogOut className="h-4 w-4 mr-2" />

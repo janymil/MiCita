@@ -117,7 +117,7 @@ export default function BusinessMap({
           }
         });
 
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error loading Google Maps:", error);
         console.error("Error details:", {
           message: error.message,

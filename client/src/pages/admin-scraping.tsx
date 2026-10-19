@@ -69,7 +69,7 @@ export default function AdminScrapingPage() {
 
   // Custom query function with admin auth
   const adminQueryFn = async ({ queryKey }: any) => {
-    const token = localStorage.getItem('adminToken');
+    const token = sessionStorage.getItem('adminToken');
     const res = await fetch(queryKey[0] as string, {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -103,7 +103,7 @@ export default function AdminScrapingPage() {
   // Start scraping job mutation
   const startScrapingMutation = useMutation({
     mutationFn: async (config: any) => {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await fetch("/api/admin/scraping/start", {
         method: "POST",
         headers: {
@@ -164,7 +164,7 @@ export default function AdminScrapingPage() {
     const variants = {
       pending: "secondary",
       running: "default", 
-      completed: "success",
+      completed: "default",
       failed: "destructive"
     } as const;
     

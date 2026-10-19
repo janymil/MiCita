@@ -34,7 +34,7 @@ router.post('/:businessId/bulk-add', async (req: Request, res: Response) => {
       message: `Successfully added ${insertedItems.length} images to gallery`
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error bulk adding gallery images:', error);
     res.status(500).json({
       success: false,
@@ -60,7 +60,7 @@ router.get('/:businessId', async (req: Request, res: Response) => {
       data: images
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching gallery images:', error);
     res.status(500).json({
       success: false,
@@ -84,7 +84,7 @@ router.delete('/:businessId/images/:imageId', async (req: Request, res: Response
       message: 'Gallery image deleted successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting gallery image:', error);
     res.status(500).json({
       success: false,

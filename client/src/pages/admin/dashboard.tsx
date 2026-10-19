@@ -23,7 +23,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     // Check if user is authenticated
-    const token = localStorage.getItem('adminToken');
+    const token = sessionStorage.getItem('adminToken');
     if (!token) {
       setLocation('/admin/login');
       return;
@@ -34,7 +34,7 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await fetch('/api/admin/stats', {
         headers: {
           'Authorization': `Bearer ${token}`

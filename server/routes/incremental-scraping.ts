@@ -53,7 +53,7 @@ router.post('/apply-incremental', requireAuth, async (req: AuthenticatedRequest,
         const aiGenerator = new AIContentGenerator();
         aiContent = await aiGenerator.generateContent(scrapedData);
         console.log('✨ AI content generated successfully');
-      } catch (error) {
+      } catch (error: any) {
         console.log('⚠️ AI content generation failed, continuing without it:', error);
       }
     }
@@ -72,7 +72,7 @@ router.post('/apply-incremental', requireAuth, async (req: AuthenticatedRequest,
       aiContent: aiContent || null
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error in incremental scraping:', error);
     res.status(500).json({
       success: false,
@@ -105,7 +105,7 @@ router.get('/history/:businessId', requireAuth, async (req: AuthenticatedRequest
       history
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error getting scraping history:', error);
     res.status(500).json({
       success: false,
@@ -147,14 +147,14 @@ router.post('/generate-micrositio/:businessId', requireAuth, async (req: Authent
     const businessData = {
       name: business.name,
       category: business.category,
-      description: business.description,
-      address: settings?.address,
-      phone: business.phone,
-      website: settings?.websiteUrl,
+      description: business.description ?? undefined,
+      address: settings?.streetAddress ?? undefined,
+      phone: business.phone ?? undefined,
+      website: settings?.websiteUrl ?? undefined,
       socialMedia: {
-        facebook: settings?.facebookUrl,
-        instagram: settings?.instagramUrl,
-        youtube: settings?.youtubeUrl
+        facebook: settings?.facebookUrl ?? undefined,
+        instagram: settings?.instagramUrl ?? undefined,
+        youtube: settings?.youtubeUrl ?? undefined
       }
     };
 
@@ -169,7 +169,7 @@ router.post('/generate-micrositio/:businessId', requireAuth, async (req: Authent
       message: 'AI micrositio content generated successfully'
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error generating AI micrositio content:', error);
     res.status(500).json({
       success: false,
@@ -208,7 +208,7 @@ router.get('/sources/:businessId', requireAuth, async (req: AuthenticatedRequest
       sources
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error checking scraped sources:', error);
     res.status(500).json({
       success: false,

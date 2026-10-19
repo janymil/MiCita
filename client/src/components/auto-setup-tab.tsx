@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/auth-api";
 import { ScrapedDataPreview } from "./scraped-data-preview";
 import { 
   Sparkles, 
@@ -80,18 +81,10 @@ export function AutoSetupTab({ businessId, onDataFetched }: AutoSetupTabProps) {
   const applyDataMutation = useMutation({
     mutationFn: async (data: any) => {
       console.log('🔄 Applying scraped data to micrositio...');
-      
-      // Apply data to business settings with proper authentication
-      const token = localStorage.getItem('stack-access-token') || sessionStorage.getItem('stack-access-token') || '';
-      
-      const response = await fetch(`/api/dashboard/businesses/${businessId}/apply-scraped-data`, {
+
+      const response = await apiFetch(`/api/dashboard/businesses/${businessId}/apply-scraped-data`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'x-stack-access-token': token
-        },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
 
       if (!response.ok) {

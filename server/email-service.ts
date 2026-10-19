@@ -8,7 +8,7 @@ export class EmailService {
     try {
       this.transporter = createTransporter();
       console.log('Email service initialized successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create email transporter:', error);
       console.error('Please ensure EMAIL_USER and EMAIL_PASS are set in Replit secrets');
       this.transporter = null;
@@ -34,7 +34,7 @@ export class EmailService {
 
       console.log(`Client confirmation email sent to: ${appointmentData.clientEmail}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send client confirmation email:', error);
       return false;
     }
@@ -59,7 +59,7 @@ export class EmailService {
 
       console.log(`Business notification email sent to: ${appointmentData.businessEmail}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send business notification email:', error);
       return false;
     }
@@ -93,7 +93,7 @@ export class EmailService {
 
       console.log(`Appointment cancellation email sent to: ${appointmentData.clientEmail}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send appointment cancellation email:', error);
       return false;
     }
@@ -118,7 +118,7 @@ export class EmailService {
 
       console.log(`Appointment rescheduling email sent to: ${appointmentData.clientEmail}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send appointment rescheduling email:', error);
       return false;
     }

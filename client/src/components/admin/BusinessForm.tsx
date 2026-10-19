@@ -210,7 +210,7 @@ export default function BusinessForm({ business, isOpen, onClose, onSave }: Busi
     setLoading(true);
     
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const url = business?.id 
         ? `/api/admin/businesses/${business.id}`
         : '/api/admin/businesses';

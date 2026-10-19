@@ -180,7 +180,7 @@ class ScrapingManager {
         });
       });
 
-    } catch (error) {
+    } catch (error: any) {
       this.updateJob(jobId, {
         status: 'failed',
         endTime: new Date(),
@@ -218,22 +218,8 @@ class ScrapingManager {
   }
 }
 
-// Admin authentication middleware - same as other admin routes
-const requireAdminAuth = (req: any, res: any, next: any) => {
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No authorization header' });
-  }
-  
-  const token = authHeader.split(' ')[1];
-  if (token !== adminPassword) {
-    return res.status(401).json({ error: 'Invalid admin token' });
-  }
-  
-  next();
-};
+// Admin authentication middleware - shared secure admin gate
+import { adminAuth as requireAdminAuth } from './admin-auth.js';
 
 export function registerAdminScrapingRoutes(app: Express) {
   // Get all scraping jobs
@@ -241,7 +227,7 @@ export function registerAdminScrapingRoutes(app: Express) {
     try {
       const jobs = ScrapingManager.getAllJobs();
       res.json({ jobs });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching scraping jobs:', error);
       res.status(500).json({ error: 'Failed to fetch scraping jobs' });
     }
@@ -258,7 +244,7 @@ export function registerAdminScrapingRoutes(app: Express) {
       }
 
       res.json({ job });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching job details:', error);
       res.status(500).json({ error: 'Failed to fetch job details' });
     }
@@ -274,7 +260,7 @@ export function registerAdminScrapingRoutes(app: Express) {
       ScrapingManager.executeScrapingJob(jobId);
       
       res.json({ jobId, message: 'Scraping job started successfully' });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting scraping job:', error);
       res.status(500).json({ error: 'Failed to start scraping job' });
     }
@@ -345,7 +331,7 @@ export function registerAdminScrapingRoutes(app: Express) {
           osm: osmQuality[0]
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching scraping stats:', error);
       res.status(500).json({ error: 'Failed to fetch scraping statistics' });
     }
@@ -419,7 +405,7 @@ export function registerAdminScrapingRoutes(app: Express) {
       res.json({
         scrapers: [...availableScrapers, ...categoryScrapers]
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching available scrapers:', error);
       res.status(500).json({ error: 'Failed to fetch available scrapers' });
     }
@@ -447,7 +433,7 @@ export function registerAdminScrapingRoutes(app: Express) {
       }
 
       res.json({ analysis: results });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error performing analysis:', error);
       res.status(500).json({ error: 'Failed to perform analysis' });
     }
@@ -472,7 +458,7 @@ export function registerAdminScrapingRoutes(app: Express) {
       }
 
       res.json({ result });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error performing cleanup:', error);
       res.status(500).json({ error: 'Failed to perform cleanup' });
     }

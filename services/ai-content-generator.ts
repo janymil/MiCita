@@ -140,7 +140,7 @@ export class AIContentGenerator {
 
       return JSON.parse(content) as AIGeneratedContent;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating AI content:', error);
       throw new Error('Failed to generate AI content');
     }
@@ -176,7 +176,7 @@ export class AIContentGenerator {
 
       return JSON.parse(content) as MicrositioStructure;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating micrositio structure:', error);
       throw new Error('Failed to generate micrositio structure');
     }
@@ -373,7 +373,7 @@ Crea una descripción mejorada que sea:
 
       return response.choices[0].message.content || description;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error enhancing description:', error);
       return description; // Fallback to original
     }
@@ -409,7 +409,7 @@ Responde con un array JSON de servicios con "name" y "description".`
       const result = JSON.parse(content);
       return result.services || [];
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating services:', error);
       return [];
     }

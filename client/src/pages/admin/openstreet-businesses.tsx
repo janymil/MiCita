@@ -113,7 +113,7 @@ export default function AdminOpenStreetBusinesses() {
   
   // Check authentication
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+    const token = sessionStorage.getItem('adminToken');
     if (!token) {
       setLocation('/admin/login');
     }
@@ -133,7 +133,7 @@ export default function AdminOpenStreetBusinesses() {
   
   const fetchFilterOptions = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await fetch('/api/admin/openstreet/filter-options', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -154,7 +154,7 @@ export default function AdminOpenStreetBusinesses() {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       console.log('🔑 Admin token:', token ? 'present' : 'missing');
       
       const params = new URLSearchParams({
@@ -244,7 +244,7 @@ export default function AdminOpenStreetBusinesses() {
     if (!confirm(`Delete ${selectedIds.size} selected businesses?`)) return;
     
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await fetch('/api/admin/openstreet/businesses/bulk', {
         method: 'DELETE',
         headers: {
@@ -266,7 +266,7 @@ export default function AdminOpenStreetBusinesses() {
   
   const handleExport = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const params = new URLSearchParams();
       
       // Add current filters to export

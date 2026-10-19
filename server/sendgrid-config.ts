@@ -17,7 +17,7 @@ export function configureSendGrid(): SendGridConfig {
     sgMail.setApiKey(apiKey);
     console.log('SendGrid configured successfully');
     return { apiKey, verified: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to configure SendGrid:', error);
     return { apiKey: '', verified: false };
   }

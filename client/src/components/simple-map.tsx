@@ -108,6 +108,7 @@ export default function SimpleMap({
     markersRef.current = [];
 
     const map = mapInstanceRef.current;
+    if (!map) return;
     const bounds = new window.google.maps.LatLngBounds();
 
     businesses.forEach((business) => {
@@ -163,9 +164,11 @@ export default function SimpleMap({
       map.fitBounds(bounds);
       
       // Ensure reasonable zoom level after fitting bounds
-      const listener = window.google.maps.event.addListener(map, "idle", () => {
-        if (map.getZoom() > 16) {
-          map.setZoom(16);
+      const mapInstance: google.maps.Map = map;
+      const listener = window.google.maps.event.addListener(mapInstance, "idle", () => {
+        const zoom = mapInstance.getZoom();
+        if (zoom !== undefined && zoom > 16) {
+          mapInstance.setZoom(16);
         }
         window.google.maps.event.removeListener(listener);
       });

@@ -26,6 +26,7 @@ import { z } from "zod";
 import DashboardLayout from "@/components/dashboard-layout";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { BusinessSummary, ClientRecord } from "@/lib/api-types";
 
 const clientSchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -44,8 +45,15 @@ export default function Clients() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: clients, isLoading } = useQuery({
-    queryKey: ["/api/dashboard/businesses/1/clients"],
+  const { data: businesses } = useQuery<BusinessSummary[]>({
+    queryKey: ["/api/dashboard/businesses"],
+  });
+
+  const businessId = businesses?.[0]?.id;
+
+  const { data: clients, isLoading } = useQuery<ClientRecord[]>({
+    queryKey: [`/api/dashboard/businesses/${businessId}/clients`],
+    enabled: !!businessId,
   });
 
   const form = useForm<ClientForm>({
@@ -62,13 +70,13 @@ export default function Clients() {
     mutationFn: async (data: ClientForm) => {
       const endpoint = editingClient
         ? `/api/dashboard/clients/${editingClient.id}`
-        : "/api/dashboard/businesses/1/clients";
+        : `/api/dashboard/businesses/${businessId}/clients`;
       const method = editingClient ? "PUT" : "POST";
       
       return apiRequest(method, endpoint, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/clients"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/clients`] });
       setIsDialogOpen(false);
       setEditingClient(null);
       form.reset();
@@ -93,7 +101,7 @@ export default function Clients() {
       return apiRequest("DELETE", `/api/dashboard/clients/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/clients"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/clients`] });
       toast({
         title: "Cliente eliminado",
         description: "El cliente ha sido eliminado exitosamente.",

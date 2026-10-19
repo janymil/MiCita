@@ -272,7 +272,7 @@ export default function SettingsPage() {
       return apiRequest("PUT", `/api/dashboard/businesses/${currentBusiness?.id}/settings`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/businesses/1/settings"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`] });
       toast({
         title: "Configuración guardada",
         description: "Las preferencias han sido actualizadas.",

@@ -19,31 +19,67 @@ import {
 import DashboardLayout from "@/components/dashboard-layout";
 import { useAuth } from "@/contexts/auth-context";
 
+interface DashboardBusiness {
+  id: number;
+  name: string;
+  category?: string;
+  isPremium?: boolean | null;
+}
+
+interface DashboardSettings {
+  customUrl?: string | null;
+  enablePublicBooking?: boolean | null;
+}
+
+interface AppointmentRow {
+  id: number;
+  date: string;
+  time: string;
+  status: string;
+  clientName?: string;
+  serviceName?: string;
+  price?: string | null;
+}
+
+interface DashboardAnalytics {
+  pendingAppointments?: number;
+  confirmedToday?: number;
+  totalClients?: number;
+  totalServices?: number;
+  weeklyRevenue?: number[];
+  totalRevenue?: number;
+  pendingPayments?: number;
+  averageAppointmentValue?: number;
+  completedAppointments?: number;
+  upcomingAppointments?: AppointmentRow[];
+  [key: string]: unknown;
+}
+
 export default function Dashboard() {
   const { user, isLoading } = useAuth();
   const [revenueChartView, setRevenueChartView] = useState("weekly");
 
 
-  const { data: businesses, isLoading: businessesLoading } = useQuery({
+  const { data: businesses, isLoading: businessesLoading } = useQuery<DashboardBusiness[]>({
     queryKey: ["/api/dashboard/businesses"],
   });
 
   const businessId = businesses?.[0]?.id;
 
-  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+  const { data: analytics, isLoading: analyticsLoading } = useQuery<DashboardAnalytics>({
     queryKey: [`/api/dashboard/businesses/${businessId}/analytics`],
     enabled: !!businessId,
   });
 
-  const { data: recentAppointments, isLoading: appointmentsLoading } = useQuery({
+  const { data: recentAppointments, isLoading: appointmentsLoading } = useQuery<AppointmentRow[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/appointments`],
     enabled: !!businessId,
   });
 
   const currentBusiness = businesses?.[0];
 
-  const { data: businessSettings } = useQuery({
-    queryKey: ["/api/dashboard/businesses", currentBusiness?.id, "settings"],
+  const { data: businessSettings } = useQuery<DashboardSettings>({
+    queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`],
     enabled: Boolean(currentBusiness?.id),
   });
 

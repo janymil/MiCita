@@ -79,7 +79,7 @@ export class IncrementalScrapingService {
       
       return result;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error in incremental data application:', error);
       throw error;
     }
@@ -252,13 +252,13 @@ export class IncrementalScrapingService {
       for (const imageUrl of newImages.slice(0, 20)) { // Limit to 20 images
         if (!existingUrls.has(imageUrl)) {
           try {
-            await storage.createGalleryItem(businessId, {
+            await storage.createGalleryItem({
+              businessId,
               imageUrl,
-              caption: 'Imagen extraída automáticamente',
-              isActive: true
+              caption: 'Imagen extraída automáticamente'
             });
             addedCount++;
-          } catch (error) {
+          } catch (error: any) {
             console.log('⚠️ Failed to add image:', imageUrl);
           }
         }
@@ -270,7 +270,7 @@ export class IncrementalScrapingService {
         result.fieldsSkipped.push('gallery (no new images)');
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error merging gallery images:', error);
       result.fieldsSkipped.push('gallery (error)');
     }
@@ -301,7 +301,7 @@ export class IncrementalScrapingService {
             });
             addedCount++;
             existingAuthors.add(review.author); // Prevent duplicates within this batch
-          } catch (error) {
+          } catch (error: any) {
             console.log('⚠️ Failed to add review from:', review.author);
           }
         }
@@ -313,7 +313,7 @@ export class IncrementalScrapingService {
         result.fieldsSkipped.push('reviews (no new reviews)');
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error merging reviews:', error);
       result.fieldsSkipped.push('reviews (error)');
     }
@@ -349,7 +349,7 @@ export class IncrementalScrapingService {
       
       // TODO: Implement actual session storage if needed for analytics
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error recording scraping session:', error);
     }
   }

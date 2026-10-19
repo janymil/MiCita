@@ -13,8 +13,8 @@ interface BookingWidgetProps {
   services: Array<{
     id: number;
     name: string;
-    price: string;
-    duration: number;
+    price: string | null;
+    duration: number | null;
   }>;
   businessId: number;
   workingHours?: any;

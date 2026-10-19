@@ -418,7 +418,7 @@ export class ApifyWaveScraper {
               
               progress.businessesProcessed++;
               totalBusinesses++;
-            } catch (error) {
+            } catch (error: any) {
               progress.errors.push(`Error processing business: ${error.message}`);
             }
           }
@@ -431,7 +431,7 @@ export class ApifyWaveScraper {
             await new Promise(resolve => setTimeout(resolve, 5000));
           }
 
-        } catch (error) {
+        } catch (error: any) {
           const errorMsg = `Batch ${batchIndex + 1} failed: ${error.message}`;
           console.error(`❌ ${errorMsg}`);
           progress.errors.push(errorMsg);
@@ -448,7 +448,7 @@ export class ApifyWaveScraper {
       console.log(`   💾 Businesses processed: ${progress.businessesProcessed}`);
       console.log(`   ⚠️ Errors: ${progress.errors.length}`);
 
-    } catch (error) {
+    } catch (error: any) {
       progress.status = 'failed';
       progress.endTime = new Date();
       progress.errors.push(`Wave execution failed: ${error.message}`);

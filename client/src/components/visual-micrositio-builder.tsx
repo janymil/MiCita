@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { apiFetch } from '@/lib/auth-api';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Wand2, 
@@ -155,12 +156,8 @@ export default function VisualMicrositioBuilder({ businessId, onClose }: VisualM
     setIsGenerating(true);
     
     try {
-      const response = await fetch(`/api/incremental-scraping/generate-micrositio/${businessId}`, {
+      const response = await apiFetch(`/api/incremental-scraping/generate-micrositio/${businessId}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || ''}`,
-          'x-stack-access-token': localStorage.getItem('stack-access-token') || ''
-        }
       });
 
       if (!response.ok) {
@@ -204,14 +201,9 @@ export default function VisualMicrositioBuilder({ businessId, onClose }: VisualM
         keywords: structure.seo.keywords
       };
 
-      const response = await fetch(`/api/dashboard/businesses/${businessId}/settings`, {
+      const response = await apiFetch(`/api/dashboard/businesses/${businessId}/settings`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || ''}`,
-          'x-stack-access-token': localStorage.getItem('stack-access-token') || ''
-        },
-        body: JSON.stringify(settingsUpdate)
+        body: JSON.stringify(settingsUpdate),
       });
 
       if (!response.ok) {

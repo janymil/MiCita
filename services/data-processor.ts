@@ -75,7 +75,7 @@ export class DataCleaningService {
       // Validate URL format
       new URL(url);
       return url;
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Invalid URL detected:', url);
       return '';
     }
@@ -136,7 +136,7 @@ export class DataCleaningService {
       }
       
       return '';
-    } catch (error) {
+    } catch (error: any) {
       return '';
     }
   }

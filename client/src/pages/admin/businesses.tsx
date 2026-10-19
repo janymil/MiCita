@@ -109,7 +109,7 @@ export default function AdminBusinesses() {
   
   // Check authentication
   useEffect(() => {
-    const token = localStorage.getItem('adminToken');
+    const token = sessionStorage.getItem('adminToken');
     if (!token) {
       setLocation('/admin/login');
     }
@@ -129,7 +129,7 @@ export default function AdminBusinesses() {
   
   const fetchFilterOptions = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await fetch('/api/admin/v2/businesses/filter-options', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -150,7 +150,7 @@ export default function AdminBusinesses() {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: itemsPerPage.toString(),
@@ -234,7 +234,7 @@ export default function AdminBusinesses() {
     }
     
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await fetch('/api/admin/v2/businesses/bulk', {
         method: 'DELETE',
         headers: {
@@ -258,7 +258,7 @@ export default function AdminBusinesses() {
     if (selectedIds.size === 0) return;
     
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const response = await fetch('/api/admin/v2/businesses/bulk', {
         method: 'PATCH',
         headers: {
@@ -283,7 +283,7 @@ export default function AdminBusinesses() {
   
   const handleExport = async (format: 'csv' | 'json' = 'csv') => {
     try {
-      const token = localStorage.getItem('adminToken');
+      const token = sessionStorage.getItem('adminToken');
       const params = new URLSearchParams({ format });
       
       // Add current filters to export
@@ -850,7 +850,7 @@ export default function AdminBusinesses() {
                               onClick={async () => {
                                 if (confirm('Are you sure you want to delete this business?')) {
                                   try {
-                                    const token = localStorage.getItem('adminToken');
+                                    const token = sessionStorage.getItem('adminToken');
                                     const response = await fetch(`/api/admin/v2/businesses/${business.id}`, {
                                       method: 'DELETE',
                                       headers: {
@@ -1026,7 +1026,7 @@ export default function AdminBusinesses() {
       {/* Business Form Modal */}
       {(editingBusiness || isCreating) && (
         <BusinessForm
-          business={editingBusiness || undefined}
+          business={(editingBusiness as unknown as Parameters<typeof BusinessForm>[0]['business']) ?? null}
           isOpen={true}
           onClose={() => {
             setEditingBusiness(null);

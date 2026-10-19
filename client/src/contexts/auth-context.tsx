@@ -1,55 +1,106 @@
-import { useUser } from "@stackframe/react";
-import { createContext, ReactNode, useContext } from "react";
-
-export interface User {
-  id: string;
-  email: string;
-  displayName: string | null;
-}
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { authApi, refreshSession, type AuthUser } from "@/lib/auth-api";
+import { clearAccessToken, getAccessToken } from "@/lib/token-store";
 
 interface AuthContextType {
-  user: User | null;
-  logout: () => Promise<void>;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  register: (input: { email: string; password: string; name: string; phone?: string }) => Promise<AuthUser>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<AuthUser | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Use Stack's built-in useUser hook - should work with React 19
-  const stackUser = useUser();
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const mounted = useRef(true);
 
-  // Convert Stack user to our User interface
-  const user: User | null = stackUser ? {
-    id: stackUser.id,
-    email: stackUser.primaryEmail || '',
-    displayName: stackUser.displayName
-  } : null;
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-  const isLoading = false; // Stack manages loading state internally
+  // Bootstrap: if we hold an access token, hydrate the user; otherwise try the
+  // refresh cookie so a reload restores the session silently.
+  useEffect(() => {
+    (async () => {
+      try {
+        let hydrated: AuthUser | null = null;
+        if (getAccessToken()) {
+          hydrated = await authApi.me();
+        }
+        if (!hydrated) {
+          const refreshed = await refreshSession();
+          hydrated = refreshed?.user ?? null;
+        }
+        if (mounted.current) setUser(hydrated);
+      } catch {
+        if (mounted.current) setUser(null);
+      } finally {
+        if (mounted.current) setIsLoading(false);
+      }
+    })();
+  }, []);
 
-  const logout = async () => {
-    try {
-      // Use Stack's signOut method on the user
-      await stackUser?.signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-      // Fallback: redirect to Stack's logout handler
-      window.location.href = '/handler/sign-out';
-    }
-  };
+  const login = useCallback(async (email: string, password: string) => {
+    const res = await authApi.login({ email, password });
+    setUser(res.user);
+    return res.user;
+  }, []);
 
-  return (
-    <AuthContext.Provider value={{
-      user,
-      logout,
-      isAuthenticated: !!user,
-      isLoading
-    }}>
-      {children}
-    </AuthContext.Provider>
+  const register = useCallback(
+    async (input: { email: string; password: string; name: string; phone?: string }) => {
+      const res = await authApi.register(input);
+      setUser(res.user);
+      return res.user;
+    },
+    [],
   );
+
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      clearAccessToken();
+      setUser(null);
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const res = await refreshSession();
+    setUser(res?.user ?? null);
+    return res?.user ?? null;
+  }, []);
+
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      isAuthenticated: Boolean(user),
+      isLoading,
+      login,
+      register,
+      logout,
+      refresh,
+    }),
+    [user, isLoading, login, register, logout, refresh],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

@@ -32,7 +32,7 @@ export class SendGridEmailService {
       await sgMail.send(msg);
       console.log(`Client confirmation email sent to: ${appointmentData.clientEmail}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send client confirmation email:', error);
       if (error.response) {
         console.error('SendGrid Error:', error.response.body);
@@ -64,7 +64,7 @@ export class SendGridEmailService {
       await sgMail.send(msg);
       console.log(`Business notification email sent to: ${appointmentData.businessEmail}`);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to send business notification email:', error);
       if (error.response) {
         console.error('SendGrid Error:', error.response.body);
@@ -101,7 +101,7 @@ export class SendGridEmailService {
       await sgMail.send(msg);
       console.log('Appointment cancellation email sent to:', appointmentData.clientEmail);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending appointment cancellation email:', error);
       return false;
     }
@@ -126,7 +126,7 @@ export class SendGridEmailService {
       await sgMail.send(msg);
       console.log('Appointment rescheduling email sent to:', appointmentData.clientEmail);
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending appointment rescheduling email:', error);
       return false;
     }

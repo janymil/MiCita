@@ -22,7 +22,7 @@ router.get("/connections/:businessId", async (req, res) => {
     const businessId = parseInt(req.params.businessId);
     const connections = await networkingService.getBusinessConnections(businessId);
     res.json(connections);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching business connections:", error);
     res.status(500).json({ error: "Failed to fetch business connections" });
   }
@@ -34,7 +34,7 @@ router.get("/connections/:businessId/requests", async (req, res) => {
     const businessId = parseInt(req.params.businessId);
     const requests = await networkingService.getConnectionRequests(businessId);
     res.json(requests);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching connection requests:", error);
     res.status(500).json({ error: "Failed to fetch connection requests" });
   }
@@ -46,7 +46,7 @@ router.post("/connections", async (req, res) => {
     const connectionData = insertBusinessConnectionSchema.parse(req.body);
     const connection = await networkingService.createConnectionRequest(connectionData);
     res.json(connection);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating connection request:", error);
     res.status(500).json({ error: "Failed to create connection request" });
   }
@@ -59,7 +59,7 @@ router.patch("/connections/:id/status", async (req, res) => {
     const { status } = req.body;
     const connection = await networkingService.updateConnectionStatus(connectionId, status);
     res.json(connection);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating connection status:", error);
     res.status(500).json({ error: "Failed to update connection status" });
   }
@@ -71,7 +71,7 @@ router.delete("/connections/:id", async (req, res) => {
     const connectionId = parseInt(req.params.id);
     await networkingService.deleteConnection(connectionId);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting connection:", error);
     res.status(500).json({ error: "Failed to delete connection" });
   }
@@ -88,7 +88,7 @@ router.get("/posts", async (req, res) => {
       category as string
     );
     res.json(posts);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching networking posts:", error);
     res.status(500).json({ error: "Failed to fetch networking posts" });
   }
@@ -107,7 +107,7 @@ router.get("/posts/:id", async (req, res) => {
     await networkingService.incrementPostViews(postId);
     
     res.json(post);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching networking post:", error);
     res.status(500).json({ error: "Failed to fetch networking post" });
   }
@@ -120,7 +120,7 @@ router.post("/posts", async (req, res) => {
     const businessId = parseInt(req.body.businessId);
     const post = await networkingService.createNetworkingPost({ ...postData, businessId });
     res.json(post);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating networking post:", error);
     res.status(500).json({ error: "Failed to create networking post" });
   }
@@ -133,7 +133,7 @@ router.patch("/posts/:id", async (req, res) => {
     const postData = insertNetworkingPostSchema.partial().parse(req.body);
     const post = await networkingService.updateNetworkingPost(postId, postData);
     res.json(post);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating networking post:", error);
     res.status(500).json({ error: "Failed to update networking post" });
   }
@@ -145,7 +145,7 @@ router.delete("/posts/:id", async (req, res) => {
     const postId = parseInt(req.params.id);
     await networkingService.deleteNetworkingPost(postId);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting networking post:", error);
     res.status(500).json({ error: "Failed to delete networking post" });
   }
@@ -159,7 +159,7 @@ router.get("/posts/:id/comments", async (req, res) => {
     const postId = parseInt(req.params.id);
     const comments = await networkingService.getNetworkingComments(postId);
     res.json(comments);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching comments:", error);
     res.status(500).json({ error: "Failed to fetch comments" });
   }
@@ -177,7 +177,7 @@ router.post("/posts/:id/comments", async (req, res) => {
       businessId
     });
     res.json(comment);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating comment:", error);
     res.status(500).json({ error: "Failed to create comment" });
   }
@@ -189,7 +189,7 @@ router.delete("/comments/:id", async (req, res) => {
     const commentId = parseInt(req.params.id);
     await networkingService.deleteNetworkingComment(commentId);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting comment:", error);
     res.status(500).json({ error: "Failed to delete comment" });
   }
@@ -203,7 +203,7 @@ router.get("/posts/:id/likes", async (req, res) => {
     const postId = parseInt(req.params.id);
     const likes = await networkingService.getNetworkingLikes(postId);
     res.json(likes);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching likes:", error);
     res.status(500).json({ error: "Failed to fetch likes" });
   }
@@ -216,7 +216,7 @@ router.post("/posts/:id/likes", async (req, res) => {
     const businessId = parseInt(req.body.businessId);
     const like = await networkingService.createNetworkingLike({ postId, businessId });
     res.json(like);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating like:", error);
     res.status(500).json({ error: "Failed to create like" });
   }
@@ -229,7 +229,7 @@ router.delete("/posts/:postId/likes/:businessId", async (req, res) => {
     const businessId = parseInt(req.params.businessId);
     await networkingService.deleteNetworkingLike(postId, businessId);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting like:", error);
     res.status(500).json({ error: "Failed to delete like" });
   }
@@ -246,7 +246,7 @@ router.get("/collaborations", async (req, res) => {
       status as string
     );
     res.json(projects);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching collaboration projects:", error);
     res.status(500).json({ error: "Failed to fetch collaboration projects" });
   }
@@ -261,7 +261,7 @@ router.get("/collaborations/:id", async (req, res) => {
       return res.status(404).json({ error: "Project not found" });
     }
     res.json(project);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching collaboration project:", error);
     res.status(500).json({ error: "Failed to fetch collaboration project" });
   }
@@ -274,7 +274,7 @@ router.post("/collaborations", async (req, res) => {
     const creatorId = parseInt(req.body.creatorId);
     const project = await networkingService.createCollaborationProject({ ...projectData, creatorId });
     res.json(project);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating collaboration project:", error);
     res.status(500).json({ error: "Failed to create collaboration project" });
   }
@@ -287,7 +287,7 @@ router.patch("/collaborations/:id", async (req, res) => {
     const projectData = insertCollaborationProjectSchema.partial().parse(req.body);
     const project = await networkingService.updateCollaborationProject(projectId, projectData);
     res.json(project);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating collaboration project:", error);
     res.status(500).json({ error: "Failed to update collaboration project" });
   }
@@ -299,7 +299,7 @@ router.delete("/collaborations/:id", async (req, res) => {
     const projectId = parseInt(req.params.id);
     await networkingService.deleteCollaborationProject(projectId);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting collaboration project:", error);
     res.status(500).json({ error: "Failed to delete collaboration project" });
   }
@@ -313,7 +313,7 @@ router.get("/collaborations/:id/participants", async (req, res) => {
     const projectId = parseInt(req.params.id);
     const participants = await networkingService.getCollaborationParticipants(projectId);
     res.json(participants);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching participants:", error);
     res.status(500).json({ error: "Failed to fetch participants" });
   }
@@ -331,7 +331,7 @@ router.post("/collaborations/:id/participants", async (req, res) => {
       businessId
     });
     res.json(participant);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error joining collaboration project:", error);
     res.status(500).json({ error: "Failed to join collaboration project" });
   }
@@ -344,7 +344,7 @@ router.delete("/collaborations/:projectId/participants/:businessId", async (req,
     const businessId = parseInt(req.params.businessId);
     await networkingService.deleteCollaborationParticipant(projectId, businessId);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error leaving collaboration project:", error);
     res.status(500).json({ error: "Failed to leave collaboration project" });
   }
@@ -358,7 +358,7 @@ router.get("/referrals/:businessId", async (req, res) => {
     const businessId = parseInt(req.params.businessId);
     const referrals = await networkingService.getBusinessReferrals(businessId);
     res.json(referrals);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching referrals:", error);
     res.status(500).json({ error: "Failed to fetch referrals" });
   }
@@ -370,7 +370,7 @@ router.get("/referrals/:businessId/received", async (req, res) => {
     const businessId = parseInt(req.params.businessId);
     const referrals = await networkingService.getReceivedReferrals(businessId);
     res.json(referrals);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching received referrals:", error);
     res.status(500).json({ error: "Failed to fetch received referrals" });
   }
@@ -383,7 +383,7 @@ router.post("/referrals", async (req, res) => {
     const referrerId = parseInt(req.body.referrerId);
     const referral = await networkingService.createBusinessReferral({ ...referralData, referrerId });
     res.json(referral);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating referral:", error);
     res.status(500).json({ error: "Failed to create referral" });
   }
@@ -396,7 +396,7 @@ router.patch("/referrals/:id/status", async (req, res) => {
     const { status } = req.body;
     const referral = await networkingService.updateReferralStatus(referralId, status);
     res.json(referral);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating referral status:", error);
     res.status(500).json({ error: "Failed to update referral status" });
   }
@@ -412,7 +412,7 @@ router.get("/events", async (req, res) => {
       businessId ? parseInt(businessId as string) : undefined
     );
     res.json(events);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching networking events:", error);
     res.status(500).json({ error: "Failed to fetch networking events" });
   }
@@ -427,7 +427,7 @@ router.get("/events/:id", async (req, res) => {
       return res.status(404).json({ error: "Event not found" });
     }
     res.json(event);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching networking event:", error);
     res.status(500).json({ error: "Failed to fetch networking event" });
   }
@@ -440,7 +440,7 @@ router.post("/events", async (req, res) => {
     const organizerId = parseInt(req.body.organizerId);
     const event = await networkingService.createNetworkingEvent({ ...eventData, organizerId });
     res.json(event);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating networking event:", error);
     res.status(500).json({ error: "Failed to create networking event" });
   }
@@ -453,7 +453,7 @@ router.patch("/events/:id", async (req, res) => {
     const eventData = insertNetworkingEventSchema.partial().parse(req.body);
     const event = await networkingService.updateNetworkingEvent(eventId, eventData);
     res.json(event);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating networking event:", error);
     res.status(500).json({ error: "Failed to update networking event" });
   }
@@ -465,7 +465,7 @@ router.delete("/events/:id", async (req, res) => {
     const eventId = parseInt(req.params.id);
     await networkingService.deleteNetworkingEvent(eventId);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting networking event:", error);
     res.status(500).json({ error: "Failed to delete networking event" });
   }
@@ -479,7 +479,7 @@ router.get("/events/:id/attendees", async (req, res) => {
     const eventId = parseInt(req.params.id);
     const attendees = await networkingService.getEventAttendees(eventId);
     res.json(attendees);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching event attendees:", error);
     res.status(500).json({ error: "Failed to fetch event attendees" });
   }
@@ -497,7 +497,7 @@ router.post("/events/:id/attendees", async (req, res) => {
       businessId
     });
     res.json(attendee);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error registering for event:", error);
     res.status(500).json({ error: "Failed to register for event" });
   }
@@ -511,7 +511,7 @@ router.patch("/events/:eventId/attendees/:businessId", async (req, res) => {
     const { status } = req.body;
     const attendee = await networkingService.updateAttendeeStatus(eventId, businessId, status);
     res.json(attendee);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating attendee status:", error);
     res.status(500).json({ error: "Failed to update attendee status" });
   }
@@ -524,7 +524,7 @@ router.delete("/events/:eventId/attendees/:businessId", async (req, res) => {
     const businessId = parseInt(req.params.businessId);
     await networkingService.deleteEventAttendee(eventId, businessId);
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error unregistering from event:", error);
     res.status(500).json({ error: "Failed to unregister from event" });
   }
@@ -538,7 +538,7 @@ router.get("/stats/:businessId", async (req, res) => {
     const businessId = parseInt(req.params.businessId);
     const stats = await networkingService.getNetworkingStats(businessId);
     res.json(stats);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching networking stats:", error);
     res.status(500).json({ error: "Failed to fetch networking stats" });
   }
@@ -551,7 +551,7 @@ router.get("/suggestions/:businessId", async (req, res) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const suggestions = await networkingService.getSuggestedConnections(businessId, limit);
     res.json(suggestions);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching suggested connections:", error);
     res.status(500).json({ error: "Failed to fetch suggested connections" });
   }

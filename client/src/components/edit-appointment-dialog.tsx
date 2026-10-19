@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Calendar, Clock, User, Phone, Mail, CreditCard } from "lucide-react";
 import { formatDateISO, formatDatePeruvian } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
+import type { ClientRecord, ServiceRecord } from "@/lib/api-types";
 
 interface EditAppointmentDialogProps {
   appointment: any;
@@ -64,12 +66,12 @@ export default function EditAppointmentDialog({
   }, [appointment]);
 
   // Fetch business data
-  const { data: clients } = useQuery({
+  const { data: clients } = useQuery<ClientRecord[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/clients`],
-    enabled: isOpen
+    enabled: isOpen,
   });
 
-  const { data: services } = useQuery({
+  const { data: services } = useQuery<ServiceRecord[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/services`],
     enabled: isOpen
   });
@@ -77,24 +79,12 @@ export default function EditAppointmentDialog({
   // Update mutation
   const updateAppointment = useMutation({
     mutationFn: async (appointmentData: any) => {
-      const response = await fetch(`/api/dashboard/businesses/${businessId}/appointments/${appointment.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(appointmentData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 409) {
-          throw new Error(`${result.message}\n\nConflictos detectados: ${result.conflicts?.length || 0}`);
-        }
-        throw new Error(result.message || 'Error actualizando la cita');
-      }
-
-      return result;
+      const response = await apiRequest(
+        'PUT',
+        `/api/dashboard/businesses/${businessId}/appointments/${appointment.id}`,
+        appointmentData
+      );
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -117,15 +107,10 @@ export default function EditAppointmentDialog({
   // Delete mutation
   const deleteAppointment = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/dashboard/businesses/${businessId}/appointments/${appointment.id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error eliminando la cita');
-      }
-
+      const response = await apiRequest(
+        'DELETE',
+        `/api/dashboard/businesses/${businessId}/appointments/${appointment.id}`
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -160,8 +145,8 @@ export default function EditAppointmentDialog({
     return statusInfo || { value: status, label: status, color: "bg-gray-100 text-gray-800" };
   };
 
-  const clientName = clients?.find(c => c.id === appointment?.clientId)?.name || "Cliente no encontrado";
-  const serviceName = services?.find(s => s.id === appointment?.serviceId)?.name || "Servicio no encontrado";
+  const clientName = clients?.find((c) => c.id === appointment?.clientId)?.name || "Cliente no encontrado";
+  const serviceName = services?.find((s) => s.id === appointment?.serviceId)?.name || "Servicio no encontrado";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -224,7 +209,7 @@ export default function EditAppointmentDialog({
                 <Input
                   id="date"
                   type="date"
-                  value={formatDatePeruvian(formData.date)}
+                  value={formData.date ? formData.date.split('T')[0] : ""}
                   onChange={(e) => setFormData({...formData, date: e.target.value})}
                   className="pl-10"
                   required

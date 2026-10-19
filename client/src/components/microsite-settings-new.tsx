@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { BusinessSettings } from "@shared/schema";
+import { apiFetch } from "@/lib/auth-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,7 +129,7 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
   const [blockHourReason, setBlockHourReason] = useState("");
   const [blockedHours, setBlockedHours] = useState<Array<{date: string, startTime: string, endTime: string, reason?: string}>>([]);
 
-  const { data: currentBusinessSettings } = useQuery({
+  const { data: currentBusinessSettings } = useQuery<BusinessSettings>({
     queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/settings`],
     enabled: Boolean(currentBusiness?.id),
     staleTime: 0,
@@ -146,7 +148,7 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
 
   const updateMicrositeSettingsMutation = useMutation({
     mutationFn: async (data: MicrositeForm) => {
-      const response = await fetch(`/api/dashboard/businesses/${currentBusiness.id}/settings`, {
+      const response = await apiFetch(`/api/dashboard/businesses/${currentBusiness.id}/settings`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -188,10 +190,10 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('image', file);
         formData.append('businessId', currentBusiness.id);
         
-        const response = await fetch('/api/upload/gallery', {
+        const response = await apiFetch('/api/upload', {
           method: 'POST',
           body: formData,
         });

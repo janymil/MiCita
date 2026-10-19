@@ -1,16 +1,218 @@
-import { boolean, decimal, integer, jsonb, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { AnyPgColumn, boolean, decimal, index, integer, jsonb, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table for authentication
+// Users table for authentication.
+// `password` stays nullable so phone/Google-only accounts (and the two legacy
+// rows created before self-hosted auth) remain valid.
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password"),
   name: text("name").notNull(),
-  stackAuthId: text("stack_auth_id").unique(), // Stack Auth user ID
+  // Legacy column kept for backward compatibility with previously synced rows.
+  stackAuthId: text("stack_auth_id").unique(),
+  phone: text("phone"),
+  phoneVerified: boolean("phone_verified").default(false),
+  emailVerified: boolean("email_verified").default(false),
+  avatarUrl: text("avatar_url"),
+  role: text("role").notNull().default("user"), // user | admin
+  isActive: boolean("is_active").notNull().default(true),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Login identities (email/password, google, email OTP, phone OTP).
+// Kept separate from `users` so one account can link several providers.
+export const authIdentities = pgTable(
+  "auth_identities",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    provider: text("provider").notNull(), // password | google | email_otp | phone_otp
+    providerAccountId: text("provider_account_id").notNull(), // email, sub, or E.164 phone
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    providerAccountIdx: uniqueIndex("auth_identities_provider_account_uq").on(
+      table.provider,
+      table.providerAccountId,
+    ),
+  }),
+);
+
+// Short-lived OTP codes for email/phone verification and passwordless login.
+export const verificationOtps = pgTable(
+  "verification_otps",
+  {
+    id: serial("id").primaryKey(),
+    // Email OTPs key on email, phone OTPs key on E.164 number.
+    identifier: text("identifier").notNull(),
+    channel: text("channel").notNull(), // email | phone
+    purpose: text("purpose").notNull().default("login"), // login | verify_email | verify_phone | reset_password
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    consumedAt: timestamp("consumed_at"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    identifierIdx: index("verification_otps_identifier_idx").on(table.identifier, table.purpose),
+  }),
+);
+
+// Refresh tokens (rotated on every refresh, hashed at rest).
+export const refreshTokens = pgTable(
+  "refresh_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    tokenHash: text("token_hash").notNull(),
+    familyId: text("family_id").notNull(),
+    userAgent: text("user_agent"),
+    ip: text("ip"),
+    revokedAt: timestamp("revoked_at"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    tokenHashIdx: uniqueIndex("refresh_tokens_hash_uq").on(table.tokenHash),
+    userIdx: index("refresh_tokens_user_idx").on(table.userId),
+  }),
+);
+
+// Single-use password reset tokens.
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    tokenHash: text("token_hash").notNull(),
+    usedAt: timestamp("used_at"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    tokenHashIdx: uniqueIndex("password_reset_tokens_hash_uq").on(table.tokenHash),
+  }),
+);
+
+// Auth audit trail: security-relevant events for forensics and alerting.
+export const authAuditLog = pgTable(
+  "auth_audit_log",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    email: text("email"),
+    event: text("event").notNull(), // login_success, login_failed, otp_sent, password_reset, ...
+    provider: text("provider"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    eventIdx: index("auth_audit_log_event_idx").on(table.event),
+    userIdx: index("auth_audit_log_user_idx").on(table.userId),
+  }),
+);
+
+// Payment records for MercadoPago (Checkout Pro preferences and Preapproval subscriptions).
+export const payments = pgTable(
+  "payments",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    businessId: integer("business_id").references(() => businesses.id, { onDelete: "set null" }),
+    provider: text("provider").notNull().default("mercadopago"),
+    providerPreferenceId: text("provider_preference_id"),
+    providerPaymentId: text("provider_payment_id"),
+    externalReference: text("external_reference").notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    currency: text("currency").notNull().default("PEN"),
+    status: text("status").notNull().default("pending"), // pending | approved | rejected | refunded
+    statusDetail: text("status_detail"),
+    paymentMethod: text("payment_method"),
+    description: text("description"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+    paidAt: timestamp("paid_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    externalRefIdx: uniqueIndex("payments_external_reference_uq").on(table.externalReference),
+    preferenceIdx: index("payments_preference_idx").on(table.providerPreferenceId),
+    paymentIdx: index("payments_payment_idx").on(table.providerPaymentId),
+  }),
+);
+
+// Raw webhook log so events are idempotent and replayable.
+export const paymentWebhookEvents = pgTable(
+  "payment_webhook_events",
+  {
+    id: serial("id").primaryKey(),
+    provider: text("provider").notNull().default("mercadopago"),
+    eventId: text("event_id"),
+    eventType: text("event_type"),
+    topic: text("topic"),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    signatureValid: boolean("signature_valid").default(false),
+    processed: boolean("processed").notNull().default(false),
+    processedAt: timestamp("processed_at"),
+    error: text("error"),
+    receivedAt: timestamp("received_at").defaultNow(),
+  },
+  (table) => ({
+    eventIdx: uniqueIndex("payment_webhook_events_provider_event_uq").on(table.provider, table.eventId),
+  }),
+);
+
+// Business subscription state driven by MercadoPago preapproval.
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: serial("id").primaryKey(),
+    businessId: integer("business_id").references(() => businesses.id, { onDelete: "cascade" }).notNull(),
+    userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+    plan: text("plan").notNull().default("free"), // free | premium | premium_plus
+    provider: text("provider").notNull().default("mercadopago"),
+    providerPreapprovalId: text("provider_preapproval_id"),
+    status: text("status").notNull().default("inactive"), // inactive | pending | authorized | paused | cancelled
+    amount: decimal("amount", { precision: 12, scale: 2 }),
+    currency: text("currency").notNull().default("PEN"),
+    currentPeriodEnd: timestamp("current_period_end"),
+    createdAt: timestamp("created_at").defaultNow(),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => ({
+    businessIdx: uniqueIndex("subscriptions_business_uq").on(table.businessId),
+  }),
+);
+
+// Email verification tokens issued on registration (single-use, hashed).
+export const emailVerificationTokens = pgTable(
+  "email_verification_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    tokenHash: text("token_hash").notNull(),
+    usedAt: timestamp("used_at"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    tokenHashIdx: uniqueIndex("email_verification_tokens_hash_uq").on(table.tokenHash),
+  }),
+);
 
 // User preferences for dashboard appearance
 export const userPreferences = pgTable("user_preferences", {
@@ -153,6 +355,20 @@ export const businessSettings = pgTable("business_settings", {
   instagramUrl: text("instagram_url"),
   tiktokUrl: text("tiktok_url"),
   youtubeUrl: text("youtube_url"),
+  websiteUrl: text("website_url"),
+  whatsappNumber: text("whatsapp_number"),
+
+  // Public schedule (free-form per-day text used by the microsite editor)
+  mondayHours: text("monday_hours"),
+  tuesdayHours: text("tuesday_hours"),
+  wednesdayHours: text("wednesday_hours"),
+  thursdayHours: text("thursday_hours"),
+  fridayHours: text("friday_hours"),
+  saturdayHours: text("saturday_hours"),
+  sundayHours: text("sunday_hours"),
+
+  // Microsite gallery images
+  gallery: jsonb("gallery").$type<Array<{ id: string; imageUrl: string; title?: string }>>().default([]),
 
   // Features
   enablePublicBooking: boolean("enable_public_booking").default(true),
@@ -225,6 +441,7 @@ export const apifyBusinesses = pgTable("apify_businesses", {
   searchTerms: text("search_terms"),
   district: text("district"), // Auto-detected district from address/coordinates
   isRegistered: boolean("is_registered").default(false),
+  isActive: boolean("is_active").default(true),
   lastUpdated: timestamp("last_updated").defaultNow(),
 
   // Enhanced data for modern UI
@@ -337,6 +554,27 @@ export const insertBusinessSettingsSchema = createInsertSchema(businessSettings)
   businessId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  gallery: z
+    .array(z.object({ id: z.string(), imageUrl: z.string(), title: z.string().optional() }))
+    .nullish(),
+  blockedDates: z
+    .array(z.object({ startDate: z.string(), endDate: z.string(), reason: z.string().optional() }))
+    .nullish(),
+  blockedHours: z
+    .array(
+      z.object({ date: z.string(), startTime: z.string(), endTime: z.string(), reason: z.string().optional() }),
+    )
+    .nullish(),
+  workingHours: z
+    .record(
+      z.object({
+        enabled: z.boolean(),
+        start: z.string(),
+        end: z.string(),
+      }),
+    )
+    .nullish(),
 });
 
 export const insertApifyBusinessSchema = createInsertSchema(apifyBusinesses).omit({
@@ -430,7 +668,7 @@ export const networkingComments = pgTable("networking_comments", {
   postId: serial("post_id").references(() => networkingPosts.id),
   businessId: serial("business_id").references(() => businesses.id),
   content: text("content").notNull(),
-  parentId: serial("parent_id").references(() => networkingComments.id), // For nested comments
+  parentId: integer("parent_id").references((): AnyPgColumn => networkingComments.id), // For nested comments
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -527,31 +765,31 @@ export type Business = typeof businesses.$inferSelect;
 export type InsertBusiness = z.infer<typeof insertBusinessSchema>;
 
 export type BusinessConnection = typeof businessConnections.$inferSelect;
-export type InsertBusinessConnection = z.infer<typeof insertBusinessConnectionSchema>;
+export type InsertBusinessConnection = typeof businessConnections.$inferInsert;
 
 export type NetworkingPost = typeof networkingPosts.$inferSelect;
-export type InsertNetworkingPost = z.infer<typeof insertNetworkingPostSchema>;
+export type InsertNetworkingPost = typeof networkingPosts.$inferInsert;
 
 export type NetworkingComment = typeof networkingComments.$inferSelect;
-export type InsertNetworkingComment = z.infer<typeof insertNetworkingCommentSchema>;
+export type InsertNetworkingComment = typeof networkingComments.$inferInsert;
 
 export type NetworkingLike = typeof networkingLikes.$inferSelect;
-export type InsertNetworkingLike = z.infer<typeof insertNetworkingLikeSchema>;
+export type InsertNetworkingLike = typeof networkingLikes.$inferInsert;
 
 export type CollaborationProject = typeof collaborationProjects.$inferSelect;
-export type InsertCollaborationProject = z.infer<typeof insertCollaborationProjectSchema>;
+export type InsertCollaborationProject = typeof collaborationProjects.$inferInsert;
 
 export type CollaborationParticipant = typeof collaborationParticipants.$inferSelect;
-export type InsertCollaborationParticipant = z.infer<typeof insertCollaborationParticipantSchema>;
+export type InsertCollaborationParticipant = typeof collaborationParticipants.$inferInsert;
 
 export type BusinessReferral = typeof businessReferrals.$inferSelect;
-export type InsertBusinessReferral = z.infer<typeof insertBusinessReferralSchema>;
+export type InsertBusinessReferral = typeof businessReferrals.$inferInsert;
 
 export type NetworkingEvent = typeof networkingEvents.$inferSelect;
-export type InsertNetworkingEvent = z.infer<typeof insertNetworkingEventSchema>;
+export type InsertNetworkingEvent = typeof networkingEvents.$inferInsert;
 
 export type EventAttendee = typeof eventAttendees.$inferSelect;
-export type InsertEventAttendee = z.infer<typeof insertEventAttendeeSchema>;
+export type InsertEventAttendee = typeof eventAttendees.$inferInsert;
 
 // Insert schemas for networking tables
 export const insertBusinessConnectionSchema = createInsertSchema(businessConnections).omit({
@@ -568,6 +806,9 @@ export const insertNetworkingPostSchema = createInsertSchema(networkingPosts).om
   commentCount: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  tags: z.array(z.string()).nullish(),
+  attachments: z.array(z.string()).nullish(),
 });
 
 export const insertNetworkingCommentSchema = createInsertSchema(networkingComments).omit({
@@ -588,6 +829,8 @@ export const insertCollaborationProjectSchema = createInsertSchema(collaboration
   currentParticipants: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  requiredSkills: z.array(z.string()).nullish(),
 });
 
 export const insertCollaborationParticipantSchema = createInsertSchema(collaborationParticipants).omit({
@@ -609,6 +852,8 @@ export const insertNetworkingEventSchema = createInsertSchema(networkingEvents).
   currentAttendees: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  tags: z.array(z.string()).nullish(),
 });
 
 export const insertEventAttendeeSchema = createInsertSchema(eventAttendees).omit({
@@ -636,7 +881,41 @@ export type Review = typeof reviews.$inferSelect;
 export type InsertReview = z.infer<typeof insertReviewSchema>;
 
 export type BusinessSettings = typeof businessSettings.$inferSelect;
-export type InsertBusinessSettings = z.infer<typeof insertBusinessSettingsSchema>;
+export type InsertBusinessSettings = typeof businessSettings.$inferInsert;
 
 export type ApifyBusiness = typeof apifyBusinesses.$inferSelect;
-export type InsertApifyBusiness = z.infer<typeof insertApifyBusinessSchema>;
+export type InsertApifyBusiness = typeof apifyBusinesses.$inferInsert;
+
+// Auth & payments types
+export type AuthIdentity = typeof authIdentities.$inferSelect;
+export type VerificationOtp = typeof verificationOtps.$inferSelect;
+export type RefreshToken = typeof refreshTokens.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type AuthAuditEntry = typeof authAuditLog.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type PaymentWebhookEvent = typeof paymentWebhookEvents.$inferSelect;
+export type Subscription = typeof subscriptions.$inferSelect;
+
+export const publicUserColumns = {
+  id: users.id,
+  email: users.email,
+  name: users.name,
+  phone: users.phone,
+  avatarUrl: users.avatarUrl,
+  role: users.role,
+  emailVerified: users.emailVerified,
+  phoneVerified: users.phoneVerified,
+  createdAt: users.createdAt,
+};
+
+export type PublicUser = {
+  id: number;
+  email: string;
+  name: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  role: string;
+  emailVerified: boolean | null;
+  phoneVerified: boolean | null;
+  createdAt: Date | null;
+};

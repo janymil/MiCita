@@ -1,92 +1,118 @@
-import dotenv from "dotenv";
-dotenv.config();
+import { config } from "./config.js";
 
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import slowDown from "express-slow-down";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { runMigrations } from "./db.js";
+import { isDatabaseConfigured, isDatabaseHealthy, pingDatabase, ensureAuthSchema } from "./db.js";
+import { csrfCookieMiddleware, csrfProtection } from "./csrf.js";
 
 const app = express();
 
-// Security: Helmet for security headers
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://maps.googleapis.com"],
-      imgSrc: ["'self'", "data:", "https:", "blob:"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      connectSrc: ["'self'", "https://api.stack-auth.com", "https://maps.googleapis.com"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-    }
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  }
-}));
+// Behind a reverse proxy (Render/Neon/Fly/nginx) so rate limiting sees real IPs.
+app.set("trust proxy", config.security.trustProxy);
 
-// CORS configuration
-const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    const allowedOrigins = process.env.NODE_ENV === 'production' 
-      ? ['https://micita.pe', 'https://www.micita.pe']
-      : ['http://localhost:5000', 'http://localhost:5173'];
-    
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-stack-access-token'],
-  maxAge: 86400
-};
-app.use(cors(corsOptions));
+// Security headers
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://maps.googleapis.com", "https://sdk.mercadopago.com"],
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        connectSrc: [
+          "'self'",
+          "https://maps.googleapis.com",
+          "https://api.mercadopago.com",
+          ...(config.isProduction ? [] : ["ws:", "wss:"]),
+        ],
+        frameSrc: ["'self'", "https://www.mercadopago.com", "https://www.mercadopago.pe"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'", "https://www.mercadopago.com", "https://www.mercadopago.pe"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+    hsts: config.isProduction ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
+  }),
+);
+
+// CORS - explicit allowlist only.
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || config.allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-csrf-token", "x-request-id", "x-signature", "x-idempotency-key"],
+    maxAge: 86400,
+  }),
+);
 
 // Rate limiting
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+  windowMs: config.security.apiRateLimitWindowMinutes * 60 * 1000,
+  max: config.security.apiRateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
+  message: { message: "Demasiadas solicitudes. Intenta de nuevo más tarde." },
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5, // Limit login attempts
-  skipSuccessfulRequests: true
+  max: config.security.authRateLimitMax,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
-// Speed limiter
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
-  delayAfter: 50,
-  delayMs: () => 500,
+  delayAfter: 100,
+  delayMs: () => 300,
 });
 
-// Apply rate limiting to API routes
-app.use('/api/', apiLimiter);
-app.use('/api/', speedLimiter);
-app.use('/api/auth/', authLimiter);
+app.use("/api/", apiLimiter);
+app.use("/api/", speedLimiter);
+app.use("/api/auth/", authLimiter);
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// MercadoPago posts raw JSON; capture it before the global JSON parser.
+app.use("/api/payments/webhook", express.raw({ type: "*/*", limit: "1mb" }));
+
+// Body parsing - tighter default limit than the Express 100kb for JSON APIs.
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: false, limit: "1mb" }));
+app.use(cookieParser());
+
+// CSRF: issue the double-submit cookie, then require it on mutating requests.
+// The payment webhook is exempt (no cookies; authenticated via signature).
+app.use(csrfCookieMiddleware);
+app.use(csrfProtection);
+
+// Request logging (redacts sensitive JSON payloads such as tokens/passwords).
+const REDACT_KEYS = /password|token|secret|otp|code|authorization/i;
+function redact(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redact);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, REDACT_KEYS.test(k) ? "[redacted]" : redact(v)]));
+  }
+  return value;
+}
 
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJsonResponse: Record<string, unknown> | undefined;
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
@@ -98,14 +124,10 @@ app.use((req, res, next) => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      if (capturedJsonResponse && !config.isProduction) {
+        logLine += ` :: ${JSON.stringify(redact(capturedJsonResponse))}`;
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
+      if (logLine.length > 80) logLine = logLine.slice(0, 79) + "…";
       log(logLine);
     }
   });
@@ -114,15 +136,31 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize database connection if available
-  try {
-    if (process.env.DATABASE_URL) {
-      log("Database connection established - using PostgreSQL storage");
-    } else {
-      log("No database URL found - using in-memory storage");
+  // Liveness/readiness probe.
+  app.get("/api/health", async (_req, res) => {
+    const dbOk = isDatabaseConfigured() ? await pingDatabase() : false;
+    res.status(dbOk || !isDatabaseConfigured() ? 200 : 503).json({
+      status: dbOk ? "ok" : "degraded",
+      database: isDatabaseConfigured() ? (dbOk ? "up" : "down") : "not-configured",
+      healthy: isDatabaseHealthy(),
+      env: config.nodeEnv,
+      uptimeSeconds: Math.round(process.uptime()),
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  if (isDatabaseConfigured()) {
+    const ok = await pingDatabase();
+    log(ok ? "Database connection established (Neon/Postgres)" : "Database ping failed at startup");
+    if (ok) {
+      try {
+        await ensureAuthSchema();
+      } catch (error: any) {
+        log("Additive auth schema setup failed: " + String(error));
+      }
     }
-  } catch (error) {
-    log("Database setup failed: " + String(error));
+  } else {
+    log("No DATABASE_URL found - running without a database");
   }
 
   const server = await registerRoutes(app);
@@ -130,25 +168,25 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
-    throw err;
+    console.error("Server error:", err);
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
-  server.listen(port, "0.0.0.0", () => {
-    log(`serving on port ${port}`);
+  server.listen(config.port, "0.0.0.0", () => {
+    log(`serving on port ${config.port} (${config.nodeEnv})`);
   });
+
+  const shutdown = async (signal: string) => {
+    log(`received ${signal}, shutting down gracefully`);
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 10000).unref();
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 })();

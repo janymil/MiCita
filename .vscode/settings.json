@@ -51,7 +51,7 @@
   "editor.inlayHints.enabled": "off",
   "extensions.autoUpdate": false,
   "extensions.autoCheckUpdates": false,
-  "editor.hover.enabled": false,
+  "editor.hover.enabled": "off",
   "editor.parameterHints.enabled": false,
   "editor.quickSuggestions": {
     "other": false,

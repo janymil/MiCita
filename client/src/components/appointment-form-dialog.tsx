@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import type { ClientRecord, ServiceRecord } from "@/lib/api-types";
 import { formatDateISO } from "@/lib/utils";
 import { Calendar, Clock, User, CreditCard } from "lucide-react";
 
@@ -74,14 +75,14 @@ export default function AppointmentFormDialog({
   }, [isOpen, initialDate, form]);
 
   // Fetch business data
-  const { data: clients } = useQuery({
+  const { data: clients } = useQuery<ClientRecord[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/clients`],
-    enabled: isOpen
+    enabled: isOpen,
   });
 
-  const { data: services } = useQuery({
+  const { data: services } = useQuery<ServiceRecord[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/services`],
-    enabled: isOpen
+    enabled: isOpen,
   });
 
   // Watch for service selection to update price display
@@ -111,18 +112,11 @@ export default function AppointmentFormDialog({
         status: "confirmed" // Business-created appointments are confirmed by default
       };
 
-      const response = await fetch(`/api/dashboard/businesses/${businessId}/appointments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Error creating appointment');
-      }
+      const response = await apiRequest(
+        'POST',
+        `/api/dashboard/businesses/${businessId}/appointments`,
+        payload
+      );
 
       return response.json();
     },

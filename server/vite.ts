@@ -1,7 +1,12 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
-import { createServer as createViteServer, createLogger } from "vite";
+import {
+  createServer as createViteServer,
+  createLogger,
+  type ConfigEnv,
+  type UserConfig,
+} from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config";
 import { nanoid } from "nanoid";
@@ -26,8 +31,23 @@ export async function setupVite(app: Express, server: Server) {
     allowedHosts: true as const,
   };
 
+  // vite.config.ts exports a config factory, so it must be invoked with the
+  // current command/mode before its options (root, aliases, plugins) can be used.
+  const configEnv: ConfigEnv = {
+    command: "serve",
+    mode: process.env.NODE_ENV || "development",
+    isSsrBuild: false,
+    isPreview: false,
+  };
+  const resolvedViteConfig: UserConfig =
+    typeof viteConfig === "function"
+      ? await (viteConfig as (
+          env: ConfigEnv,
+        ) => UserConfig | Promise<UserConfig>)(configEnv)
+      : viteConfig;
+
   const vite = await createViteServer({
-    ...viteConfig,
+    ...resolvedViteConfig,
     configFile: false,
     customLogger: {
       ...viteLogger,

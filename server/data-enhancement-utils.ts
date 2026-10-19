@@ -310,7 +310,7 @@ export class DataValidator {
           const result = await operation();
           resolve(result);
           return;
-        } catch (error) {
+        } catch (error: any) {
           lastError = error as Error;
           
           if (attempt === maxRetries) {

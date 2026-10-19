@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -313,17 +314,11 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
     mutationFn: async (data: MicrositeForm) => {
       console.log("🔄 Sending data to API:", data);
 
-      const response = await fetch(`/api/dashboard/businesses/${currentBusiness?.id}/settings`, {
-        method: "PUT",
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const response = await apiRequest(
+        "PUT",
+        `/api/dashboard/businesses/${currentBusiness?.id}/settings`,
+        data
+      );
 
       return response.json();
     },

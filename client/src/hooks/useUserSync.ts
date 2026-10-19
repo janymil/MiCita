@@ -1,89 +1,68 @@
-import { useUser } from '@stackframe/react';
-import { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/auth-context';
-
-interface SyncedUser {
-    id: number;
-    email: string;
-    name: string;
-    stackAuthId: string;
-}
+import { useEffect, useState } from "react";
+import { apiFetch, type AuthUser } from "@/lib/auth-api";
+import { useAuth } from "@/contexts/auth-context";
 
 interface Business {
-    id: number;
-    name: string;
-    slug: string;
-    description: string;
-    category: string;
-    // Add other business properties as needed
+  id: number;
+  name: string;
+  slug: string;
+  description: string;
+  category: string;
+  [key: string]: unknown;
 }
 
 interface SyncResult {
-    user: SyncedUser;
-    businesses: Business[];
+  user: AuthUser;
+  businesses: Business[];
 }
 
+/**
+ * Fetches the authenticated user's businesses. The profile itself now comes
+ * from the auth context; this hook only resolves the business list.
+ */
 export function useUserSync() {
-    const { user, isAuthenticated } = useAuth();
-    const stackUser = useUser(); // Get Stack user directly
-    const [syncedUser, setSyncedUser] = useState<SyncedUser | null>(null);
-    const [businesses, setBusinesses] = useState<Business[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
+  const [syncedUser, setSyncedUser] = useState<AuthUser | null>(null);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        async function syncUser() {
-            if (!isAuthenticated || !user || !stackUser) {
-                setSyncedUser(null);
-                setBusinesses([]);
-                return;
-            }
+  useEffect(() => {
+    async function syncUser() {
+      if (!isAuthenticated || !user) {
+        setSyncedUser(null);
+        setBusinesses([]);
+        return;
+      }
 
-            // Skip if already synced
-            if (syncedUser?.stackAuthId === user.id) {
-                return;
-            }
+      setIsLoading(true);
+      setError(null);
 
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                // Get the Stack Auth token
-                const token = await stackUser.getIdToken();
-
-                const response = await fetch('/api/auth/sync', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Sync failed: ${response.statusText}`);
-                }
-
-                const result: SyncResult = await response.json();
-                setSyncedUser(result.user);
-                setBusinesses(result.businesses);
-            } catch (err) {
-                console.error('Error syncing user:', err);
-                setError(err instanceof Error ? err.message : 'Unknown error');
-            } finally {
-                setIsLoading(false);
-            }
+      try {
+        const response = await apiFetch("/api/dashboard/businesses", { method: "GET" });
+        if (!response.ok) {
+          throw new Error(`Sync failed: ${response.statusText}`);
         }
+        const data = (await response.json()) as Business[] | SyncResult;
+        const list = Array.isArray(data) ? data : data.businesses;
+        setSyncedUser(user);
+        setBusinesses(list ?? []);
+      } catch (err) {
+        console.error("Error syncing user:", err);
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        setIsLoading(false);
+      }
+    }
 
-        syncUser();
-    }, [isAuthenticated, user, stackUser, syncedUser?.stackAuthId]);
+    syncUser();
+  }, [isAuthenticated, user]);
 
-    return {
-        syncedUser,
-        businesses,
-        isLoading,
-        error,
-        refetch: () => {
-            setSyncedUser(null); // This will trigger a re-sync
-        }
-    };
+  return {
+    syncedUser,
+    businesses,
+    isLoading,
+    error,
+    refetch: () => setSyncedUser(null),
+  };
 }

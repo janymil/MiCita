@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import AppointmentFormDialog from "@/components/appointment-form-dialog";
 import EditAppointmentDialog from "@/components/edit-appointment-dialog";
 import { ChevronLeft, ChevronRight, MapPin, RefreshCw, Calendar as CalendarIcon, Clock } from "lucide-react";
-import { insertAppointmentSchema, type Appointment, type Service, type Client } from "@shared/schema";
+import { insertAppointmentSchema } from "@shared/schema";
+import type { BusinessSummary, AppointmentRecord as Appointment, ServiceRecord as Service, ClientRecord as Client } from "@/lib/api-types";
 import { z } from "zod";
 import { useAuth } from "@/contexts/auth-context";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,7 +29,7 @@ function CalendarContent() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Fetch current business
-  const { data: businesses } = useQuery({
+  const { data: businesses } = useQuery<BusinessSummary[]>({
     queryKey: ["/api/dashboard/businesses"],
     enabled: Boolean(user),
   });
@@ -36,19 +37,19 @@ function CalendarContent() {
   const currentBusiness = businesses?.[0];
 
   // Fetch appointments
-  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
+  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<Appointment[]>({
     queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/appointments`],
     enabled: Boolean(currentBusiness?.id),
   });
 
   // Fetch services
-  const { data: services = [] } = useQuery({
+  const { data: services = [] } = useQuery<Service[]>({
     queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/services`],
     enabled: Boolean(currentBusiness?.id),
   });
 
   // Fetch clients
-  const { data: clients = [] } = useQuery({
+  const { data: clients = [] } = useQuery<Client[]>({
     queryKey: [`/api/dashboard/businesses/${currentBusiness?.id}/clients`],
     enabled: Boolean(currentBusiness?.id),
   });

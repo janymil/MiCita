@@ -2,25 +2,9 @@ import { Router } from 'express';
 import { db } from './db.js';
 import { openstreetBusinesses } from '../shared/schema.js';
 import { eq, like, and, or, isNotNull, isNull, desc, asc, sql } from 'drizzle-orm';
+import { adminAuth } from './admin-auth.js';
 
 const router = Router();
-
-// Admin authentication middleware
-const adminAuth = (req: any, res: any, next: any) => {
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader) {
-    return res.status(401).json({ error: 'No authorization header' });
-  }
-  
-  const token = authHeader.split(' ')[1];
-  if (token !== adminPassword) {
-    return res.status(401).json({ error: 'Invalid admin token' });
-  }
-  
-  next();
-};
 
 // Apply admin authentication to all routes
 router.use(adminAuth);
@@ -62,7 +46,7 @@ router.get('/openstreet/filter-options', async (req, res) => {
       districts: districts.map(d => d.district).filter(Boolean),
       osmTypes: osmTypes.map(t => t.osmType).filter(Boolean)
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching filter options:', error);
     res.status(500).json({ error: 'Failed to fetch filter options' });
   }
@@ -71,20 +55,18 @@ router.get('/openstreet/filter-options', async (req, res) => {
 // Get paginated businesses with filters
 router.get('/openstreet/businesses', async (req, res) => {
   try {
-    const {
-      page = '1',
-      limit = '20',
-      search = '',
-      category = '',
-      amenity = '',
-      district = '',
-      hasPhone = '',
-      hasWebsite = '',
-      wheelchair = '',
-      osmType = '',
-      sortField = 'createdAt',
-      sortDirection = 'desc'
-    } = req.query;
+    const page = String(req.query.page ?? '1');
+    const limit = String(req.query.limit ?? '20');
+    const search = String(req.query.search ?? '');
+    const category = String(req.query.category ?? '');
+    const amenity = String(req.query.amenity ?? '');
+    const district = String(req.query.district ?? '');
+    const hasPhone = String(req.query.hasPhone ?? '');
+    const hasWebsite = String(req.query.hasWebsite ?? '');
+    const wheelchair = String(req.query.wheelchair ?? '');
+    const osmType = String(req.query.osmType ?? '');
+    const sortField = String(req.query.sortField ?? 'createdAt');
+    const sortDirection = String(req.query.sortDirection ?? 'desc');
 
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
@@ -165,7 +147,7 @@ router.get('/openstreet/businesses', async (req, res) => {
       page: pageNum,
       totalPages: Math.ceil(Number(count) / limitNum)
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching businesses:', error);
     res.status(500).json({ error: 'Failed to fetch businesses' });
   }
@@ -187,7 +169,7 @@ router.get('/openstreet/businesses/:id', async (req, res) => {
     }
 
     res.json(business);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching business:', error);
     res.status(500).json({ error: 'Failed to fetch business' });
   }
@@ -218,7 +200,7 @@ router.put('/openstreet/businesses/:id', async (req, res) => {
     }
 
     res.json(updated);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating business:', error);
     res.status(500).json({ error: 'Failed to update business' });
   }
@@ -239,7 +221,7 @@ router.delete('/openstreet/businesses/:id', async (req, res) => {
     }
 
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting business:', error);
     res.status(500).json({ error: 'Failed to delete business' });
   }
@@ -259,7 +241,7 @@ router.delete('/openstreet/businesses/bulk', async (req, res) => {
       .where(sql`${openstreetBusinesses.id} IN ${ids}`);
 
     res.json({ success: true, deleted: ids.length });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error bulk deleting businesses:', error);
     res.status(500).json({ error: 'Failed to delete businesses' });
   }
@@ -268,19 +250,17 @@ router.delete('/openstreet/businesses/bulk', async (req, res) => {
 // Export businesses to CSV
 router.get('/openstreet/businesses/export', async (req, res) => {
   try {
-    const {
-      search = '',
-      category = '',
-      amenity = '',
-      district = '',
-      ids = ''
-    } = req.query;
+    const search = String(req.query.search ?? '');
+    const category = String(req.query.category ?? '');
+    const amenity = String(req.query.amenity ?? '');
+    const district = String(req.query.district ?? '');
+    const ids = String(req.query.ids ?? '');
 
     // Build filters
     const filters = [];
 
     if (ids) {
-      const idArray = (ids as string).split(',').map(id => parseInt(id));
+      const idArray = ids.split(',').map((id: string) => parseInt(id));
       filters.push(sql`${openstreetBusinesses.id} IN ${idArray}`);
     } else {
       if (search) {
@@ -375,7 +355,7 @@ router.get('/openstreet/businesses/export', async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="openstreet-businesses-export.csv"`);
     res.send(csvContent);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error exporting businesses:', error);
     res.status(500).json({ error: 'Failed to export businesses' });
   }
@@ -396,8 +376,8 @@ router.get('/openstreet/statistics', async (req, res) => {
       FROM openstreet_businesses
     `);
 
-    res.json(stats.rows[0]);
-  } catch (error) {
+    res.json((stats as any)[0]);
+  } catch (error: any) {
     console.error('Error fetching statistics:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
   }

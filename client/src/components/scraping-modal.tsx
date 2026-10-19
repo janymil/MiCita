@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { apiFetch } from '@/lib/auth-api';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useMutation } from '@tanstack/react-query';
@@ -162,14 +163,9 @@ export default function ScrapingModal({ isOpen, onClose, businessId, onSuccess }
       };
 
       // Start scraping job
-      const response = await fetch('/api/scraping/start', {
+      const response = await apiFetch('/api/scraping/start', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || ''}`,
-          'x-stack-access-token': localStorage.getItem('stack-access-token') || ''
-        },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -177,16 +173,11 @@ export default function ScrapingModal({ isOpen, onClose, businessId, onSuccess }
       }
 
       const result = await response.json();
-      
+
       // Start polling for results
       pollInterval.current = setInterval(async () => {
         try {
-          const statusResponse = await fetch(`/api/scraping/status/${result.runId}`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || ''}`,
-              'x-stack-access-token': localStorage.getItem('stack-access-token') || ''
-            }
-          });
+          const statusResponse = await apiFetch(`/api/scraping/status/${result.runId}`);
 
           if (statusResponse.ok) {
             const statusData = await statusResponse.json();
@@ -251,14 +242,9 @@ export default function ScrapingModal({ isOpen, onClose, businessId, onSuccess }
     setCurrentStep('apply');
     
     try {
-      const response = await fetch(`/api/dashboard/businesses/${businessId}/apply-scraped-data`, {
+      const response = await apiFetch(`/api/dashboard/businesses/${businessId}/apply-scraped-data`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('stack-access-token') || sessionStorage.getItem('stack-access-token') || ''}`,
-          'x-stack-access-token': localStorage.getItem('stack-access-token') || sessionStorage.getItem('stack-access-token') || ''
-        },
-        body: JSON.stringify(scrapedData)
+        body: JSON.stringify(scrapingData),
       });
 
       if (!response.ok) {

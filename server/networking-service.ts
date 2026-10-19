@@ -29,7 +29,7 @@ import {
   type EventAttendee,
   type InsertEventAttendee
 } from "@shared/schema";
-import { eq, desc, and, or, sql } from "drizzle-orm";
+import { eq, desc, and, or, sql, getTableColumns } from "drizzle-orm";
 
 export class NetworkingService {
   
@@ -104,34 +104,29 @@ export class NetworkingService {
   // ===================== NETWORKING POSTS =====================
   
   async getNetworkingPosts(businessId?: number, category?: string): Promise<NetworkingPost[]> {
-    let query = db
+    const conditions = [eq(networkingPosts.isActive, true)];
+    if (businessId) conditions.push(eq(networkingPosts.businessId, businessId));
+    if (category) conditions.push(eq(networkingPosts.category, category));
+
+    const posts = await db
       .select({
-        ...networkingPosts,
+        ...getTableColumns(networkingPosts),
         businessName: businesses.name,
         businessCategory: businesses.category,
         businessLogo: businesses.logo,
       })
       .from(networkingPosts)
       .innerJoin(businesses, eq(networkingPosts.businessId, businesses.id))
-      .where(eq(networkingPosts.isActive, true));
-    
-    if (businessId) {
-      query = query.where(eq(networkingPosts.businessId, businessId));
-    }
-    
-    if (category) {
-      query = query.where(eq(networkingPosts.category, category));
-    }
-    
-    const posts = await query.orderBy(desc(networkingPosts.createdAt));
-    
+      .where(and(...conditions))
+      .orderBy(desc(networkingPosts.createdAt));
+
     return posts;
   }
   
   async getNetworkingPost(id: number): Promise<NetworkingPost | undefined> {
     const [post] = await db
       .select({
-        ...networkingPosts,
+        ...getTableColumns(networkingPosts),
         businessName: businesses.name,
         businessCategory: businesses.category,
         businessLogo: businesses.logo,
@@ -194,7 +189,7 @@ export class NetworkingService {
   async getNetworkingComments(postId: number): Promise<NetworkingComment[]> {
     const comments = await db
       .select({
-        ...networkingComments,
+        ...getTableColumns(networkingComments),
         businessName: businesses.name,
         businessLogo: businesses.logo,
       })
@@ -221,13 +216,15 @@ export class NetworkingService {
       .returning();
     
     // Update comment count on post
-    await db
-      .update(networkingPosts)
-      .set({ 
-        commentCount: sql`${networkingPosts.commentCount} + 1`,
-        updatedAt: sql`now()`
-      })
-      .where(eq(networkingPosts.id, comment.postId));
+    if (newComment.postId != null) {
+      await db
+        .update(networkingPosts)
+        .set({ 
+          commentCount: sql`${networkingPosts.commentCount} + 1`,
+          updatedAt: sql`now()`
+        })
+        .where(eq(networkingPosts.id, newComment.postId));
+    }
     
     return newComment;
   }
@@ -260,7 +257,7 @@ export class NetworkingService {
   async getNetworkingLikes(postId: number): Promise<NetworkingLike[]> {
     const likes = await db
       .select({
-        ...networkingLikes,
+        ...getTableColumns(networkingLikes),
         businessName: businesses.name,
         businessLogo: businesses.logo,
       })
@@ -282,13 +279,15 @@ export class NetworkingService {
       .returning();
     
     // Update like count on post
-    await db
-      .update(networkingPosts)
-      .set({ 
-        likeCount: sql`${networkingPosts.likeCount} + 1`,
-        updatedAt: sql`now()`
-      })
-      .where(eq(networkingPosts.id, like.postId));
+    if (newLike.postId != null) {
+      await db
+        .update(networkingPosts)
+        .set({ 
+          likeCount: sql`${networkingPosts.likeCount} + 1`,
+          updatedAt: sql`now()`
+        })
+        .where(eq(networkingPosts.id, newLike.postId));
+    }
     
     return newLike;
   }
@@ -316,33 +315,28 @@ export class NetworkingService {
   // ===================== COLLABORATION PROJECTS =====================
   
   async getCollaborationProjects(businessId?: number, status?: string): Promise<CollaborationProject[]> {
-    let query = db
+    const conditions = [eq(collaborationProjects.isActive, true)];
+    if (businessId) conditions.push(eq(collaborationProjects.creatorId, businessId));
+    if (status) conditions.push(eq(collaborationProjects.status, status));
+
+    const projects = await db
       .select({
-        ...collaborationProjects,
+        ...getTableColumns(collaborationProjects),
         creatorName: businesses.name,
         creatorLogo: businesses.logo,
       })
       .from(collaborationProjects)
       .innerJoin(businesses, eq(collaborationProjects.creatorId, businesses.id))
-      .where(eq(collaborationProjects.isActive, true));
-    
-    if (businessId) {
-      query = query.where(eq(collaborationProjects.creatorId, businessId));
-    }
-    
-    if (status) {
-      query = query.where(eq(collaborationProjects.status, status));
-    }
-    
-    const projects = await query.orderBy(desc(collaborationProjects.createdAt));
-    
+      .where(and(...conditions))
+      .orderBy(desc(collaborationProjects.createdAt));
+
     return projects;
   }
   
   async getCollaborationProject(id: number): Promise<CollaborationProject | undefined> {
     const [project] = await db
       .select({
-        ...collaborationProjects,
+        ...getTableColumns(collaborationProjects),
         creatorName: businesses.name,
         creatorLogo: businesses.logo,
       })
@@ -394,7 +388,7 @@ export class NetworkingService {
   async getCollaborationParticipants(projectId: number): Promise<CollaborationParticipant[]> {
     const participants = await db
       .select({
-        ...collaborationParticipants,
+        ...getTableColumns(collaborationParticipants),
         businessName: businesses.name,
         businessLogo: businesses.logo,
         businessCategory: businesses.category,
@@ -422,13 +416,15 @@ export class NetworkingService {
       .returning();
     
     // Update participant count on project
-    await db
-      .update(collaborationProjects)
-      .set({ 
-        currentParticipants: sql`${collaborationProjects.currentParticipants} + 1`,
-        updatedAt: sql`now()`
-      })
-      .where(eq(collaborationProjects.id, participant.projectId));
+    if (newParticipant.projectId != null) {
+      await db
+        .update(collaborationProjects)
+        .set({ 
+          currentParticipants: sql`${collaborationProjects.currentParticipants} + 1`,
+          updatedAt: sql`now()`
+        })
+        .where(eq(collaborationProjects.id, newParticipant.projectId));
+    }
     
     return newParticipant;
   }
@@ -459,7 +455,7 @@ export class NetworkingService {
   async getBusinessReferrals(businessId: number): Promise<BusinessReferral[]> {
     const referrals = await db
       .select({
-        ...businessReferrals,
+        ...getTableColumns(businessReferrals),
         referredBusinessName: businesses.name,
         referredBusinessLogo: businesses.logo,
       })
@@ -474,7 +470,7 @@ export class NetworkingService {
   async getReceivedReferrals(businessId: number): Promise<BusinessReferral[]> {
     const referrals = await db
       .select({
-        ...businessReferrals,
+        ...getTableColumns(businessReferrals),
         referrerName: businesses.name,
         referrerLogo: businesses.logo,
       })
@@ -515,29 +511,27 @@ export class NetworkingService {
   // ===================== NETWORKING EVENTS =====================
   
   async getNetworkingEvents(businessId?: number): Promise<NetworkingEvent[]> {
-    let query = db
+    const conditions = [eq(networkingEvents.isActive, true)];
+    if (businessId) conditions.push(eq(networkingEvents.organizerId, businessId));
+
+    const events = await db
       .select({
-        ...networkingEvents,
+        ...getTableColumns(networkingEvents),
         organizerName: businesses.name,
         organizerLogo: businesses.logo,
       })
       .from(networkingEvents)
       .innerJoin(businesses, eq(networkingEvents.organizerId, businesses.id))
-      .where(eq(networkingEvents.isActive, true));
-    
-    if (businessId) {
-      query = query.where(eq(networkingEvents.organizerId, businessId));
-    }
-    
-    const events = await query.orderBy(networkingEvents.startDate);
-    
+      .where(and(...conditions))
+      .orderBy(networkingEvents.startDate);
+
     return events;
   }
   
   async getNetworkingEvent(id: number): Promise<NetworkingEvent | undefined> {
     const [event] = await db
       .select({
-        ...networkingEvents,
+        ...getTableColumns(networkingEvents),
         organizerName: businesses.name,
         organizerLogo: businesses.logo,
         organizerCategory: businesses.category,
@@ -590,7 +584,7 @@ export class NetworkingService {
   async getEventAttendees(eventId: number): Promise<EventAttendee[]> {
     const attendees = await db
       .select({
-        ...eventAttendees,
+        ...getTableColumns(eventAttendees),
         businessName: businesses.name,
         businessLogo: businesses.logo,
         businessCategory: businesses.category,
@@ -613,13 +607,15 @@ export class NetworkingService {
       .returning();
     
     // Update attendee count on event
-    await db
-      .update(networkingEvents)
-      .set({ 
-        currentAttendees: sql`${networkingEvents.currentAttendees} + 1`,
-        updatedAt: sql`now()`
-      })
-      .where(eq(networkingEvents.id, attendee.eventId));
+    if (newAttendee.eventId != null) {
+      await db
+        .update(networkingEvents)
+        .set({ 
+          currentAttendees: sql`${networkingEvents.currentAttendees} + 1`,
+          updatedAt: sql`now()`
+        })
+        .where(eq(networkingEvents.id, newAttendee.eventId));
+    }
     
     return newAttendee;
   }
@@ -681,7 +677,7 @@ export class NetworkingService {
         eventsOrganized: 1,
         eventsAttended: 8,
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in getNetworkingStats:", error);
       return {
         connectionCount: 0,
@@ -707,6 +703,9 @@ export class NetworkingService {
     
     const business = currentBusiness[0];
     
+    const similarity = [eq(businesses.category, business.category)];
+    if (business.city) similarity.push(eq(businesses.city, business.city));
+
     // Find similar businesses that are not already connected
     const suggestions = await db
       .select()
@@ -714,10 +713,7 @@ export class NetworkingService {
       .where(
         and(
           eq(businesses.isActive, true),
-          or(
-            eq(businesses.category, business.category),
-            eq(businesses.city, business.city)
-          ),
+          or(...similarity),
           sql`${businesses.id} != ${businessId}`,
           sql`${businesses.id} NOT IN (
             SELECT CASE 

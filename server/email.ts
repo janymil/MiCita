@@ -27,14 +27,14 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
   try {
     await mailService.send({
       to: params.to,
-      from: params.from,
+      from: params.from ?? process.env.EMAIL_FROM ?? 'no-reply@micita.app',
       subject: params.subject,
-      text: params.text,
+      text: params.text ?? '',
       html: params.html,
     });
     console.log(`Email sent successfully to ${params.to}`);
     return true;
-  } catch (error) {
+  } catch (error: any) {
     console.error('SendGrid email error:', error);
     return false;
   }

@@ -101,11 +101,11 @@ export class DBStorage implements IStorage {
       .orderBy(desc(businesses.rating), desc(businesses.createdAt));
   }
 
-  async getAllPublicBusinesses(): Promise<Business[]> {
+  async getAllPublicBusinesses(): Promise<PublicBusiness[]> {
     try {
       return await db.select().from(publicBusinesses)
         .orderBy(desc(publicBusinesses.createdAt));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching all public businesses:', error);
       return [];
     }
@@ -129,6 +129,17 @@ export class DBStorage implements IStorage {
       .where(eq(businesses.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteBusiness(id: number): Promise<void> {
+    // Remove dependent rows first so the FK constraints stay satisfied.
+    await db.delete(appointments).where(eq(appointments.businessId, id));
+    await db.delete(services).where(eq(services.businessId, id));
+    await db.delete(clients).where(eq(clients.businessId, id));
+    await db.delete(gallery).where(eq(gallery.businessId, id));
+    await db.delete(reviews).where(eq(reviews.businessId, id));
+    await db.delete(businessSettings).where(eq(businessSettings.businessId, id));
+    await db.delete(businesses).where(eq(businesses.id, id));
   }
 
   // Services
@@ -271,6 +282,10 @@ export class DBStorage implements IStorage {
     return result[0];
   }
 
+  async deleteReview(id: number): Promise<void> {
+    await db.delete(reviews).where(eq(reviews.id, id));
+  }
+
   // Business Settings
   async getBusinessSettings(businessId: number): Promise<BusinessSettings | undefined> {
     const result = await db.select().from(businessSettings).where(eq(businessSettings.businessId, businessId)).limit(1);
@@ -330,6 +345,21 @@ export class DBStorage implements IStorage {
     return result;
   }
 
+  /** Diagnostics helper: cached (scraped) businesses matching a term/category. */
+  async searchCachedGoogleBusinesses(query: string, category?: string): Promise<ApifyBusiness[]> {
+    return this.searchApifyBusinesses(query, category);
+  }
+
+  /** Bulk upsert scraped businesses keyed by placeId. */
+  async cacheBusinesses(businesses: InsertApifyBusiness[]): Promise<ApifyBusiness[]> {
+    if (businesses.length === 0) return [];
+    const saved: ApifyBusiness[] = [];
+    for (const business of businesses) {
+      saved.push(await this.addApifyBusiness(business));
+    }
+    return saved;
+  }
+
   async getSubcategoriesByCategory(category: string, includeCounts: boolean = false): Promise<string[] | Array<{subcategory: string, count: number}>> {
     if (includeCounts) {
       const result = await db.select({ 
@@ -357,7 +387,7 @@ export class DBStorage implements IStorage {
         .groupBy(apifyBusinesses.subcategory)
         .orderBy(apifyBusinesses.subcategory);
 
-      return result.map(r => r.subcategory).filter(Boolean);
+      return result.map(r => r.subcategory).filter((s): s is string => s !== null);
     }
   }
 

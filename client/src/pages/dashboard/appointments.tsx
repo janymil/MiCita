@@ -21,6 +21,7 @@ import {
 import DashboardLayout from "@/components/dashboard-layout";
 import { APPOINTMENT_STATUSES } from "@/lib/constants";
 import { apiRequest } from "@/lib/queryClient";
+import type { BusinessSummary, AppointmentRecord, ClientRecord, ServiceRecord } from "@/lib/api-types";
 import { useToast } from "@/hooks/use-toast";
 import { formatDateTimePeruvian } from "@/lib/utils";
 import EditAppointmentDialog from "@/components/edit-appointment-dialog";
@@ -39,34 +40,36 @@ export default function Appointments() {
   const queryClient = useQueryClient();
   
   // Get user's businesses first
-  const { data: businesses } = useQuery({
+  const { data: businesses } = useQuery<BusinessSummary[]>({
     queryKey: ["/api/dashboard/businesses"],
   });
 
   // Use the first business (in a real app, should handle multiple businesses)
   const businessId = businesses?.[0]?.id;
 
-  const { data: appointments, isLoading } = useQuery({
+  const { data: appointments, isLoading } = useQuery<AppointmentRecord[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/appointments`],
     enabled: !!businessId, // Only run when businessId is available
   });
 
-  const { data: clients } = useQuery({
+  const { data: clients } = useQuery<ClientRecord[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/clients`],
     enabled: !!businessId,
   });
 
-  const { data: services } = useQuery({
+  const { data: services } = useQuery<ServiceRecord[]>({
     queryKey: [`/api/dashboard/businesses/${businessId}/services`],
     enabled: !!businessId,
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      return apiRequest(`/api/dashboard/businesses/${businessId}/appointments/${id}`, {
-        method: "PUT",
-        body: JSON.stringify({ status }),
-      });
+      const res = await apiRequest(
+        "PUT",
+        `/api/dashboard/businesses/${businessId}/appointments/${id}`,
+        { status }
+      );
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/appointments`] });
@@ -79,9 +82,11 @@ export default function Appointments() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/dashboard/businesses/${businessId}/appointments/${id}`, {
-        method: "DELETE",
-      });
+      const res = await apiRequest(
+        "DELETE",
+        `/api/dashboard/businesses/${businessId}/appointments/${id}`
+      );
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/dashboard/businesses/${businessId}/appointments`] });
@@ -317,15 +322,17 @@ export default function Appointments() {
       </div>
 
       {/* Unified Appointment Creation Dialog */}
-      <AppointmentFormDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        businessId={businessId}
-        title="Nueva Cita"
-      />
+      {businessId != null && (
+        <AppointmentFormDialog
+          isOpen={isDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
+          businessId={businessId}
+          title="Nueva Cita"
+        />
+      )}
 
       {/* Edit Appointment Dialog */}
-      {editingAppointment && (
+      {editingAppointment && businessId != null && (
         <EditAppointmentDialog
           appointment={editingAppointment}
           isOpen={isEditDialogOpen}

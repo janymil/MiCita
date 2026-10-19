@@ -15,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { BusinessSummary, NetworkingStats } from "@/lib/api-types";
 import DashboardLayout from "@/components/dashboard-layout";
 import { 
   Users, 
@@ -88,7 +89,7 @@ export default function NetworkingPage() {
   const queryClient = useQueryClient();
 
   // Get user's businesses first
-  const { data: businesses } = useQuery({
+  const { data: businesses } = useQuery<BusinessSummary[]>({
     queryKey: ["/api/dashboard/businesses"],
   });
 
@@ -96,57 +97,50 @@ export default function NetworkingPage() {
   const businessId = businesses?.[0]?.id;
 
   // Fetch networking stats
-  const { data: networkingStats } = useQuery({
-    queryKey: ["/api/networking/stats", businessId],
-    queryFn: () => apiRequest(`/api/networking/stats/${businessId}`),
+  const { data: networkingStats } = useQuery<NetworkingStats>({
+    queryKey: [`/api/networking/stats/${businessId}`],
     enabled: !!businessId,
   });
 
   // Fetch networking posts
-  const { data: networkingPosts = [], isLoading: postsLoading } = useQuery({
+  const { data: networkingPosts = [], isLoading: postsLoading } = useQuery<any[]>({
     queryKey: ["/api/networking/posts"],
-    queryFn: () => apiRequest("/api/networking/posts"),
   });
 
   // Fetch collaboration projects
-  const { data: collaborationProjects = [], isLoading: projectsLoading } = useQuery({
+  const { data: collaborationProjects = [], isLoading: projectsLoading } = useQuery<any[]>({
     queryKey: ["/api/networking/collaborations"],
-    queryFn: () => apiRequest("/api/networking/collaborations"),
   });
 
   // Fetch networking events
-  const { data: networkingEvents = [], isLoading: eventsLoading } = useQuery({
+  const { data: networkingEvents = [], isLoading: eventsLoading } = useQuery<any[]>({
     queryKey: ["/api/networking/events"],
-    queryFn: () => apiRequest("/api/networking/events"),
   });
 
   // Fetch business connections
-  const { data: connections = [] } = useQuery({
-    queryKey: ["/api/networking/connections", businessId],
-    queryFn: () => apiRequest(`/api/networking/connections/${businessId}`),
+  const { data: connections = [] } = useQuery<any[]>({
+    queryKey: [`/api/networking/connections/${businessId}`],
     enabled: !!businessId,
   });
 
   // Fetch connection requests
-  const { data: connectionRequests = [] } = useQuery({
-    queryKey: ["/api/networking/connections", businessId, "requests"],
-    queryFn: () => apiRequest(`/api/networking/connections/${businessId}/requests`),
+  const { data: connectionRequests = [] } = useQuery<any[]>({
+    queryKey: [`/api/networking/connections/${businessId}/requests`],
     enabled: !!businessId,
   });
 
   // Fetch suggested connections
-  const { data: suggestions = [] } = useQuery({
-    queryKey: ["/api/networking/suggestions", businessId],
-    queryFn: () => apiRequest(`/api/networking/suggestions/${businessId}`),
+  const { data: suggestions = [] } = useQuery<any[]>({
+    queryKey: [`/api/networking/suggestions/${businessId}`],
     enabled: !!businessId,
   });
 
   // Create networking post mutation
   const createPostMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/networking/posts", {
-      method: "POST",
-      body: JSON.stringify({ ...data, businessId }),
-    }),
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/networking/posts", { ...data, businessId });
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/networking/posts"] });
       setNewPostOpen(false);
@@ -159,10 +153,10 @@ export default function NetworkingPage() {
 
   // Create collaboration project mutation
   const createProjectMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/networking/collaborations", {
-      method: "POST",
-      body: JSON.stringify({ ...data, creatorId: businessId }),
-    }),
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/networking/collaborations", { ...data, creatorId: businessId });
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/networking/collaborations"] });
       setNewProjectOpen(false);
@@ -175,10 +169,10 @@ export default function NetworkingPage() {
 
   // Create networking event mutation
   const createEventMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("/api/networking/events", {
-      method: "POST",
-      body: JSON.stringify({ ...data, organizerId: businessId }),
-    }),
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/networking/events", { ...data, organizerId: businessId });
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/networking/events"] });
       setNewEventOpen(false);
@@ -191,17 +185,17 @@ export default function NetworkingPage() {
 
   // Create connection request mutation
   const createConnectionMutation = useMutation({
-    mutationFn: (recipientId: number) => apiRequest("/api/networking/connections", {
-      method: "POST",
-      body: JSON.stringify({
-        requesterId: MOCK_BUSINESS_ID,
+    mutationFn: async (recipientId: number) => {
+      const res = await apiRequest("POST", "/api/networking/connections", {
+        requesterId: businessId,
         recipientId,
         connectionType: "general",
         message: "Me gustaría conectar contigo para oportunidades de colaboración."
-      }),
-    }),
+      });
+      return res.json();
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/networking/suggestions", MOCK_BUSINESS_ID] });
+      queryClient.invalidateQueries({ queryKey: [`/api/networking/suggestions/${businessId}`] });
       toast({ title: "Solicitud de conexión enviada" });
     },
     onError: () => {
@@ -211,10 +205,12 @@ export default function NetworkingPage() {
 
   // Like post mutation
   const likePostMutation = useMutation({
-    mutationFn: (postId: number) => apiRequest(`/api/networking/posts/${postId}/likes`, {
-      method: "POST",
-      body: JSON.stringify({ businessId: MOCK_BUSINESS_ID }),
-    }),
+    mutationFn: async (postId: number) => {
+      const res = await apiRequest("POST", `/api/networking/posts/${postId}/likes`, {
+        businessId
+      });
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/networking/posts"] });
     },
@@ -275,7 +271,7 @@ export default function NetworkingPage() {
   };
 
   const getPostTypeLabel = (type: string) => {
-    const labels = {
+    const labels: Record<string, string> = {
       opportunity: "Oportunidad",
       collaboration: "Colaboración",
       referral: "Referencia",
@@ -286,7 +282,7 @@ export default function NetworkingPage() {
   };
 
   const getPostTypeColor = (type: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       opportunity: "bg-green-100 text-green-800",
       collaboration: "bg-blue-100 text-blue-800",
       referral: "bg-purple-100 text-purple-800",
@@ -297,7 +293,7 @@ export default function NetworkingPage() {
   };
 
   const getProjectTypeLabel = (type: string) => {
-    const labels = {
+    const labels: Record<string, string> = {
       joint_marketing: "Marketing Conjunto",
       cross_promotion: "Promoción Cruzada",
       shared_services: "Servicios Compartidos",
@@ -307,7 +303,7 @@ export default function NetworkingPage() {
   };
 
   const getEventTypeLabel = (type: string) => {
-    const labels = {
+    const labels: Record<string, string> = {
       workshop: "Taller",
       meetup: "Encuentro",
       webinar: "Webinar",

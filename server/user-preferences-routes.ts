@@ -38,7 +38,7 @@ router.get('/api/user/preferences', requireAuth, async (req: AuthenticatedReques
     }
 
     res.json(preferences[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching user preferences:', error);
     res.status(500).json({ error: 'Failed to fetch preferences' });
   }
@@ -91,7 +91,7 @@ router.put('/api/user/preferences', requireAuth, async (req: AuthenticatedReques
     }
 
     res.json(result[0]);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating user preferences:', error);
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Invalid input', details: error.errors });
