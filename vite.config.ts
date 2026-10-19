@@ -43,7 +43,7 @@ export default defineConfig(async ({ mode }) => {
     emptyOutDir: true,
   },
   server: {
-    port: 5000,
+    port: process.env.PORT ? parseInt(process.env.PORT, 10) : 5000,
     fs: {
       strict: true,
       deny: ["**/.*"],
