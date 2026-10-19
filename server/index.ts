@@ -10,6 +10,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { isDatabaseConfigured, isDatabaseHealthy, pingDatabase, ensureAuthSchema } from "./db.js";
 import { csrfCookieMiddleware, csrfProtection } from "./csrf.js";
+import { clientIp } from "./auth/audit.js";
 
 const app = express();
 
@@ -67,6 +68,8 @@ const apiLimiter = rateLimit({
   max: config.security.apiRateLimitMax,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => clientIp(req) ?? 'unknown',
+  validate: { ip: false },
   message: { message: "Demasiadas solicitudes. Intenta de nuevo más tarde." },
 });
 
@@ -76,12 +79,16 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => clientIp(req) ?? 'unknown',
+  validate: { ip: false },
 });
 
 const speedLimiter = slowDown({
   windowMs: 15 * 60 * 1000,
   delayAfter: 100,
   delayMs: () => 300,
+  keyGenerator: (req) => clientIp(req) ?? 'unknown',
+  validate: { ip: false },
 });
 
 app.use("/api/", apiLimiter);
