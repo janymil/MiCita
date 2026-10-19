@@ -43,11 +43,13 @@ app.use(
   }),
 );
 
-// CORS - explicit allowlist only.
+// CORS - allow the configured origins; in development accept any local origin
+// (localhost, 127.0.0.1, ::1, LAN IPs used by previews) so the app never breaks
+// because of a hostname mismatch.
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || config.allowedOrigins.includes(origin)) {
+      if (!origin || config.isDevelopment || config.allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       return callback(new Error("Not allowed by CORS"));
@@ -178,7 +180,9 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  server.listen(config.port, "0.0.0.0", () => {
+  // Omit the host so Node binds dual-stack (IPv4 + IPv6); this makes both
+  // `localhost` (::1) and `127.0.0.1` reach the app.
+  server.listen(config.port, () => {
     log(`serving on port ${config.port} (${config.nodeEnv})`);
   });
 
