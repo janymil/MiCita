@@ -5,6 +5,7 @@ import { CalendarClock, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PublicPageShell } from "@/components/public-page-header";
 import { publicJson } from "@/lib/public-api";
 
 interface WaitlistEntryPayload {
@@ -70,16 +71,18 @@ export default function WaitlistClaimPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
-      </div>
+      <PublicPageShell>
+        <div className="flex justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
+        </div>
+      </PublicPageShell>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-6">
-        <Card className="w-full max-w-md">
+      <PublicPageShell>
+        <Card>
           <CardContent className="space-y-3 p-8 text-center">
             <XCircle className="mx-auto h-12 w-12 text-red-500" />
             <h1 className="text-xl font-bold">Enlace no válido</h1>
@@ -91,7 +94,7 @@ export default function WaitlistClaimPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
 
@@ -100,9 +103,8 @@ export default function WaitlistClaimPage() {
   const offered = data.entry.offeredDate && data.entry.offeredTime;
 
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-10">
-      <div className="mx-auto max-w-lg space-y-4">
-        <Card>
+    <PublicPageShell businessName={data.business.name} phone={data.business.phone}>
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-2">
               <span className="flex items-center gap-2">
@@ -181,7 +183,6 @@ export default function WaitlistClaimPage() {
         )}
 
         <p className="text-center text-xs text-muted-foreground">Gestionado con MiCita</p>
-      </div>
-    </div>
+    </PublicPageShell>
   );
 }

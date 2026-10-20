@@ -587,6 +587,17 @@ export default function BusinessMicrosite() {
     showLoyaltyOnMicrosite ||
     showPackagesOnMicrosite;
 
+  // Public flows show a "Volver" button; carrying the microsite slug lets it
+  // return here even when the customer opened the link in a new tab (QR, ads).
+  const withFrom = (href: string) => {
+    if (!slug) return href;
+    const hashIndex = href.indexOf("#");
+    const base = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
+    const hash = hashIndex >= 0 ? href.slice(hashIndex) : "";
+    const separator = base.includes("?") ? "&" : "?";
+    return `${base}${separator}from=${encodeURIComponent(slug)}${hash}`;
+  };
+
   return (
     <div className={`min-h-screen ${themeConfig.background} ${themeConfig.text} transition-colors duration-300 font-sans`}>
       
@@ -734,7 +745,7 @@ export default function BusinessMicrosite() {
             {/* Quick Metrics & Call to Action */}
             <div className="flex flex-wrap items-center gap-3 md:justify-end">
               {showQueueOnMicrosite && (
-                <a href={`/q/${business.id}`}>
+                <a href={withFrom(`/q/${business.id}`)}>
                   <Button className="h-11 px-5 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold gap-2 shadow-lg shadow-red-500/20">
                     <ListOrdered className="w-3.5 h-3.5" />
                     Saca tu turno
@@ -811,7 +822,7 @@ export default function BusinessMicrosite() {
                         {queueState.seated.remainingMinutes} min
                       </p>
                     )}
-                    <a href={`/q/${business.id}`} className="mt-auto">
+                    <a href={withFrom(`/q/${business.id}`)} className="mt-auto">
                       <Button
                         className={`w-full h-11 rounded-2xl text-xs font-semibold ${themeConfig.button}`}
                       >
@@ -846,7 +857,7 @@ export default function BusinessMicrosite() {
                     return (
                       <a
                         key={promo.code}
-                        href={promo.publicUrl}
+                        href={withFrom(promo.publicUrl)}
                         className={`${themeConfig.card} p-4 block group hover:-translate-y-0.5 transition-transform`}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -908,7 +919,7 @@ export default function BusinessMicrosite() {
                   <h3 className="font-display text-base font-bold">Lista de espera</h3>
                 </div>
               </div>
-              <a href={`/lista/${business.id}`}>
+              <a href={withFrom(`/lista/${business.id}`)}>
                 <Button className={`h-10 rounded-2xl text-xs font-semibold ${themeConfig.button}`}>
                   Avísame si se libera
                   <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -932,7 +943,7 @@ export default function BusinessMicrosite() {
                   </h3>
                 </div>
               </div>
-              <a href={`/tarjeta/${business.id}`}>
+              <a href={withFrom(`/tarjeta/${business.id}`)}>
                 <Button className={`h-10 rounded-2xl text-xs font-semibold ${themeConfig.button}`}>
                   Ver mi tarjeta
                   <ArrowRight className="w-3.5 h-3.5 ml-1" />
@@ -956,7 +967,7 @@ export default function BusinessMicrosite() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {micrositePackages.slice(0, 3).map((pkg) => (
-                  <a key={pkg.id} href={pkg.publicUrl} className={`${themeConfig.card} block p-4`}>
+                  <a key={pkg.id} href={withFrom(pkg.publicUrl)} className={`${themeConfig.card} block p-4`}>
                     <p className="font-bold">{pkg.name}</p>
                     <p className="mt-1 text-xs opacity-70">
                       {pkg.uses} usos de {pkg.serviceName} · {pkg.validityDays} días

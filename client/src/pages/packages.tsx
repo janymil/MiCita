@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { PublicPageShell } from "@/components/public-page-header";
 import { publicJson } from "@/lib/public-api";
 
 interface PackageDetail {
@@ -50,16 +51,18 @@ const STATUS_LABELS: Record<string, string> = {
 
 function Loading() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50">
-      <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
-    </div>
+    <PublicPageShell>
+      <div className="flex justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
+      </div>
+    </PublicPageShell>
   );
 }
 
 function NotFound({ text }: { text: string }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-6">
-      <Card className="w-full max-w-md">
+    <PublicPageShell>
+      <Card>
         <CardContent className="space-y-3 p-8 text-center">
           <XCircle className="mx-auto h-12 w-12 text-red-500" />
           <h1 className="text-xl font-bold">Bono no encontrado</h1>
@@ -69,7 +72,7 @@ function NotFound({ text }: { text: string }) {
           </Button>
         </CardContent>
       </Card>
-    </div>
+    </PublicPageShell>
   );
 }
 
@@ -111,9 +114,8 @@ export function PackageBuyPage() {
   if (error || !data) return <NotFound text="Este bono ya no está disponible." />;
 
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-10">
-      <div className="mx-auto max-w-lg space-y-4">
-        <Card className="overflow-hidden border-amber-200">
+    <PublicPageShell businessName={data.business.name} phone={data.business.phone}>
+      <Card className="overflow-hidden border-amber-200">
           <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-6 text-white">
             <p className="text-xs font-semibold uppercase tracking-wider opacity-80">
               {data.business.name}
@@ -184,8 +186,7 @@ export function PackageBuyPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </PublicPageShell>
   );
 }
 
@@ -204,9 +205,8 @@ export function PackageCardPage() {
   const active = data.purchase.status === "active" && data.purchase.usesRemaining > 0;
 
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-10">
-      <div className="mx-auto max-w-lg space-y-4">
-        <Card className="overflow-hidden border-amber-200">
+    <PublicPageShell businessName={data.business.name} phone={data.business.phone}>
+      <Card className="overflow-hidden border-amber-200">
           <div className="bg-gradient-to-r from-amber-400 to-orange-500 p-6 text-white">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -291,7 +291,6 @@ export function PackageCardPage() {
         )}
 
         <p className="text-center text-xs text-muted-foreground">Gestionado con MiCita</p>
-      </div>
-    </div>
+    </PublicPageShell>
   );
 }

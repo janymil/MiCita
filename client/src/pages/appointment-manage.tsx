@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PublicPageShell } from "@/components/public-page-header";
 import { publicJson } from "@/lib/public-api";
 
 interface AppointmentPayload {
@@ -150,16 +151,18 @@ export default function AppointmentManagePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600" />
-      </div>
+      <PublicPageShell>
+        <div className="flex justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600" />
+        </div>
+      </PublicPageShell>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-6">
-        <Card className="max-w-md w-full">
+      <PublicPageShell>
+        <Card>
           <CardContent className="p-8 text-center space-y-3">
             <XCircle className="w-12 h-12 mx-auto text-red-500" />
             <h1 className="text-xl font-bold">Enlace no válido</h1>
@@ -169,16 +172,15 @@ export default function AppointmentManagePage() {
             <Button onClick={() => (window.location.href = "/")} className="w-full">Volver al inicio</Button>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
   const { appointment, business, service, client, canManage, deposit } = data;
 
 
   return (
-    <div className="min-h-screen bg-neutral-50 py-10 px-4">
-      <div className="max-w-lg mx-auto space-y-4">
-        <Card>
+    <PublicPageShell businessName={business?.name} phone={business?.phone}>
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-red-600" />
@@ -361,8 +363,7 @@ export default function AppointmentManagePage() {
         <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
           <MapPin className="w-3 h-3" /> Gestionado con MiCita
         </p>
-      </div>
-    </div>
+    </PublicPageShell>
   );
 }
 

@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
-import { CheckCircle2, Clock, MapPin, MessageCircle, Users, XCircle } from "lucide-react";
-import { MicitaLogo } from "@/components/brand";
+import { CheckCircle2, Clock, MapPin, Users, XCircle } from "lucide-react";
+import { PublicPageShell } from "@/components/public-page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -158,16 +158,18 @@ export default function QueuePage() {
 
   if (snapshotQuery.isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
-      </div>
+      <PublicPageShell>
+        <div className="flex justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
+        </div>
+      </PublicPageShell>
     );
   }
 
   if (snapshotQuery.error || !snapshot) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-6">
-        <Card className="w-full max-w-md">
+      <PublicPageShell>
+        <Card>
           <CardContent className="space-y-3 p-8 text-center">
             <XCircle className="mx-auto h-12 w-12 text-red-500" />
             <h1 className="text-xl font-bold">Cola no disponible</h1>
@@ -176,37 +178,23 @@ export default function QueuePage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
 
   const business = ticket?.business ?? snapshot.business;
-  const phoneHref = business.phone ? `tel:${business.phone}` : undefined;
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-md items-center justify-between p-4">
-          <MicitaLogo href="/" size="sm" />
-          {phoneHref ? (
-            <a href={phoneHref} className="flex items-center gap-1 text-sm text-neutral-600">
-              <MessageCircle className="h-4 w-4" />
-              {business.phone}
-            </a>
-          ) : null}
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-md space-y-4 p-4 pb-10">
-        <div>
-          <h1 className="text-2xl font-bold">{business.name}</h1>
-          <p className="flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4" />
-            {[business.address, snapshot.business.district, snapshot.business.city]
-              .filter(Boolean)
-              .join(", ") || "Perú"}
-          </p>
-        </div>
+    <PublicPageShell businessName={business.name} phone={business.phone} maxWidth="max-w-md">
+      <div>
+        <h1 className="text-2xl font-bold">{business.name}</h1>
+        <p className="flex items-center gap-1 text-sm text-muted-foreground">
+          <MapPin className="h-4 w-4" />
+          {[business.address, snapshot.business.district, snapshot.business.city]
+            .filter(Boolean)
+            .join(", ") || "Perú"}
+        </p>
+      </div>
 
         {!token ? (
           <Card>
@@ -403,7 +391,6 @@ export default function QueuePage() {
         )}
 
         <p className="text-center text-xs text-neutral-400">Turnos con MiCita</p>
-      </main>
-    </div>
+    </PublicPageShell>
   );
 }

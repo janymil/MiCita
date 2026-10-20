@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
 import { CalendarClock, CheckCircle2, Users } from "lucide-react";
+import { PublicPageShell } from "@/components/public-page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -73,16 +74,18 @@ export default function WaitlistPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
-      </div>
+      <PublicPageShell>
+        <div className="flex justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
+        </div>
+      </PublicPageShell>
     );
   }
 
   if (error || !data || !data.enabled) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-6">
-        <Card className="w-full max-w-md">
+      <PublicPageShell>
+        <Card>
           <CardContent className="space-y-3 p-8 text-center">
             <Users className="mx-auto h-12 w-12 text-neutral-400" />
             <h1 className="text-xl font-bold">Lista de espera no disponible</h1>
@@ -94,14 +97,13 @@ export default function WaitlistPage() {
             </Button>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50 px-4 py-10">
-      <div className="mx-auto max-w-lg space-y-4">
-        <Card>
+    <PublicPageShell businessName={data.business.name}>
+      <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-red-600" />
@@ -195,7 +197,6 @@ export default function WaitlistPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </PublicPageShell>
   );
 }

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
-import { Calendar, CheckCircle2, Clock, MapPin, MessageCircle, Tag, Users, XCircle } from "lucide-react";
-import { MicitaLogo } from "@/components/brand";
+import { Calendar, CheckCircle2, Clock, MapPin, Tag, Users, XCircle } from "lucide-react";
+import { PublicPageShell } from "@/components/public-page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -138,16 +138,18 @@ export default function PromoPage() {
 
   if (promoQuery.isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50">
-        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
-      </div>
+      <PublicPageShell maxWidth="max-w-md">
+        <div className="flex justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-red-600" />
+        </div>
+      </PublicPageShell>
     );
   }
 
   if (promoQuery.error || !promo) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-6">
-        <Card className="w-full max-w-md">
+      <PublicPageShell maxWidth="max-w-md">
+        <Card>
           <CardContent className="space-y-3 p-8 text-center">
             <XCircle className="mx-auto h-12 w-12 text-red-500" />
             <h1 className="text-xl font-bold">Promo no encontrada</h1>
@@ -156,38 +158,24 @@ export default function PromoPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
 
   const business = claim?.business ?? promo.business;
-  const phoneHref = business.phone ? `tel:${business.phone}` : undefined;
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-md items-center justify-between p-4">
-          <MicitaLogo href="/" size="sm" />
-          {phoneHref ? (
-            <a href={phoneHref} className="flex items-center gap-1 text-sm text-neutral-600">
-              <MessageCircle className="h-4 w-4" />
-              {business.phone}
-            </a>
-          ) : null}
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-md space-y-4 p-4 pb-10">
-        <div>
-          <p className="text-sm text-muted-foreground">{business.name}</p>
-          <h1 className="text-2xl font-bold">{promo.promo.title}</h1>
-          <p className="flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4" />
-            {[business.address, promo.business.district, promo.business.city]
-              .filter(Boolean)
-              .join(", ") || "Perú"}
-          </p>
-        </div>
+    <PublicPageShell businessName={business.name} phone={business.phone} maxWidth="max-w-md">
+      <div>
+        <p className="text-sm text-muted-foreground">{business.name}</p>
+        <h1 className="text-2xl font-bold">{promo.promo.title}</h1>
+        <p className="flex items-center gap-1 text-sm text-muted-foreground">
+          <MapPin className="h-4 w-4" />
+          {[business.address, promo.business.district, promo.business.city]
+            .filter(Boolean)
+            .join(", ") || "Perú"}
+        </p>
+      </div>
 
         <Card className="overflow-hidden border-emerald-200">
           <CardContent className="space-y-3 bg-gradient-to-br from-emerald-50 to-white p-5">
@@ -359,7 +347,6 @@ export default function PromoPage() {
         )}
 
         <p className="text-center text-xs text-neutral-400">Promos con MiCita</p>
-      </main>
-    </div>
+    </PublicPageShell>
   );
 }
