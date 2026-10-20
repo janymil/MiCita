@@ -13,7 +13,14 @@ import { config } from "./config.js";
  * set an Authorization header), so they are exempted.
  */
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const EXEMPT_PATHS = ["/api/payments/webhook"];
+const EXEMPT_PATHS = [
+  "/api/payments/webhook",
+  // Server-to-server webhook from the Formatika WhatsApp gateway: there is no
+  // browser session, so double-submit CSRF cannot apply. A shared secret and
+  // the rate limiter protect it instead.
+  "/api/webhooks/whatsapp",
+  "/api/webhooks/whatsapp/formatika",
+];
 
 export function csrfCookieMiddleware(req: Request, res: Response, next: NextFunction) {
   const existing = req.cookies?.[config.auth.csrfCookieName];

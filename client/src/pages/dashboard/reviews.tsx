@@ -51,6 +51,7 @@ interface MessagesResponse {
 
 const SOURCE_LABELS: Record<string, { label: string; className: string }> = {
   microsite: { label: "💬 Micrositio", className: "bg-blue-50 text-blue-700 border-blue-200" },
+  appointment: { label: "✂️ Post-visita", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   google: { label: "🌐 Google", className: "bg-red-50 text-red-700 border-red-200" },
   facebook: { label: "📘 Facebook", className: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   manual: { label: "✍️ Manual", className: "bg-gray-50 text-gray-700 border-gray-200" },
@@ -316,6 +317,7 @@ export default function ReviewsPage() {
                     <SelectContent>
                       <SelectItem value="all">Todas las fuentes</SelectItem>
                       <SelectItem value="microsite">Micrositio</SelectItem>
+                      <SelectItem value="appointment">Post-visita</SelectItem>
                       <SelectItem value="google">Google</SelectItem>
                       <SelectItem value="facebook">Facebook</SelectItem>
                       <SelectItem value="manual">Manual</SelectItem>

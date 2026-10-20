@@ -1,5 +1,6 @@
 /**
- * Idempotent schema setup for the auth + payments tables.
+ * Idempotent schema setup for the auth + payments tables and the owner desk
+ * (Chair Mode walk-ins + daily cash drawer in `service_transactions`).
  *
  * This project stores its schema in `shared/schema.ts` (Drizzle) and normally
  * applies changes with `drizzle-kit push`. Because the production Neon database
@@ -262,6 +263,223 @@ const statements = [
      "updated_at" timestamp DEFAULT now()
    )`,
   `CREATE INDEX IF NOT EXISTS "contact_messages_business_status_idx" ON "contact_messages" ("business_id", "status")`,
+
+  // --- Phase 1 desk: Chair Mode walk-ins + daily cash drawer ----------------
+  // `source` tells the analytics whether a visit came from booking, a walk-in,
+  // the future queue or a promo. Existing rows default to "booking".
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "source" text NOT NULL DEFAULT 'booking'`,
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "started_at" timestamp`,
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "completed_at" timestamp`,
+  `CREATE INDEX IF NOT EXISTS "appointments_source_idx" ON "appointments" ("business_id", "source")`,
+  `CREATE TABLE IF NOT EXISTS "service_transactions" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "appointment_id" integer REFERENCES "appointments"("id") ON DELETE SET NULL,
+     "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
+     "service_id" integer REFERENCES "services"("id") ON DELETE SET NULL,
+     "service_name" text,
+     "amount" numeric(10, 2) NOT NULL,
+     "tip_amount" numeric(10, 2) NOT NULL DEFAULT '0',
+     "method" text NOT NULL DEFAULT 'cash',
+     "note" text,
+     "occurred_at" timestamp NOT NULL DEFAULT now(),
+     "created_at" timestamp DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS "service_transactions_business_date_idx" ON "service_transactions" ("business_id", "occurred_at")`,
+  `CREATE INDEX IF NOT EXISTS "service_transactions_appointment_idx" ON "service_transactions" ("appointment_id")`,
+
+  // --- Phase 2: same-day virtual queue ("Saca tu turno") -------------------
+  `CREATE TABLE IF NOT EXISTS "queue_tickets" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
+     "service_id" integer REFERENCES "services"("id") ON DELETE SET NULL,
+     "appointment_id" integer REFERENCES "appointments"("id") ON DELETE SET NULL,
+     "name" text NOT NULL,
+     "phone" text,
+     "status" text NOT NULL DEFAULT 'waiting',
+     "token" text NOT NULL,
+     "notes" text,
+     "joined_at" timestamp NOT NULL DEFAULT now(),
+     "notified_at" timestamp,
+     "seated_at" timestamp,
+     "closed_at" timestamp,
+     "created_at" timestamp DEFAULT now()
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "queue_tickets_token_uq" ON "queue_tickets" ("token")`,
+  `CREATE INDEX IF NOT EXISTS "queue_tickets_business_status_idx" ON "queue_tickets" ("business_id", "status", "joined_at")`,
+
+  // --- Cancellation waitlist -------------------------------------------------
+  `CREATE TABLE IF NOT EXISTS "waitlist_entries" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "service_id" integer REFERENCES "services"("id") ON DELETE SET NULL,
+     "name" text NOT NULL,
+     "phone" text NOT NULL,
+     "date" text NOT NULL,
+     "token" text NOT NULL,
+     "status" text NOT NULL DEFAULT 'waiting',
+     "offered_date" text,
+     "offered_time" text,
+     "notified_at" timestamp,
+     "claimed_at" timestamp,
+     "appointment_id" integer REFERENCES "appointments"("id") ON DELETE SET NULL,
+     "created_at" timestamp DEFAULT now()
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "waitlist_entries_token_uq" ON "waitlist_entries" ("token")`,
+  `CREATE INDEX IF NOT EXISTS "waitlist_entries_business_date_idx" ON "waitlist_entries" ("business_id", "date", "status")`,
+  `CREATE INDEX IF NOT EXISTS "waitlist_entries_service_idx" ON "waitlist_entries" ("service_id", "date", "status")`,
+
+  // --- Loyalty stamps / repeat-visit rewards -------------------------------
+  `CREATE TABLE IF NOT EXISTS "loyalty_cards" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
+     "name" text NOT NULL,
+     "phone" text NOT NULL,
+     "token" text NOT NULL,
+     "total_stamps" integer NOT NULL DEFAULT 0,
+     "rewards_redeemed" integer NOT NULL DEFAULT 0,
+     "last_stamp_at" timestamp,
+     "created_at" timestamp DEFAULT now(),
+     "updated_at" timestamp DEFAULT now()
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "loyalty_cards_token_uq" ON "loyalty_cards" ("token")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "loyalty_cards_business_phone_uq" ON "loyalty_cards" ("business_id", "phone")`,
+  `CREATE INDEX IF NOT EXISTS "loyalty_cards_business_idx" ON "loyalty_cards" ("business_id", "updated_at")`,
+  `CREATE TABLE IF NOT EXISTS "loyalty_events" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "card_id" integer NOT NULL REFERENCES "loyalty_cards"("id") ON DELETE CASCADE,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "appointment_id" integer REFERENCES "appointments"("id") ON DELETE SET NULL,
+     "type" text NOT NULL,
+     "stamps_delta" integer NOT NULL DEFAULT 1,
+     "note" text,
+     "created_at" timestamp DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS "loyalty_events_card_idx" ON "loyalty_events" ("card_id", "created_at")`,
+  `CREATE INDEX IF NOT EXISTS "loyalty_events_appointment_idx" ON "loyalty_events" ("appointment_id")`,
+
+  // --- Prepaid service packages ("bonos") ----------------------------------
+  `CREATE TABLE IF NOT EXISTS "service_packages" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "service_id" integer REFERENCES "services"("id") ON DELETE SET NULL,
+     "name" text NOT NULL,
+     "description" text,
+     "uses" integer NOT NULL DEFAULT 5,
+     "price" numeric(10, 2) NOT NULL,
+     "validity_days" integer NOT NULL DEFAULT 90,
+     "status" text NOT NULL DEFAULT 'active',
+     "created_at" timestamp DEFAULT now(),
+     "updated_at" timestamp DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS "service_packages_business_idx" ON "service_packages" ("business_id", "status")`,
+  `CREATE TABLE IF NOT EXISTS "package_purchases" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "package_id" integer NOT NULL REFERENCES "service_packages"("id") ON DELETE CASCADE,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
+     "name" text NOT NULL,
+     "phone" text NOT NULL,
+     "token" text NOT NULL,
+     "uses_total" integer NOT NULL,
+     "uses_remaining" integer NOT NULL,
+     "amount_paid" numeric(10, 2) NOT NULL,
+     "payment_method" text,
+     "payment_reference" text,
+     "status" text NOT NULL DEFAULT 'pending',
+     "purchased_at" timestamp DEFAULT now(),
+     "expires_at" timestamp,
+     "created_at" timestamp DEFAULT now(),
+     "updated_at" timestamp DEFAULT now()
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "package_purchases_token_uq" ON "package_purchases" ("token")`,
+  `CREATE INDEX IF NOT EXISTS "package_purchases_business_idx" ON "package_purchases" ("business_id", "status")`,
+  `CREATE INDEX IF NOT EXISTS "package_purchases_client_idx" ON "package_purchases" ("client_id", "status")`,
+  `CREATE TABLE IF NOT EXISTS "package_redemptions" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "purchase_id" integer NOT NULL REFERENCES "package_purchases"("id") ON DELETE CASCADE,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "appointment_id" integer REFERENCES "appointments"("id") ON DELETE SET NULL,
+     "uses_used" integer NOT NULL DEFAULT 1,
+     "note" text,
+     "created_at" timestamp DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS "package_redemptions_purchase_idx" ON "package_redemptions" ("purchase_id", "created_at")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "package_redemptions_appointment_uq" ON "package_redemptions" ("appointment_id")`,
+
+  // --- Owner desk configuration (queue + cash methods) ---------------------
+  `ALTER TABLE "business_settings" ADD COLUMN IF NOT EXISTS "desk_settings" jsonb`,
+
+  // --- F2: dead-hour promos + central WhatsApp bot -------------------------
+  `CREATE TABLE IF NOT EXISTS "promos" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "service_id" integer REFERENCES "services"("id") ON DELETE SET NULL,
+     "code" text NOT NULL,
+     "title" text NOT NULL,
+     "description" text,
+     "promo_price" numeric(10, 2) NOT NULL,
+     "date" text NOT NULL,
+     "start_time" text NOT NULL,
+     "end_time" text NOT NULL,
+     "capacity" integer NOT NULL DEFAULT 3,
+     "status" text NOT NULL DEFAULT 'active',
+     "message" text,
+     "created_at" timestamp DEFAULT now(),
+     "updated_at" timestamp DEFAULT now()
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "promos_code_uq" ON "promos" ("code")`,
+  `CREATE INDEX IF NOT EXISTS "promos_business_date_idx" ON "promos" ("business_id", "date", "status")`,
+  `CREATE TABLE IF NOT EXISTS "promo_claims" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "promo_id" integer NOT NULL REFERENCES "promos"("id") ON DELETE CASCADE,
+     "business_id" integer NOT NULL REFERENCES "businesses"("id") ON DELETE CASCADE,
+     "appointment_id" integer REFERENCES "appointments"("id") ON DELETE SET NULL,
+     "client_id" integer REFERENCES "clients"("id") ON DELETE SET NULL,
+     "name" text NOT NULL,
+     "phone" text,
+     "date" text NOT NULL,
+     "time" text NOT NULL,
+     "status" text NOT NULL DEFAULT 'reserved',
+     "token" text NOT NULL,
+     "created_at" timestamp DEFAULT now(),
+     "cancelled_at" timestamp
+   )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "promo_claims_token_uq" ON "promo_claims" ("token")`,
+  `CREATE INDEX IF NOT EXISTS "promo_claims_promo_status_idx" ON "promo_claims" ("promo_id", "status")`,
+  `CREATE INDEX IF NOT EXISTS "promo_claims_slot_idx" ON "promo_claims" ("promo_id", "date", "time")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "promo_claims_slot_uq" ON "promo_claims" ("promo_id", "date", "time") WHERE "status" <> 'cancelled'`,
+  `CREATE TABLE IF NOT EXISTS "whatsapp_messages" (
+     "id" serial PRIMARY KEY NOT NULL,
+     "business_id" integer REFERENCES "businesses"("id") ON DELETE SET NULL,
+     "direction" text NOT NULL,
+     "phone" text,
+     "text" text,
+     "status" text NOT NULL,
+     "provider_message_id" text,
+     "error" text,
+     "payload" jsonb,
+     "created_at" timestamp DEFAULT now()
+   )`,
+  `CREATE INDEX IF NOT EXISTS "whatsapp_messages_phone_idx" ON "whatsapp_messages" ("phone", "created_at")`,
+  `CREATE INDEX IF NOT EXISTS "whatsapp_messages_direction_idx" ON "whatsapp_messages" ("direction", "created_at")`,
+
+  // --- WhatsApp appointment reminders + confirmations ---------------------
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "whatsapp_reminder_sent_at" timestamp`,
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "whatsapp_confirmation_sent_at" timestamp`,
+
+  // --- No-show protection: optional booking deposit -----------------------
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "deposit_amount" numeric(10, 2)`,
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "deposit_status" text`,
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "deposit_paid_at" timestamp`,
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "deposit_expires_at" timestamp`,
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "deposit_payment_id" text`,
+  `CREATE INDEX IF NOT EXISTS "appointments_deposit_idx" ON "appointments" ("deposit_status", "deposit_expires_at")`,
+
+  // --- Post-service review requests ----------------------------------------
+  `ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "review_request_sent_at" timestamp`,
 ];
 
 async function main() {

@@ -17,6 +17,9 @@ import {
   PLAN_PRICING,
   validateWebhookSignature,
 } from "./payments/mercadopago.js";
+import { markDepositPaid } from "./lib/deposits.js";
+import { activatePackagePurchase } from "./lib/packages.js";
+import { storage } from "./storage.js";
 
 const router: Router = express.Router();
 
@@ -67,7 +70,7 @@ router.post("/checkout", requireAuth, async (req: AuthenticatedRequest, res) => 
       payerEmail: dbUser.email,
       notificationUrl: notificationUrl(),
       backUrls: backUrls(),
-      metadata: { userId: dbUser.id, businessId: parsed.data.businessId },
+      metadata: { userId: dbUser.id, businessId: parsed.data.businessId, purpose: "plan" },
     });
 
     await db.insert(payments).values({
@@ -79,7 +82,7 @@ router.post("/checkout", requireAuth, async (req: AuthenticatedRequest, res) => 
       amount: parsed.data.amount.toFixed(2),
       description: parsed.data.description,
       status: "pending",
-      metadata: { init_point: preference.init_point },
+      metadata: { init_point: preference.init_point, purpose: "plan" },
     });
 
     await recordAudit(req, { userId: dbUser.id, event: "payment_created", metadata: { externalReference } });
@@ -272,6 +275,31 @@ async function processPaymentWebhook(paymentId: string): Promise<void> {
       updatedAt: new Date(),
     })
     .where(eq(payments.id, existing.id));
+
+  // Deposit payments confirm the booking and must never grant a premium plan.
+  const metadata = (existing.metadata ?? {}) as Record<string, unknown>;
+  if (status === "approved" && metadata.type === "booking_deposit") {
+    const appointmentId = Number(metadata.appointmentId);
+    if (Number.isInteger(appointmentId) && appointmentId > 0) {
+      await markDepositPaid(appointmentId, String(payment.id));
+    }
+    return;
+  }
+
+  // Prepaid package purchases activate the balance after approval.
+  if (metadata.type === "service_package") {
+    const purchaseId = Number(metadata.purchaseId);
+    if (!Number.isInteger(purchaseId) || purchaseId <= 0) return;
+    if (status === "approved") {
+      await activatePackagePurchase(purchaseId, String(payment.id));
+    } else if (status === "rejected") {
+      const purchase = await storage.getPackagePurchase(purchaseId);
+      if (purchase?.status === "pending") {
+        await storage.updatePackagePurchase(purchaseId, { status: "cancelled" });
+      }
+    }
+    return;
+  }
 
   // Grant premium on a successful business payment.
   if (status === "approved" && existing.businessId) {

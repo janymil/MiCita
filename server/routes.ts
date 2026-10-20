@@ -17,6 +17,17 @@ import { AppointmentData } from "./email-templates";
 import networkingRoutes from "./networking-routes.js";
 import openstreetAdminRoutes from "./openstreet-admin-routes.js";
 import galleryRoutes from "./routes/gallery.js";
+import deskRoutes from "./routes/desk.js";
+import publicQueueRoutes from "./routes/public-queue.js";
+import publicPromosRoutes from "./routes/public-promos.js";
+import publicDepositRoutes from "./routes/public-deposits.js";
+import publicReviewRoutes from "./routes/public-reviews.js";
+import publicWaitlistRoutes from "./routes/public-waitlist.js";
+import publicLoyaltyRoutes from "./routes/public-loyalty.js";
+import publicPackageRoutes from "./routes/public-packages.js";
+import promosRoutes from "./routes/promos.js";
+import packageRoutes from "./routes/packages.js";
+import whatsappWebhookRoutes from "./routes/whatsapp-webhook.js";
 import scrapingRoutes from "./routes/scraping.js";
 import dataApplicationRoutes from "./routes/data-application.js";
 import incrementalScrapingRoutes from "./routes/incremental-scraping.js";
@@ -48,6 +59,12 @@ import {
   type PeriodKey,
 } from "./lib/analytics.js";
 import { addMonthsISO, limaTimeHM } from "./lib/dates.js";
+import { getDeskSettings } from "./lib/desk-settings.js";
+import { calculateDeposit, sendDepositRequest } from "./lib/deposits.js";
+import { sendBookingConfirmation, sendBookingEmails } from "./lib/booking-notify.js";
+import { notifyWaitlistForSlot } from "./lib/waitlist.js";
+import { isMercadoPagoConfigured } from "./payments/mercadopago.js";
+import { config } from "./config.js";
 
 
 // Public microsite write endpoints (views, leads, reviews) are cheap to spam,
@@ -430,6 +447,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Payment routes (MercadoPago: Checkout Pro + Preapproval subscriptions)
   app.use("/api/payments", paymentRoutes);
+
+  // Public same-day queue ("Saca tu turno" QR) — no account required.
+  app.use("/api/public/queue", publicQueueRoutes);
+
+  // Public dead-hour promos (share link / QR).
+  app.use("/api/public/promos", publicPromosRoutes);
+
+  // Public booking deposits (MercadoPago Checkout Pro).
+  app.use("/api/public/appointments", publicDepositRoutes);
+
+  // Public review link sent after a completed service.
+  app.use("/api/public/reviews", publicReviewRoutes);
+
+  // Public cancellation waitlist.
+  app.use("/api/public/waitlist", publicWaitlistRoutes);
+
+  // Public loyalty card lookup / token view.
+  app.use("/api/public/loyalty", publicLoyaltyRoutes);
+
+  // Public prepaid packages ("bonos").
+  app.use("/api/public/packages", publicPackageRoutes);
+
+  // Inbound webhook for the platform-owned WhatsApp bot (Formatika gateway).
+  // `/api/webhooks/whatsapp` is the configured production endpoint; the router
+  // also accepts `/formatika` as a backwards-compatible alias.
+  app.use("/api/webhooks/whatsapp", whatsappWebhookRoutes);
 
   // Get subcategories by category
   app.get("/api/subcategories/:category", async (req, res) => {
@@ -1604,6 +1647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const found = await loadTokenAppointment(String(req.params.token));
       if (!found) return res.status(404).json({ message: "Cita no encontrada" });
       const { appointment, client, service, business } = found;
+      const deskSettings = await getDeskSettings(appointment.businessId);
 
       res.set("Cache-Control", "no-store");
       res.json({
@@ -1616,6 +1660,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           price: appointment.price,
           notes: appointment.clientNotes,
         },
+        deposit: appointment.depositAmount
+          ? {
+              required: true,
+              amount: Number(appointment.depositAmount),
+              status: appointment.depositStatus,
+              expiresAt: appointment.depositExpiresAt,
+              paidAt: appointment.depositPaidAt,
+              policy: deskSettings.depositPolicy,
+              checkoutAvailable: isMercadoPagoConfigured(),
+            }
+          : null,
         client: client ? { name: client.name, email: client.email, phone: client.phone } : null,
         service: service ? { id: service.id, name: service.name, duration: service.duration, price: service.price } : null,
         business: business ? { id: business.id, name: business.name, phone: business.phone, email: business.email } : null,
@@ -1637,7 +1692,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Esta cita ya no se puede cancelar" });
       }
 
-      const updated = await storage.updateAppointment(appointment.id, { status: "cancelled" } as any);
+      const updates: any = { status: "cancelled" };
+      if (appointment.depositStatus === "pending") updates.depositStatus = "expired";
+      const updated = await storage.updateAppointment(appointment.id, updates);
+
+      // A cancelled booking frees a slot: offer it to matching waitlist entries.
+      void notifyWaitlistForSlot({
+        businessId: appointment.businessId,
+        serviceId: appointment.serviceId,
+        date: appointment.date,
+        time: appointment.time,
+        excludePhone: client?.phone ?? null,
+      }).catch((error) => console.error("Waitlist notification failed:", error));
 
       if (business && client?.email && service) {
         void emailService.sendAppointmentCancelled({
@@ -1697,7 +1763,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.updateAppointment(appointment.id, {
         date,
         time,
-        status: "rescheduled",
+        status: appointment.depositStatus === "pending" ? "pending" : "rescheduled",
+        ...(appointment.depositStatus === "pending"
+          ? {
+              depositExpiresAt: new Date(
+                Date.now() + (await getDeskSettings(appointment.businessId)).depositHoldMinutes * 60_000,
+              ),
+            }
+          : {}),
       } as any);
 
       if (business && client?.email) {
@@ -1781,6 +1854,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Servicio no encontrado" });
       }
 
+      // Deposit settings are evaluated before creating the row so the slot can
+      // be held as `pending` instead of being confirmed without payment.
+      const deskSettings = await getDeskSettings(appointmentData.businessId);
+      const depositAmount = deskSettings.depositEnabled
+        ? calculateDeposit(
+            Number(service.price ?? 0),
+            deskSettings.depositType,
+            deskSettings.depositValue,
+          )
+        : 0;
+      const requiresDeposit = depositAmount > 0;
+      const depositExpiresAt = requiresDeposit
+        ? new Date(Date.now() + deskSettings.depositHoldMinutes * 60_000)
+        : null;
+
       // Get all existing appointments for conflict detection
       const existingAppointments = await storage.getAppointmentsByDate(appointmentData.businessId, appointmentData.date);
 
@@ -1857,6 +1945,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         price: service.price,
         // Signed token used by the reminder email's cancel/reschedule link.
         cancelToken: randomBytes(24).toString("hex"),
+        depositAmount: requiresDeposit ? depositAmount.toFixed(2) : null,
+        depositStatus: requiresDeposit ? "pending" : null,
+        depositExpiresAt,
       } as any);
 
       // Get business information for email
@@ -1875,29 +1966,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: { serviceId: service.id, appointmentId: appointment.id },
       } as any).catch(() => undefined);
 
-      // Send confirmation emails
-      if (business) {
-        const emailData: AppointmentData = {
-          clientName: client.name,
-          clientEmail: client.email ?? '',
-          clientPhone: client.phone ?? '',
-          businessName: business.name,
-          businessEmail: businessSettings?.publicEmail || business.email || 'no-reply@example.com',
-          serviceName: service.name,
-          date: appointmentData.date,
-          time: appointmentData.time,
-          duration: service.duration ?? 30,
-          price: Number(service.price ?? 0),
-          notes: appointmentData.clientNotes || undefined
-        };
-
-        // Send emails using Nodemailer
-        try {
-          const emailResults = await emailService.sendAppointmentEmails(emailData);
-          console.log('Email send results:', emailResults);
-        } catch (error: any) {
-          console.error('Error sending emails:', error);
-        }
+      // Deposit bookings wait for payment before the normal confirmation is
+      // sent. Non-deposit bookings confirm immediately.
+      if (requiresDeposit) {
+        void sendDepositRequest(appointment.id).catch((error) =>
+          console.error("Deposit request WhatsApp failed:", error),
+        );
+      } else {
+        void sendBookingConfirmation(appointment.id).catch((error) =>
+          console.error("WhatsApp confirmation failed:", error),
+        );
+        void sendBookingEmails(appointment.id).catch((error) =>
+          console.error("Booking emails failed:", error),
+        );
       }
 
       res.json({
@@ -1908,7 +1989,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           clientName: client.name,
           duration: service.duration ?? 30
         },
-        message: "Cita creada exitosamente",
+        manageUrl: appointment.cancelToken
+          ? `${config.appUrl.replace(/\/$/, "")}/cita/${appointment.cancelToken}`
+          : null,
+        deposit: requiresDeposit
+          ? {
+              required: true,
+              status: "pending",
+              amount: depositAmount,
+              expiresAt: depositExpiresAt?.toISOString() ?? null,
+              policy: deskSettings.depositPolicy,
+              checkoutAvailable: isMercadoPagoConfigured(),
+            }
+          : null,
+        message: requiresDeposit
+          ? "Reserva creada. Falta el depósito para confirmar."
+          : "Cita creada exitosamente",
         bookingDetails: {
           service: service.name,
           date: appointmentData.date,
@@ -2704,10 +2800,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const { business, settings } = resolved;
 
-      const [services, galleryRows, reviews] = await Promise.all([
+      const [services, galleryRows, reviews, deskSettings] = await Promise.all([
         storage.getServicesByBusinessId(business.id),
         storage.getGalleryByBusinessId(business.id),
         storage.getApprovedReviewsByBusinessId(business.id),
+        getDeskSettings(business.id),
       ]);
 
       // Two stores exist for historical reasons: the editor writes the jsonb
@@ -2748,6 +2845,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         services: activeServices,
         gallery: Array.from(mergedGallery.values()),
         reviews,
+        desk: {
+          queueEnabled: deskSettings.queueEnabled,
+          promosEnabled: deskSettings.promosEnabled,
+          showQueueOnMicrosite: deskSettings.showQueueOnMicrosite,
+          showPromosOnMicrosite: deskSettings.showPromosOnMicrosite,
+          waitlistEnabled: deskSettings.waitlistEnabled,
+          showWaitlistOnMicrosite: deskSettings.showWaitlistOnMicrosite,
+          loyaltyEnabled: deskSettings.loyaltyEnabled,
+          showLoyaltyOnMicrosite: deskSettings.showLoyaltyOnMicrosite,
+          loyaltyStampsRequired: deskSettings.loyaltyStampsRequired,
+          loyaltyReward: deskSettings.loyaltyReward,
+          packagesEnabled: deskSettings.packagesEnabled,
+          showPackagesOnMicrosite: deskSettings.showPackagesOnMicrosite,
+        },
         stats: {
           rating: Math.round(publicRating * 10) / 10,
           reviewCount: approvedRatings.length || business.reviewCount || 0,
@@ -3138,7 +3249,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const body = insertBusinessSettingsSchema.partial().parse(raw);
-      const settings = await storage.updateBusinessSettings(businessId, body);
+      // jsonb columns (gallery, desk_settings) are `unknown` in the generated
+      // insert schema; the DB layer accepts the parsed object as-is.
+      const settings = await storage.updateBusinessSettings(businessId, body as any);
       res.json(settings);
     } catch (error: any) {
       console.error("Error updating settings:", error);
@@ -3311,6 +3424,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/api/admin', openstreetAdminRoutes);
   app.use('/api/networking', networkingRoutes);
   app.use(userPreferencesRoutes);
+  // Owner's mobile desk: Chair Mode walk-ins + daily cash drawer.
+  app.use('/api/dashboard/businesses', deskRoutes);
+  // Owner promotions ("horas muertas") management.
+  app.use('/api/dashboard/businesses', promosRoutes);
+  // Owner prepaid packages ("bonos") management.
+  app.use('/api/dashboard/businesses', packageRoutes);
 
   // Register admin scraping routes
   registerAdminScrapingRoutes(app);

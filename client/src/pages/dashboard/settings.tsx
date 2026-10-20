@@ -1,4 +1,5 @@
 import { AppearanceSettings } from "@/components/appearance-settings";
+import DeskSettingsCard from "@/components/desk-settings-card";
 import DashboardLayout from "@/components/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import {
   Bell,
   Building2,
   Clock,
+  ListOrdered,
   Palette,
   Save
 } from "lucide-react";
@@ -102,7 +104,13 @@ const hoursSchema = z.object({
 });
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState("business");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === "undefined") return "business";
+    const requested = new URLSearchParams(window.location.search).get("tab");
+    return ["business", "hours", "appearance", "notifications", "operacion"].includes(requested ?? "")
+      ? (requested as string)
+      : "business";
+  });
   const [showCreateBusinessModal, setShowCreateBusinessModal] = useState(false);
 
   const { toast } = useToast();
@@ -393,7 +401,7 @@ export default function SettingsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5">
             <TabsTrigger value="business" className="flex items-center">
               <Building2 className="w-4 h-4 mr-2" />
               Negocio
@@ -409,6 +417,10 @@ export default function SettingsPage() {
             <TabsTrigger value="notifications" className="flex items-center">
               <Bell className="w-4 h-4 mr-2" />
               Notificaciones
+            </TabsTrigger>
+            <TabsTrigger value="operacion" className="flex items-center">
+              <ListOrdered className="w-4 h-4 mr-2" />
+              Operación
             </TabsTrigger>
           </TabsList>
 
@@ -774,6 +786,10 @@ export default function SettingsPage() {
                 </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+          {/* Desk operation: virtual queue + cash methods */}
+          <TabsContent value="operacion" className="space-y-6">
+            <DeskSettingsCard businessId={currentBusiness.id} />
           </TabsContent>
         </Tabs>
 

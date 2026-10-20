@@ -1,4 +1,4 @@
-import { eq, ilike, and, desc, sql, inArray, count, isNotNull } from "drizzle-orm";
+import { eq, ilike, and, asc, desc, gte, lt, isNull, sql, inArray, count, isNotNull } from "drizzle-orm";
 import { db } from "./db.js";
 import {
   users,
@@ -6,6 +6,17 @@ import {
   services,
   clients,
   appointments,
+  serviceTransactions,
+  queueTickets,
+  waitlistEntries,
+  loyaltyCards,
+  loyaltyEvents,
+  servicePackages,
+  packagePurchases,
+  packageRedemptions,
+  promos,
+  promoClaims,
+  whatsappMessages,
   gallery,
   publicBusinesses,
   reviews,
@@ -20,6 +31,21 @@ import {
   type InsertMicrositeEvent,
   type ContactMessage,
   type InsertContactMessage,
+  type ServiceTransaction,
+  type InsertServiceTransaction,
+  type QueueTicket,
+  type InsertQueueTicket,
+  type WaitlistEntry,
+  type LoyaltyCard,
+  type LoyaltyEvent,
+  type ServicePackage,
+  type PackagePurchase,
+  type PackageRedemption,
+  type Promo,
+  type InsertPromo,
+  type PromoClaim,
+  type InsertPromoClaim,
+  type WhatsAppMessage,
   type User,
   type Business,
   type Service,
@@ -226,6 +252,25 @@ export class DBStorage implements IStorage {
     return result[0];
   }
 
+  async getExpiredDepositAppointments(now: Date): Promise<Appointment[]> {
+    return await db.select().from(appointments).where(and(
+      eq(appointments.status, "pending"),
+      eq(appointments.depositStatus, "pending"),
+      lt(appointments.depositExpiresAt, now),
+    ));
+  }
+
+  async getCompletedAppointmentsNeedingReview(businessId?: number, since?: Date): Promise<Appointment[]> {
+    const conditions = [
+      eq(appointments.status, "completed"),
+      isNull(appointments.reviewRequestSentAt),
+      isNotNull(appointments.completedAt),
+    ];
+    if (businessId) conditions.push(eq(appointments.businessId, businessId));
+    if (since) conditions.push(gte(appointments.completedAt, since));
+    return await db.select().from(appointments).where(and(...conditions));
+  }
+
   async createAppointment(appointment: InsertAppointment & { businessId: number }): Promise<Appointment> {
     const result = await db.insert(appointments).values(appointment).returning();
     return result[0];
@@ -241,6 +286,423 @@ export class DBStorage implements IStorage {
 
   async deleteAppointment(id: number): Promise<void> {
     await db.delete(appointments).where(eq(appointments.id, id));
+  }
+
+  // Service transactions (quick cash log)
+  async createServiceTransaction(transaction: InsertServiceTransaction & { businessId: number }): Promise<ServiceTransaction> {
+    const result = await db.insert(serviceTransactions).values(transaction as any).returning();
+    return result[0];
+  }
+
+  async getServiceTransactions(businessId: number, from: Date, to: Date): Promise<ServiceTransaction[]> {
+    return await db.select().from(serviceTransactions)
+      .where(and(
+        eq(serviceTransactions.businessId, businessId),
+        gte(serviceTransactions.occurredAt, from),
+        lt(serviceTransactions.occurredAt, to),
+      ))
+      .orderBy(desc(serviceTransactions.occurredAt));
+  }
+
+  async getServiceTransaction(id: number): Promise<ServiceTransaction | undefined> {
+    const result = await db.select().from(serviceTransactions).where(eq(serviceTransactions.id, id)).limit(1);
+    return result[0];
+  }
+
+  async updateServiceTransaction(id: number, patch: Partial<InsertServiceTransaction>): Promise<ServiceTransaction> {
+    const result = await db.update(serviceTransactions)
+      .set(patch as any)
+      .where(eq(serviceTransactions.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteServiceTransaction(id: number): Promise<void> {
+    await db.delete(serviceTransactions).where(eq(serviceTransactions.id, id));
+  }
+
+  // Virtual queue ("Saca tu turno")
+  async createQueueTicket(ticket: InsertQueueTicket & { businessId: number; token: string }): Promise<QueueTicket> {
+    const result = await db.insert(queueTickets).values(ticket as any).returning();
+    return result[0];
+  }
+
+  async getQueueTicket(id: number): Promise<QueueTicket | undefined> {
+    const result = await db.select().from(queueTickets).where(eq(queueTickets.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getQueueTicketByToken(token: string): Promise<QueueTicket | undefined> {
+    const result = await db.select().from(queueTickets).where(eq(queueTickets.token, token)).limit(1);
+    return result[0];
+  }
+
+  async getQueueTicketByAppointmentId(appointmentId: number): Promise<QueueTicket | undefined> {
+    const result = await db
+      .select()
+      .from(queueTickets)
+      .where(eq(queueTickets.appointmentId, appointmentId))
+      .limit(1);
+    return result[0];
+  }
+
+  async getQueueTicketsByBusinessId(businessId: number, statuses?: string[]): Promise<QueueTicket[]> {
+    const conditions = [eq(queueTickets.businessId, businessId)];
+    if (statuses && statuses.length > 0) {
+      conditions.push(inArray(queueTickets.status, statuses));
+    }
+    return await db
+      .select()
+      .from(queueTickets)
+      .where(and(...conditions))
+      .orderBy(asc(queueTickets.joinedAt));
+  }
+
+  async updateQueueTicket(
+    id: number,
+    patch: Partial<InsertQueueTicket> & {
+      notifiedAt?: Date | null;
+      seatedAt?: Date | null;
+      closedAt?: Date | null;
+      appointmentId?: number | null;
+    },
+  ): Promise<QueueTicket> {
+    const result = await db
+      .update(queueTickets)
+      .set(patch as any)
+      .where(eq(queueTickets.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Cancellation waitlist
+  async createWaitlistEntry(entry: Omit<WaitlistEntry, "id" | "createdAt">): Promise<WaitlistEntry> {
+    const result = await db.insert(waitlistEntries).values(entry as any).returning();
+    return result[0];
+  }
+
+  async getWaitlistEntry(id: number): Promise<WaitlistEntry | undefined> {
+    const result = await db.select().from(waitlistEntries).where(eq(waitlistEntries.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getWaitlistEntryByToken(token: string): Promise<WaitlistEntry | undefined> {
+    const result = await db
+      .select()
+      .from(waitlistEntries)
+      .where(eq(waitlistEntries.token, token))
+      .limit(1);
+    return result[0];
+  }
+
+  async getWaitlistEntriesByBusinessId(businessId: number, date?: string): Promise<WaitlistEntry[]> {
+    const conditions = [eq(waitlistEntries.businessId, businessId)];
+    if (date) conditions.push(eq(waitlistEntries.date, date));
+    return await db
+      .select()
+      .from(waitlistEntries)
+      .where(and(...conditions))
+      .orderBy(asc(waitlistEntries.createdAt));
+  }
+
+  async updateWaitlistEntry(
+    id: number,
+    patch: Partial<WaitlistEntry> & {
+      notifiedAt?: Date | null;
+      claimedAt?: Date | null;
+      appointmentId?: number | null;
+    },
+  ): Promise<WaitlistEntry> {
+    const result = await db
+      .update(waitlistEntries)
+      .set(patch as any)
+      .where(eq(waitlistEntries.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Loyalty stamps
+  async createLoyaltyCard(
+    card: Omit<LoyaltyCard, "id" | "createdAt" | "updatedAt">,
+  ): Promise<LoyaltyCard> {
+    const result = await db.insert(loyaltyCards).values(card as any).returning();
+    return result[0];
+  }
+
+  async getLoyaltyCard(id: number): Promise<LoyaltyCard | undefined> {
+    const result = await db.select().from(loyaltyCards).where(eq(loyaltyCards.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getLoyaltyCardByToken(token: string): Promise<LoyaltyCard | undefined> {
+    const result = await db
+      .select()
+      .from(loyaltyCards)
+      .where(eq(loyaltyCards.token, token))
+      .limit(1);
+    return result[0];
+  }
+
+  async getLoyaltyCardByPhone(businessId: number, phone: string): Promise<LoyaltyCard | undefined> {
+    const result = await db
+      .select()
+      .from(loyaltyCards)
+      .where(and(eq(loyaltyCards.businessId, businessId), eq(loyaltyCards.phone, phone)))
+      .limit(1);
+    return result[0];
+  }
+
+  async getLoyaltyCardsByBusinessId(businessId: number): Promise<LoyaltyCard[]> {
+    return await db
+      .select()
+      .from(loyaltyCards)
+      .where(eq(loyaltyCards.businessId, businessId))
+      .orderBy(desc(loyaltyCards.updatedAt));
+  }
+
+  async updateLoyaltyCard(id: number, patch: Partial<LoyaltyCard>): Promise<LoyaltyCard> {
+    const result = await db
+      .update(loyaltyCards)
+      .set({ ...patch, updatedAt: new Date() } as any)
+      .where(eq(loyaltyCards.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async createLoyaltyEvent(event: Omit<LoyaltyEvent, "id" | "createdAt">): Promise<LoyaltyEvent> {
+    const result = await db.insert(loyaltyEvents).values(event as any).returning();
+    return result[0];
+  }
+
+  async getLoyaltyEventByAppointmentId(appointmentId: number): Promise<LoyaltyEvent | undefined> {
+    const result = await db
+      .select()
+      .from(loyaltyEvents)
+      .where(eq(loyaltyEvents.appointmentId, appointmentId))
+      .limit(1);
+    return result[0];
+  }
+
+  async getLoyaltyEventsByCardId(cardId: number): Promise<LoyaltyEvent[]> {
+    return await db
+      .select()
+      .from(loyaltyEvents)
+      .where(eq(loyaltyEvents.cardId, cardId))
+      .orderBy(desc(loyaltyEvents.createdAt));
+  }
+
+  // Prepaid service packages
+  async createServicePackage(
+    pkg: Omit<ServicePackage, "id" | "createdAt" | "updatedAt">,
+  ): Promise<ServicePackage> {
+    const result = await db.insert(servicePackages).values(pkg as any).returning();
+    return result[0];
+  }
+
+  async getServicePackage(id: number): Promise<ServicePackage | undefined> {
+    const result = await db
+      .select()
+      .from(servicePackages)
+      .where(eq(servicePackages.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async getServicePackagesByBusinessId(businessId: number): Promise<ServicePackage[]> {
+    return await db
+      .select()
+      .from(servicePackages)
+      .where(eq(servicePackages.businessId, businessId))
+      .orderBy(desc(servicePackages.createdAt));
+  }
+
+  async updateServicePackage(id: number, patch: Partial<ServicePackage>): Promise<ServicePackage> {
+    const result = await db
+      .update(servicePackages)
+      .set({ ...patch, updatedAt: new Date() } as any)
+      .where(eq(servicePackages.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async createPackagePurchase(
+    purchase: Omit<PackagePurchase, "id" | "createdAt" | "updatedAt">,
+  ): Promise<PackagePurchase> {
+    const result = await db.insert(packagePurchases).values(purchase as any).returning();
+    return result[0];
+  }
+
+  async getPackagePurchase(id: number): Promise<PackagePurchase | undefined> {
+    const result = await db
+      .select()
+      .from(packagePurchases)
+      .where(eq(packagePurchases.id, id))
+      .limit(1);
+    return result[0];
+  }
+
+  async getPackagePurchaseByToken(token: string): Promise<PackagePurchase | undefined> {
+    const result = await db
+      .select()
+      .from(packagePurchases)
+      .where(eq(packagePurchases.token, token))
+      .limit(1);
+    return result[0];
+  }
+
+  async getPackagePurchasesByBusinessId(businessId: number): Promise<PackagePurchase[]> {
+    return await db
+      .select()
+      .from(packagePurchases)
+      .where(eq(packagePurchases.businessId, businessId))
+      .orderBy(desc(packagePurchases.createdAt));
+  }
+
+  async getPackagePurchasesByClientId(clientId: number): Promise<PackagePurchase[]> {
+    return await db
+      .select()
+      .from(packagePurchases)
+      .where(eq(packagePurchases.clientId, clientId))
+      .orderBy(desc(packagePurchases.createdAt));
+  }
+
+  async updatePackagePurchase(id: number, patch: Partial<PackagePurchase>): Promise<PackagePurchase> {
+    const result = await db
+      .update(packagePurchases)
+      .set({ ...patch, updatedAt: new Date() } as any)
+      .where(eq(packagePurchases.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async createPackageRedemption(
+    redemption: Omit<PackageRedemption, "id" | "createdAt">,
+  ): Promise<PackageRedemption> {
+    const result = await db.insert(packageRedemptions).values(redemption as any).returning();
+    return result[0];
+  }
+
+  async getPackageRedemptionByAppointmentId(
+    appointmentId: number,
+  ): Promise<PackageRedemption | undefined> {
+    const result = await db
+      .select()
+      .from(packageRedemptions)
+      .where(eq(packageRedemptions.appointmentId, appointmentId))
+      .limit(1);
+    return result[0];
+  }
+
+  async getPackageRedemptionsByPurchaseId(purchaseId: number): Promise<PackageRedemption[]> {
+    return await db
+      .select()
+      .from(packageRedemptions)
+      .where(eq(packageRedemptions.purchaseId, purchaseId))
+      .orderBy(desc(packageRedemptions.createdAt));
+  }
+
+  // Promotions ("horas muertas")
+  async createPromo(promo: InsertPromo & { businessId: number; code: string }): Promise<Promo> {
+    const result = await db.insert(promos).values(promo as any).returning();
+    return result[0];
+  }
+
+  async getPromo(id: number): Promise<Promo | undefined> {
+    const result = await db.select().from(promos).where(eq(promos.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPromoByCode(code: string): Promise<Promo | undefined> {
+    const result = await db.select().from(promos).where(eq(promos.code, code)).limit(1);
+    return result[0];
+  }
+
+  async getPromosByBusinessId(businessId: number): Promise<Promo[]> {
+    return await db
+      .select()
+      .from(promos)
+      .where(eq(promos.businessId, businessId))
+      .orderBy(desc(promos.date), desc(promos.createdAt));
+  }
+
+  async updatePromo(id: number, patch: Partial<InsertPromo> & { status?: string }): Promise<Promo> {
+    const result = await db
+      .update(promos)
+      .set({ ...patch, updatedAt: new Date() } as any)
+      .where(eq(promos.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async createPromoClaim(
+    claim: InsertPromoClaim & {
+      promoId: number;
+      businessId: number;
+      token: string;
+      status?: string;
+      appointmentId?: number | null;
+      clientId?: number | null;
+    },
+  ): Promise<PromoClaim> {
+    const result = await db.insert(promoClaims).values(claim as any).returning();
+    return result[0];
+  }
+
+  async getPromoClaim(id: number): Promise<PromoClaim | undefined> {
+    const result = await db.select().from(promoClaims).where(eq(promoClaims.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getPromoClaimByToken(token: string): Promise<PromoClaim | undefined> {
+    const result = await db.select().from(promoClaims).where(eq(promoClaims.token, token)).limit(1);
+    return result[0];
+  }
+
+  async getPromoClaimsByPromoId(promoId: number): Promise<PromoClaim[]> {
+    return await db
+      .select()
+      .from(promoClaims)
+      .where(eq(promoClaims.promoId, promoId))
+      .orderBy(asc(promoClaims.time));
+  }
+
+  async getPromoClaimsByBusinessId(businessId: number): Promise<PromoClaim[]> {
+    return await db
+      .select()
+      .from(promoClaims)
+      .where(eq(promoClaims.businessId, businessId))
+      .orderBy(desc(promoClaims.createdAt));
+  }
+
+  async updatePromoClaim(
+    id: number,
+    patch: Partial<InsertPromoClaim> & {
+      status?: string;
+      appointmentId?: number | null;
+      cancelledAt?: Date | null;
+    },
+  ): Promise<PromoClaim> {
+    const result = await db
+      .update(promoClaims)
+      .set(patch as any)
+      .where(eq(promoClaims.id, id))
+      .returning();
+    return result[0];
+  }
+
+  // Central WhatsApp bot audit log
+  async createWhatsAppMessage(message: {
+    businessId?: number | null;
+    direction: string;
+    phone?: string | null;
+    text?: string | null;
+    status: string;
+    providerMessageId?: string | null;
+    error?: string | null;
+    payload?: Record<string, unknown> | null;
+  }): Promise<WhatsAppMessage> {
+    const result = await db.insert(whatsappMessages).values(message as any).returning();
+    return result[0];
   }
 
   // Gallery
@@ -292,6 +754,13 @@ export class DBStorage implements IStorage {
     return await db.select().from(reviews)
       .where(and(eq(reviews.businessId, businessId), eq(reviews.status, "approved")))
       .orderBy(desc(reviews.createdAt));
+  }
+
+  async getReviewByAppointmentId(appointmentId: number): Promise<Review | undefined> {
+    const result = await db.select().from(reviews)
+      .where(eq(reviews.appointmentId, appointmentId))
+      .limit(1);
+    return result[0];
   }
 
   async getReview(id: number): Promise<Review | undefined> {
@@ -446,6 +915,22 @@ export class DBStorage implements IStorage {
         sql`${appointments.reminderSentAt} IS NULL`,
         inArray(appointments.status, ["pending", "confirmed"]),
       ));
+  }
+
+  async getAppointmentsNeedingWhatsAppReminder(
+    fromDate: string,
+    toDate: string,
+    businessId?: number,
+  ): Promise<Appointment[]> {
+    const conditions = [
+      sql`${appointments.date} >= ${fromDate}`,
+      sql`${appointments.date} <= ${toDate}`,
+      isNull(appointments.whatsappReminderSentAt),
+      inArray(appointments.status, ["pending", "confirmed"]),
+    ];
+    if (businessId) conditions.push(eq(appointments.businessId, businessId));
+
+    return await db.select().from(appointments).where(and(...conditions));
   }
 
   async getPaymentsByBusinessId(businessId: number): Promise<Payment[]> {

@@ -173,3 +173,16 @@ export function toLimaISODate(value: Date | string | null | undefined): string |
   if (Number.isNaN(date.getTime())) return null;
   return limaDateISO(date);
 }
+
+/**
+ * UTC instants that bound a Lima calendar day.
+ *
+ * Peru is UTC-5 all year (no DST), so a local day always starts at 05:00 UTC.
+ * Used for `timestamp` columns such as `service_transactions.occurred_at`,
+ * where `date`/`time` text columns (appointments) are not enough.
+ */
+export function limaDayBounds(iso: string): { from: Date; to: Date } {
+  const from = new Date(`${iso}T05:00:00.000Z`);
+  const to = new Date(from.getTime() + 86_400_000);
+  return { from, to };
+}

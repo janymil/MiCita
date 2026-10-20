@@ -19,9 +19,12 @@ import {
   ChevronDown,
   DollarSign,
   Eye,
+  Gift,
   Globe,
+  Home,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   MessageCircle,
   Moon,
   Network,
@@ -29,6 +32,7 @@ import {
   Settings,
   Star,
   Sun,
+  Ticket,
   User,
   Users
 } from "lucide-react";
@@ -41,6 +45,7 @@ interface DashboardLayoutProps {
 }
 
 const navigation = [
+  { name: "Hoy", href: "/dashboard/hoy", icon: Home },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Citas", href: "/dashboard/citas", icon: Calendar },
   { name: "Calendario", href: "/dashboard/calendario", icon: Calendar },
@@ -48,11 +53,26 @@ const navigation = [
   { name: "Servicios", href: "/dashboard/servicios", icon: Package },
   { name: "Reseñas", href: "/dashboard/resenas", icon: Star },
   { name: "Finanzas", href: "/dashboard/finanzas", icon: DollarSign },
+  { name: "Promos", href: "/dashboard/promos", icon: Megaphone },
+  { name: "Lealtad", href: "/dashboard/loyalty", icon: Gift },
+  { name: "Bonos", href: "/dashboard/packages", icon: Ticket },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
   { name: "Networking", href: "/dashboard/networking", icon: Network },
   { name: "Micrositio", href: "/dashboard/micrositio", icon: Globe },
   { name: "Configuración", href: "/dashboard/configuracion", icon: Settings },
 ];
+
+// Owners live on their phone: the five screens they touch all day get a
+// thumb-reachable tab bar. Everything else stays in the desktop sidebar.
+const mobileNavigation = [
+  "/dashboard/hoy",
+  "/dashboard/citas",
+  "/dashboard/clientes",
+  "/dashboard/finanzas",
+  "/dashboard/servicios",
+]
+  .map((href) => navigation.find((item) => item.href === href))
+  .filter((item): item is (typeof navigation)[number] => Boolean(item));
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [location] = useLocation();
@@ -319,9 +339,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </div>
 
-        <main className="flex-1 relative overflow-y-auto focus:outline-none theme-bg">
+        <main className="flex-1 relative overflow-y-auto focus:outline-none theme-bg pb-16 md:pb-0">
           {children}
         </main>
+
+        {/* Mobile bottom tabs */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t theme-border theme-card">
+          <div className="grid grid-cols-5">
+            {mobileNavigation.map((item) => {
+              const isActive = location === item.href;
+              return (
+                <Link key={item.name} href={item.href}>
+                  <div
+                    className={cn(
+                      "flex flex-col items-center gap-1 py-2 text-[10px] font-medium transition-colors",
+                      isActive ? "theme-text-primary" : "theme-text-secondary",
+                    )}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    {item.name}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
 
         {/* AI Chat Interface */}
         {isChatOpen && (

@@ -24,8 +24,10 @@ import {
   GraduationCap,
   Heart,
   Instagram,
+  ListOrdered,
   Mail,
   MapPin,
+  Megaphone,
   MessageCircle,
   MessageSquare,
   Music2,
@@ -38,6 +40,9 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Tag,
+  Ticket,
+  Users,
   X,
   Youtube,
   Zap,
@@ -88,7 +93,54 @@ interface MicrositeData {
   services: MicrositeService[];
   gallery: MicrositeGalleryItem[];
   reviews: MicrositeReview[];
+  desk?: {
+    queueEnabled: boolean;
+    promosEnabled: boolean;
+    showQueueOnMicrosite: boolean;
+    showPromosOnMicrosite: boolean;
+    waitlistEnabled?: boolean;
+    showWaitlistOnMicrosite?: boolean;
+    loyaltyEnabled?: boolean;
+    showLoyaltyOnMicrosite?: boolean;
+    loyaltyStampsRequired?: number;
+    loyaltyReward?: string;
+    packagesEnabled?: boolean;
+    showPackagesOnMicrosite?: boolean;
+  } | null;
   stats?: { rating: number; reviewCount: number; serviceCount: number };
+}
+
+interface MicrositeQueueSnapshot {
+  queue: {
+    enabled: boolean;
+    isOpen: boolean;
+    isFull: boolean;
+    closedReason: string | null;
+    waitingCount: number;
+    estimatedWaitMinutes: number;
+    seated: { serviceName: string | null; remainingMinutes: number } | null;
+  };
+}
+
+interface MicrositePromo {
+  code: string;
+  title: string;
+  price: string;
+  originalPrice: string | null;
+  serviceName: string | null;
+  date: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  claimed: number;
+  remaining: number;
+  state: string;
+  publicUrl: string;
+}
+
+interface MicrositePromosResponse {
+  promosEnabled: boolean;
+  promos: MicrositePromo[];
 }
 
 const DAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -182,6 +234,42 @@ export default function BusinessMicrosite() {
   }>({
     queryKey: [`/api/micrositio/${slug}/popular-times`],
     enabled: Boolean(slug),
+  });
+
+  // Live "Saca tu turno" + promo cards for the public page. The owner controls
+  // visibility in Configuración → Operación; data refreshes independently of
+  // the 30s microsite cache.
+  const desk = micrositeData?.desk;
+  const liveBusinessId = micrositeData?.business?.id;
+
+  const { data: liveQueue } = useQuery<MicrositeQueueSnapshot>({
+    queryKey: [`/api/public/queue/${liveBusinessId}`],
+    enabled: Boolean(liveBusinessId && desk?.queueEnabled && desk?.showQueueOnMicrosite),
+    refetchInterval: 30_000,
+  });
+
+  const { data: livePromos } = useQuery<MicrositePromosResponse>({
+    queryKey: [`/api/public/promos/by-business/${liveBusinessId}`],
+    enabled: Boolean(liveBusinessId && desk?.showPromosOnMicrosite),
+    refetchInterval: 60_000,
+  });
+
+  const { data: livePackages } = useQuery<{
+    enabled: boolean;
+    packages: Array<{
+      id: number;
+      name: string;
+      description: string | null;
+      uses: number;
+      price: string;
+      validityDays: number;
+      serviceName: string;
+      publicUrl: string;
+    }>;
+  }>({
+    queryKey: [`/api/public/packages/by-business/${liveBusinessId}`],
+    enabled: Boolean(liveBusinessId && desk?.showPackagesOnMicrosite),
+    refetchInterval: 60_000,
   });
 
   const { business, settings, services = [], gallery = [], reviews = [] } = micrositeData || {
@@ -476,6 +564,29 @@ export default function BusinessMicrosite() {
     { id: "contact", label: "Ubicación y Contacto", count: null, icon: MapPin },
   ] as const;
 
+  const showQueueOnMicrosite = Boolean(desk?.showQueueOnMicrosite && desk?.queueEnabled);
+  const queueState = liveQueue?.queue;
+  const showPromosOnMicrosite = Boolean(
+    desk?.showPromosOnMicrosite && (livePromos?.promosEnabled ?? desk?.promosEnabled),
+  );
+  const micrositePromos = showPromosOnMicrosite ? livePromos?.promos ?? [] : [];
+  const showWaitlistOnMicrosite = Boolean(
+    desk?.showWaitlistOnMicrosite && desk?.waitlistEnabled,
+  );
+  const showLoyaltyOnMicrosite = Boolean(
+    desk?.showLoyaltyOnMicrosite && desk?.loyaltyEnabled,
+  );
+  const micrositePackages = livePackages?.enabled ? livePackages.packages : [];
+  const showPackagesOnMicrosite = Boolean(
+    desk?.showPackagesOnMicrosite && micrositePackages.length > 0,
+  );
+  const hasDeskSection =
+    showQueueOnMicrosite ||
+    micrositePromos.length > 0 ||
+    showWaitlistOnMicrosite ||
+    showLoyaltyOnMicrosite ||
+    showPackagesOnMicrosite;
+
   return (
     <div className={`min-h-screen ${themeConfig.background} ${themeConfig.text} transition-colors duration-300 font-sans`}>
       
@@ -622,6 +733,15 @@ export default function BusinessMicrosite() {
 
             {/* Quick Metrics & Call to Action */}
             <div className="flex flex-wrap items-center gap-3 md:justify-end">
+              {showQueueOnMicrosite && (
+                <a href={`/q/${business.id}`}>
+                  <Button className="h-11 px-5 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold gap-2 shadow-lg shadow-red-500/20">
+                    <ListOrdered className="w-3.5 h-3.5" />
+                    Saca tu turno
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </a>
+              )}
               {phone && (
                 <a href={`tel:${phone}`}>
                   <Button
@@ -650,6 +770,210 @@ export default function BusinessMicrosite() {
           </div>
         </div>
       </section>
+
+      {/* ── LIVE QUEUE + PROMOS (public, owner-controlled) ── */}
+      {hasDeskSection && (
+        <section className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 -mt-6 md:-mt-8">
+          <div className="grid gap-4 lg:grid-cols-3">
+            {showQueueOnMicrosite && (
+              <div className={`${themeConfig.card} p-5 flex flex-col gap-3`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider opacity-50">
+                      Fila en vivo
+                    </p>
+                    <h3 className="font-display text-lg font-bold flex items-center gap-2">
+                      <ListOrdered className="w-4 h-4 text-red-500" />
+                      Saca tu turno
+                    </h3>
+                  </div>
+                  <span
+                    className={`text-[11px] font-semibold rounded-full px-2.5 py-1 ${
+                      queueState?.isOpen
+                        ? "bg-emerald-500/15 text-emerald-600"
+                        : "bg-black/5 dark:bg-white/10 opacity-70"
+                    }`}
+                  >
+                    {queueState?.isOpen ? "Abierta" : "Cerrada"}
+                  </span>
+                </div>
+
+                {queueState ? (
+                  <>
+                    <p className="text-sm opacity-70">
+                      {queueState.isOpen
+                        ? `${queueState.waitingCount} en cola · espera ~${queueState.estimatedWaitMinutes} min`
+                        : queueState.closedReason ?? "La cola está cerrada ahora."}
+                    </p>
+                    {queueState.seated && (
+                      <p className="text-xs opacity-60">
+                        Ahora en la silla: {queueState.seated.serviceName ?? "servicio"} · quedan ~
+                        {queueState.seated.remainingMinutes} min
+                      </p>
+                    )}
+                    <a href={`/q/${business.id}`} className="mt-auto">
+                      <Button
+                        className={`w-full h-11 rounded-2xl text-xs font-semibold ${themeConfig.button}`}
+                      >
+                        {queueState.isOpen ? "Pedir mi turno" : "Ver estado de la cola"}
+                        <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                      </Button>
+                    </a>
+                  </>
+                ) : (
+                  <p className="text-sm opacity-60">Cargando la fila…</p>
+                )}
+              </div>
+            )}
+
+            {micrositePromos.length > 0 && (
+              <div className={`${showQueueOnMicrosite ? "lg:col-span-2" : "lg:col-span-3"} space-y-3`}>
+                <div className="flex items-end justify-between gap-2 px-1">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider opacity-50">
+                      Precios especiales
+                    </p>
+                    <h3 className="font-display text-lg font-bold flex items-center gap-2">
+                      <Megaphone className="w-4 h-4 text-red-500" />
+                      Promos de horas muertas
+                    </h3>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {micrositePromos.slice(0, 4).map((promo) => {
+                    const [, month, day] = promo.date.split("-");
+                    return (
+                      <a
+                        key={promo.code}
+                        href={promo.publicUrl}
+                        className={`${themeConfig.card} p-4 block group hover:-translate-y-0.5 transition-transform`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm truncate">{promo.title}</p>
+                            {promo.serviceName && (
+                              <p className="text-xs opacity-60 truncate">{promo.serviceName}</p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-display font-extrabold text-lg text-emerald-600">
+                              S/ {Number(promo.price).toFixed(2)}
+                            </p>
+                            {promo.originalPrice && (
+                              <p className="text-[11px] opacity-50 line-through">
+                                S/ {Number(promo.originalPrice).toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] opacity-70">
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {day}/{month}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {promo.startTime}–{promo.endTime}
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <Tag className="w-3 h-3" />
+                            {promo.remaining > 0 ? `${promo.remaining} cupos` : "Completo"}
+                          </span>
+                        </div>
+
+                        <p className="mt-3 text-xs font-semibold text-red-600 dark:text-red-400 inline-flex items-center gap-1">
+                          {promo.remaining > 0 ? "Reservar cupo" : "Ver promo"}
+                          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                        </p>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {showWaitlistOnMicrosite && (
+            <div
+              className={`${themeConfig.card} mt-4 p-4 flex flex-wrap items-center justify-between gap-3`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-5 h-5 text-red-500" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider opacity-50">
+                    ¿No hay cupo?
+                  </p>
+                  <h3 className="font-display text-base font-bold">Lista de espera</h3>
+                </div>
+              </div>
+              <a href={`/lista/${business.id}`}>
+                <Button className={`h-10 rounded-2xl text-xs font-semibold ${themeConfig.button}`}>
+                  Avísame si se libera
+                  <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </a>
+            </div>
+          )}
+
+          {showLoyaltyOnMicrosite && (
+            <div
+              className={`${themeConfig.card} mt-4 p-4 flex flex-wrap items-center justify-between gap-3`}
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-amber-500" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider opacity-50">
+                    Cliente frecuente
+                  </p>
+                  <h3 className="font-display text-base font-bold">
+                    {desk?.loyaltyStampsRequired ?? 5} sellos = {desk?.loyaltyReward ?? "un premio"}
+                  </h3>
+                </div>
+              </div>
+              <a href={`/tarjeta/${business.id}`}>
+                <Button className={`h-10 rounded-2xl text-xs font-semibold ${themeConfig.button}`}>
+                  Ver mi tarjeta
+                  <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </a>
+            </div>
+          )}
+
+          {showPackagesOnMicrosite && (
+            <div className="mt-4 space-y-2">
+              <div className="flex items-end justify-between gap-2 px-1">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider opacity-50">
+                    Ahorra y vuelve
+                  </p>
+                  <h3 className="font-display text-base font-bold flex items-center gap-2">
+                    <Ticket className="w-4 h-4 text-red-500" />
+                    Bonos prepagados
+                  </h3>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {micrositePackages.slice(0, 3).map((pkg) => (
+                  <a key={pkg.id} href={pkg.publicUrl} className={`${themeConfig.card} block p-4`}>
+                    <p className="font-bold">{pkg.name}</p>
+                    <p className="mt-1 text-xs opacity-70">
+                      {pkg.uses} usos de {pkg.serviceName} · {pkg.validityDays} días
+                    </p>
+                    <p className="mt-3 text-lg font-bold text-red-600 dark:text-red-400">
+                      S/ {Number(pkg.price).toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold inline-flex items-center gap-1">
+                      Comprar bono <ArrowRight className="w-3 h-3" />
+                    </p>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── MAIN CONTENT CONTAINER WITH DEDICATED SIDEBAR ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">

@@ -127,6 +127,21 @@ export const config = {
     },
   },
 
+  whatsapp: {
+    // Central service bot: the platform owns one WhatsApp number (linked to the
+    // Formatika gateway). Businesses never link their personal number.
+    // FORMATIKA_BASE_URL is the production/local alias (`http://127.0.0.1:8790`)
+    // and takes precedence; FORMATIKA_API_URL stays supported for deployments
+    // that only set the old variable.
+    apiUrl:
+      process.env.FORMATIKA_BASE_URL ||
+      process.env.FORMATIKA_API_URL ||
+      "https://msg.formatika.dev",
+    apiKey: process.env.FORMATIKA_API_KEY || "",
+    webhookSecret: process.env.FORMATIKA_WEBHOOK_SECRET || "",
+    botNumber: process.env.WHATSAPP_BOT_NUMBER || "",
+  },
+
   payments: {
     provider: (process.env.PAYMENT_PROVIDER || "mercadopago") as "mercadopago",
     mercadoPago: {

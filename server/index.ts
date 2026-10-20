@@ -12,6 +12,13 @@ import { isDatabaseConfigured, isDatabaseHealthy, pingDatabase, ensureAuthSchema
 import { csrfCookieMiddleware, csrfProtection } from "./csrf.js";
 import { clientIp } from "./auth/audit.js";
 import { startReminderScheduler, stopReminderScheduler, getReminderStatus } from "./jobs/reminders.js";
+import { startDepositScheduler, stopDepositScheduler } from "./jobs/deposits.js";
+import { startReviewRequestScheduler, stopReviewRequestScheduler } from "./jobs/reviews.js";
+import {
+  startPackageReminderScheduler,
+  stopPackageReminderScheduler,
+  getPackageReminderStatus,
+} from "./jobs/packages.js";
 import { registerSeoRoutes } from "./seo.js";
 
 const app = express();
@@ -163,6 +170,7 @@ app.use((req, res, next) => {
       uptimeSeconds: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
       reminders: getReminderStatus(),
+      packageReminders: getPackageReminderStatus(),
       version: process.env.APP_VERSION || process.env.GIT_SHA || "dev",
     });
   });
@@ -208,11 +216,17 @@ app.use((req, res, next) => {
   // Lifecycle jobs (reminders). No-op when there is no database.
   if (isDatabaseConfigured()) {
     startReminderScheduler();
+    startDepositScheduler();
+    startReviewRequestScheduler();
+    startPackageReminderScheduler();
   }
 
   const shutdown = async (signal: string) => {
     log(`received ${signal}, shutting down gracefully`);
     stopReminderScheduler();
+    stopDepositScheduler();
+    stopReviewRequestScheduler();
+    stopPackageReminderScheduler();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(1), 10000).unref();
   };

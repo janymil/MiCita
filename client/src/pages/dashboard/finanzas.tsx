@@ -147,6 +147,17 @@ export default function Finanzas() {
     enabled: !!businessId,
   });
 
+  // Cash-drawer totals logged from the mobile "Hoy" screen (Yape/Plin/efectivo).
+  const { data: cashToday } = useQuery<{
+    total: number;
+    count: number;
+    tips: number;
+    byMethod: Array<{ method: string; label: string; total: number; count: number }>;
+  }>({
+    queryKey: [`/api/dashboard/businesses/${businessId}/cashflow/summary`],
+    enabled: !!businessId,
+  });
+
   const currentBusiness = businesses?.[0];
 
   if (businessesLoading) {
@@ -185,6 +196,41 @@ export default function Finanzas() {
       case 'resumen':
         return (
           <div className="space-y-8">
+            {/* Cash drawer logged from the mobile "Hoy" screen */}
+            <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-emerald-700">Caja de hoy (Yape / Plin / efectivo)</CardTitle>
+                <Button variant="outline" size="sm" onClick={() => { window.location.href = "/dashboard/hoy"; }}>
+                  Ir a Hoy
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap items-end gap-6">
+                  <div>
+                    <p className="text-3xl font-bold text-emerald-700">
+                      {formatCurrency(cashToday?.total ?? 0)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {cashToday?.count ?? 0} cobros registrados hoy
+                      {cashToday?.tips ? ` · propinas ${formatCurrency(cashToday.tips)}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {(cashToday?.byMethod ?? []).map((entry) => (
+                      <span
+                        key={entry.method}
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          entry.total > 0 ? "bg-emerald-100 text-emerald-800" : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {entry.label}: {formatCurrency(entry.total)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Financial KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">

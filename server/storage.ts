@@ -23,6 +23,21 @@ import type {
   InsertMicrositeEvent,
   ContactMessage,
   InsertContactMessage,
+  ServiceTransaction,
+  InsertServiceTransaction,
+  QueueTicket,
+  InsertQueueTicket,
+  WaitlistEntry,
+  LoyaltyCard,
+  LoyaltyEvent,
+  ServicePackage,
+  PackagePurchase,
+  PackageRedemption,
+  Promo,
+  InsertPromo,
+  PromoClaim,
+  InsertPromoClaim,
+  WhatsAppMessage,
 } from "../shared/schema.js";
 
 /**
@@ -69,10 +84,121 @@ export interface IStorage {
   // Appointments
   getAppointmentsByBusinessId(businessId: number): Promise<Appointment[]>;
   getAppointmentsByDate(businessId: number, date: string): Promise<Appointment[]>;
+  getExpiredDepositAppointments(now: Date): Promise<Appointment[]>;
+  getCompletedAppointmentsNeedingReview(businessId?: number, since?: Date): Promise<Appointment[]>;
   getAppointment(id: number): Promise<Appointment | undefined>;
   createAppointment(appointment: InsertAppointment & { businessId: number }): Promise<Appointment>;
   updateAppointment(id: number, appointment: Partial<InsertAppointment>): Promise<Appointment>;
   deleteAppointment(id: number): Promise<void>;
+
+  // Service transactions (quick cash log: cash / Yape / Plin)
+  createServiceTransaction(transaction: InsertServiceTransaction & { businessId: number }): Promise<ServiceTransaction>;
+  getServiceTransactions(businessId: number, from: Date, to: Date): Promise<ServiceTransaction[]>;
+  getServiceTransaction(id: number): Promise<ServiceTransaction | undefined>;
+  updateServiceTransaction(id: number, patch: Partial<InsertServiceTransaction>): Promise<ServiceTransaction>;
+  deleteServiceTransaction(id: number): Promise<void>;
+
+  // Virtual queue ("Saca tu turno")
+  createQueueTicket(ticket: InsertQueueTicket & { businessId: number; token: string }): Promise<QueueTicket>;
+  getQueueTicket(id: number): Promise<QueueTicket | undefined>;
+  getQueueTicketByToken(token: string): Promise<QueueTicket | undefined>;
+  getQueueTicketByAppointmentId(appointmentId: number): Promise<QueueTicket | undefined>;
+  getQueueTicketsByBusinessId(businessId: number, statuses?: string[]): Promise<QueueTicket[]>;
+  updateQueueTicket(
+    id: number,
+    patch: Partial<InsertQueueTicket> & {
+      notifiedAt?: Date | null;
+      seatedAt?: Date | null;
+      closedAt?: Date | null;
+      appointmentId?: number | null;
+    },
+  ): Promise<QueueTicket>;
+
+  // Cancellation waitlist
+  createWaitlistEntry(entry: Omit<WaitlistEntry, "id" | "createdAt">): Promise<WaitlistEntry>;
+  getWaitlistEntry(id: number): Promise<WaitlistEntry | undefined>;
+  getWaitlistEntryByToken(token: string): Promise<WaitlistEntry | undefined>;
+  getWaitlistEntriesByBusinessId(businessId: number, date?: string): Promise<WaitlistEntry[]>;
+  updateWaitlistEntry(
+    id: number,
+    patch: Partial<WaitlistEntry> & {
+      notifiedAt?: Date | null;
+      claimedAt?: Date | null;
+      appointmentId?: number | null;
+    },
+  ): Promise<WaitlistEntry>;
+
+  // Loyalty stamps
+  createLoyaltyCard(card: Omit<LoyaltyCard, "id" | "createdAt" | "updatedAt">): Promise<LoyaltyCard>;
+  getLoyaltyCard(id: number): Promise<LoyaltyCard | undefined>;
+  getLoyaltyCardByToken(token: string): Promise<LoyaltyCard | undefined>;
+  getLoyaltyCardByPhone(businessId: number, phone: string): Promise<LoyaltyCard | undefined>;
+  getLoyaltyCardsByBusinessId(businessId: number): Promise<LoyaltyCard[]>;
+  updateLoyaltyCard(id: number, patch: Partial<LoyaltyCard>): Promise<LoyaltyCard>;
+  createLoyaltyEvent(event: Omit<LoyaltyEvent, "id" | "createdAt">): Promise<LoyaltyEvent>;
+  getLoyaltyEventByAppointmentId(appointmentId: number): Promise<LoyaltyEvent | undefined>;
+  getLoyaltyEventsByCardId(cardId: number): Promise<LoyaltyEvent[]>;
+
+  // Prepaid service packages
+  createServicePackage(pkg: Omit<ServicePackage, "id" | "createdAt" | "updatedAt">): Promise<ServicePackage>;
+  getServicePackage(id: number): Promise<ServicePackage | undefined>;
+  getServicePackagesByBusinessId(businessId: number): Promise<ServicePackage[]>;
+  updateServicePackage(id: number, patch: Partial<ServicePackage>): Promise<ServicePackage>;
+  createPackagePurchase(
+    purchase: Omit<PackagePurchase, "id" | "createdAt" | "updatedAt">,
+  ): Promise<PackagePurchase>;
+  getPackagePurchase(id: number): Promise<PackagePurchase | undefined>;
+  getPackagePurchaseByToken(token: string): Promise<PackagePurchase | undefined>;
+  getPackagePurchasesByBusinessId(businessId: number): Promise<PackagePurchase[]>;
+  getPackagePurchasesByClientId(clientId: number): Promise<PackagePurchase[]>;
+  updatePackagePurchase(id: number, patch: Partial<PackagePurchase>): Promise<PackagePurchase>;
+  createPackageRedemption(
+    redemption: Omit<PackageRedemption, "id" | "createdAt">,
+  ): Promise<PackageRedemption>;
+  getPackageRedemptionByAppointmentId(appointmentId: number): Promise<PackageRedemption | undefined>;
+  getPackageRedemptionsByPurchaseId(purchaseId: number): Promise<PackageRedemption[]>;
+
+  // Promotions ("horas muertas")
+  createPromo(promo: InsertPromo & { businessId: number; code: string }): Promise<Promo>;
+  getPromo(id: number): Promise<Promo | undefined>;
+  getPromoByCode(code: string): Promise<Promo | undefined>;
+  getPromosByBusinessId(businessId: number): Promise<Promo[]>;
+  updatePromo(id: number, patch: Partial<InsertPromo> & { status?: string }): Promise<Promo>;
+
+  createPromoClaim(
+    claim: InsertPromoClaim & {
+      promoId: number;
+      businessId: number;
+      token: string;
+      status?: string;
+      appointmentId?: number | null;
+      clientId?: number | null;
+    },
+  ): Promise<PromoClaim>;
+  getPromoClaim(id: number): Promise<PromoClaim | undefined>;
+  getPromoClaimByToken(token: string): Promise<PromoClaim | undefined>;
+  getPromoClaimsByPromoId(promoId: number): Promise<PromoClaim[]>;
+  getPromoClaimsByBusinessId(businessId: number): Promise<PromoClaim[]>;
+  updatePromoClaim(
+    id: number,
+    patch: Partial<InsertPromoClaim> & {
+      status?: string;
+      appointmentId?: number | null;
+      cancelledAt?: Date | null;
+    },
+  ): Promise<PromoClaim>;
+
+  // Central WhatsApp bot audit log
+  createWhatsAppMessage(message: {
+    businessId?: number | null;
+    direction: string;
+    phone?: string | null;
+    text?: string | null;
+    status: string;
+    providerMessageId?: string | null;
+    error?: string | null;
+    payload?: Record<string, unknown> | null;
+  }): Promise<WhatsAppMessage>;
 
   // Gallery
   getGalleryByBusinessId(businessId: number): Promise<GalleryItem[]>;
@@ -86,6 +212,7 @@ export interface IStorage {
   // Reviews
   getReviewsByBusinessId(businessId: number): Promise<Review[]>;
   getApprovedReviewsByBusinessId(businessId: number): Promise<Review[]>;
+  getReviewByAppointmentId(appointmentId: number): Promise<Review | undefined>;
   getReview(id: number): Promise<Review | undefined>;
   createReview(review: InsertReview): Promise<Review>;
   updateReview(id: number, review: Partial<InsertReview>): Promise<Review>;
@@ -110,6 +237,11 @@ export interface IStorage {
   // Lifecycle
   getAppointmentByCancelToken(token: string): Promise<Appointment | undefined>;
   getAppointmentsNeedingReminder(fromISO: string, toISO: string): Promise<Appointment[]>;
+  getAppointmentsNeedingWhatsAppReminder(
+    fromDate: string,
+    toDate: string,
+    businessId?: number,
+  ): Promise<Appointment[]>;
   getPaymentsByBusinessId(businessId: number): Promise<Payment[]>;
 
   // Apify / scraped businesses

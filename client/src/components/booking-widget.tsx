@@ -116,9 +116,12 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
       return result;
     },
     onSuccess: (data) => {
+      const depositRequired = Boolean(data.deposit?.required && data.deposit?.status === "pending");
       toast({
-        title: "¡Reserva exitosa!",
-        description: `Tu cita para ${data.bookingDetails?.service} el ${formatDatePeruvian(data.bookingDetails?.date)} a las ${data.bookingDetails?.time} ha sido confirmada.`,
+        title: depositRequired ? "Reserva creada — falta el depósito" : "¡Reserva exitosa!",
+        description: depositRequired
+          ? `Deja un depósito de S/ ${Number(data.deposit.amount).toFixed(2)} para confirmar tu cita.`
+          : `Tu cita para ${data.bookingDetails?.service} el ${formatDatePeruvian(data.bookingDetails?.date)} a las ${data.bookingDetails?.time} ha sido confirmada.`,
       });
 
       // Reset form and close modal
@@ -134,6 +137,11 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
 
       // Invalidate availability cache
       queryClient.invalidateQueries({ queryKey: [`/api/appointments/availability/${businessId}`] });
+
+      // The manage page owns the deposit payment step (online or in person).
+      if (depositRequired && data.manageUrl) {
+        window.location.href = data.manageUrl;
+      }
     },
     onError: (error: any) => {
       const isConflict = error.message.includes('conflicto');
@@ -397,6 +405,12 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
                         <div className="text-center py-8 text-gray-500">
                           <Calendar className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                           <p>No hay horarios disponibles para esta fecha</p>
+                          <a
+                            className="mt-3 inline-block text-sm font-semibold text-red-600 underline"
+                            href={`/lista/${businessId}?serviceId=${selectedService}&date=${selectedDate}`}
+                          >
+                            Avísame si se libera un cupo
+                          </a>
                         </div>
                       )}
                     </div>

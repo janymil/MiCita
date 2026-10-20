@@ -289,17 +289,35 @@ export const appointments = pgTable("appointments", {
   date: text("date").notNull(), // Store as 'YYYY-MM-DD' format
   time: text("time").notNull(), // Store as 'HH:MM' format
   duration: integer("duration").notNull(),
-  status: text("status").notNull().default("pending"), // pending, confirmed, completed, cancelled, rescheduled, no_show
+  status: text("status").notNull().default("pending"), // pending, confirmed, in_progress, completed, cancelled, rescheduled, no_show
   notes: text("notes"), // Business notes
   clientNotes: text("client_notes"), // Customer notes during booking
   price: decimal("price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   // Lifecycle: reminder delivery + self-service cancel/reschedule link
   reminderSentAt: timestamp("reminder_sent_at"),
+  whatsappReminderSentAt: timestamp("whatsapp_reminder_sent_at"),
+  whatsappConfirmationSentAt: timestamp("whatsapp_confirmation_sent_at"),
   cancelToken: text("cancel_token"),
+  // How the visit entered the system. Walk-in/chair mode rows are created by
+  // the owner from the "Hoy" screen without a previous reservation.
+  source: text("source").notNull().default("booking"), // booking | walk_in | queue | promo | waitlist
+  // Chair mode: when the owner tapped "Sentar cliente ahora".
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  // No-show protection: an optional partial prepayment credited to the visit.
+  depositAmount: decimal("deposit_amount", { precision: 10, scale: 2 }),
+  depositStatus: text("deposit_status"), // pending | paid | waived | refunded | expired
+  depositPaidAt: timestamp("deposit_paid_at"),
+  depositExpiresAt: timestamp("deposit_expires_at"),
+  depositPaymentId: text("deposit_payment_id"),
+  // Post-service review request (sent after completed_at + owner delay).
+  reviewRequestSentAt: timestamp("review_request_sent_at"),
 }, (table) => ({
   businessDateIdx: index("appointments_business_date_idx").on(table.businessId, table.date),
   statusIdx: index("appointments_status_idx").on(table.status),
+  sourceIdx: index("appointments_source_idx").on(table.businessId, table.source),
+  depositIdx: index("appointments_deposit_idx").on(table.depositStatus, table.depositExpiresAt),
 }));
 
 // Business gallery
@@ -311,6 +329,263 @@ export const gallery = pgTable("gallery", {
   isMain: boolean("is_main").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Quick cash log for walk-in money (Yape / Plin / cash). Deliberately separate
+// from `payments`, which only tracks MercadoPago checkout + subscriptions.
+export const serviceTransactions = pgTable("service_transactions", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  appointmentId: integer("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "set null" }),
+  serviceId: integer("service_id").references(() => services.id, { onDelete: "set null" }),
+  // Snapshot of the service name so renaming a service never rewrites history.
+  serviceName: text("service_name"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  tipAmount: decimal("tip_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  method: text("method").notNull().default("cash"), // cash | yape | plin | card | transfer
+  note: text("note"),
+  occurredAt: timestamp("occurred_at").notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  businessDateIdx: index("service_transactions_business_date_idx").on(table.businessId, table.occurredAt),
+  appointmentIdx: index("service_transactions_appointment_idx").on(table.appointmentId),
+}));
+
+// Same-day remote queue ("Saca tu turno"). Customers scan the QR outside the
+// shop and get a live position/ETA; the owner seats them from the Hoy screen.
+export const queueTickets = pgTable("queue_tickets", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "set null" }),
+  serviceId: integer("service_id").references(() => services.id, { onDelete: "set null" }),
+  appointmentId: integer("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  // waiting | notified | seated | served | left | cancelled
+  status: text("status").notNull().default("waiting"),
+  // Opaque public token so a customer can poll their own ticket without an account.
+  token: text("token").notNull(),
+  notes: text("notes"),
+  joinedAt: timestamp("joined_at").notNull().defaultNow(),
+  notifiedAt: timestamp("notified_at"),
+  seatedAt: timestamp("seated_at"),
+  closedAt: timestamp("closed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  tokenIdx: uniqueIndex("queue_tickets_token_uq").on(table.token),
+  businessStatusIdx: index("queue_tickets_business_status_idx").on(
+    table.businessId,
+    table.status,
+    table.joinedAt,
+  ),
+}));
+
+// Prepaid service packages ("bonos"): owner templates, purchased balances and
+// redemption ledger. A purchase is usable until its uses or validity run out.
+export const servicePackages = pgTable("service_packages", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  serviceId: integer("service_id").references(() => services.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  uses: integer("uses").notNull().default(5),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  validityDays: integer("validity_days").notNull().default(90),
+  status: text("status").notNull().default("active"), // active | paused
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  businessIdx: index("service_packages_business_idx").on(table.businessId, table.status),
+}));
+
+export const packagePurchases = pgTable("package_purchases", {
+  id: serial("id").primaryKey(),
+  packageId: integer("package_id")
+    .references(() => servicePackages.id, { onDelete: "cascade" })
+    .notNull(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(), // digits only
+  token: text("token").notNull(),
+  usesTotal: integer("uses_total").notNull(),
+  usesRemaining: integer("uses_remaining").notNull(),
+  amountPaid: decimal("amount_paid", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: text("payment_method"), // mercadopago | cash | yape | ...
+  paymentReference: text("payment_reference"),
+  status: text("status").notNull().default("pending"), // pending | active | used | expired | cancelled
+  purchasedAt: timestamp("purchased_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  tokenIdx: uniqueIndex("package_purchases_token_uq").on(table.token),
+  businessIdx: index("package_purchases_business_idx").on(table.businessId, table.status),
+  clientIdx: index("package_purchases_client_idx").on(table.clientId, table.status),
+}));
+
+export const packageRedemptions = pgTable("package_redemptions", {
+  id: serial("id").primaryKey(),
+  purchaseId: integer("purchase_id")
+    .references(() => packagePurchases.id, { onDelete: "cascade" })
+    .notNull(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  appointmentId: integer("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  usesUsed: integer("uses_used").notNull().default(1),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  purchaseIdx: index("package_redemptions_purchase_idx").on(table.purchaseId, table.createdAt),
+  appointmentIdx: uniqueIndex("package_redemptions_appointment_uq").on(table.appointmentId),
+}));
+
+// Loyalty stamps: one card per business + normalized phone. `total_stamps`
+// is lifetime, so available rewards = floor(total / required) - redeemed.
+export const loyaltyCards = pgTable("loyalty_cards", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(), // digits only
+  token: text("token").notNull(),
+  totalStamps: integer("total_stamps").notNull().default(0),
+  rewardsRedeemed: integer("rewards_redeemed").notNull().default(0),
+  lastStampAt: timestamp("last_stamp_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  tokenIdx: uniqueIndex("loyalty_cards_token_uq").on(table.token),
+  businessPhoneIdx: uniqueIndex("loyalty_cards_business_phone_uq").on(table.businessId, table.phone),
+  businessIdx: index("loyalty_cards_business_idx").on(table.businessId, table.updatedAt),
+}));
+
+export const loyaltyEvents = pgTable("loyalty_events", {
+  id: serial("id").primaryKey(),
+  cardId: integer("card_id")
+    .references(() => loyaltyCards.id, { onDelete: "cascade" })
+    .notNull(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  appointmentId: integer("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  type: text("type").notNull(), // stamp | redeem | adjust
+  stampsDelta: integer("stamps_delta").notNull().default(1),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  cardIdx: index("loyalty_events_card_idx").on(table.cardId, table.createdAt),
+  appointmentIdx: index("loyalty_events_appointment_idx").on(table.appointmentId),
+}));
+
+// Cancellation waitlist: customers waiting for a specific service/day. When a
+// matching appointment is cancelled they get a WhatsApp claim link; the first
+// successful claim creates the replacement appointment.
+export const waitlistEntries = pgTable("waitlist_entries", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  serviceId: integer("service_id").references(() => services.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD (Lima)
+  token: text("token").notNull(),
+  // waiting | notified | claimed | expired | cancelled
+  status: text("status").notNull().default("waiting"),
+  offeredDate: text("offered_date"),
+  offeredTime: text("offered_time"),
+  notifiedAt: timestamp("notified_at"),
+  claimedAt: timestamp("claimed_at"),
+  appointmentId: integer("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  tokenIdx: uniqueIndex("waitlist_entries_token_uq").on(table.token),
+  businessDateIdx: index("waitlist_entries_business_date_idx").on(
+    table.businessId,
+    table.date,
+    table.status,
+  ),
+  serviceIdx: index("waitlist_entries_service_idx").on(table.serviceId, table.date, table.status),
+}));
+
+// "Horas muertas" promotions: a service at a special price inside a same-day
+// window with limited capacity. Claims become normal appointments (source=promo).
+export const promos = pgTable("promos", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  serviceId: integer("service_id").references(() => services.id, { onDelete: "set null" }),
+  code: text("code").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  promoPrice: decimal("promo_price", { precision: 10, scale: 2 }).notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD (Lima)
+  startTime: text("start_time").notNull(), // HH:MM
+  endTime: text("end_time").notNull(), // HH:MM
+  capacity: integer("capacity").notNull().default(3),
+  status: text("status").notNull().default("active"), // active | paused | ended
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  codeIdx: uniqueIndex("promos_code_uq").on(table.code),
+  businessDateIdx: index("promos_business_date_idx").on(table.businessId, table.date, table.status),
+}));
+
+export const promoClaims = pgTable("promo_claims", {
+  id: serial("id").primaryKey(),
+  promoId: integer("promo_id")
+    .references(() => promos.id, { onDelete: "cascade" })
+    .notNull(),
+  businessId: integer("business_id")
+    .references(() => businesses.id, { onDelete: "cascade" })
+    .notNull(),
+  appointmentId: integer("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  phone: text("phone"),
+  date: text("date").notNull(),
+  time: text("time").notNull(),
+  status: text("status").notNull().default("reserved"), // reserved | cancelled
+  token: text("token").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  cancelledAt: timestamp("cancelled_at"),
+}, (table) => ({
+  tokenIdx: uniqueIndex("promo_claims_token_uq").on(table.token),
+  promoStatusIdx: index("promo_claims_promo_status_idx").on(table.promoId, table.status),
+  slotIdx: index("promo_claims_slot_idx").on(table.promoId, table.date, table.time),
+}));
+
+// Audit log for the central WhatsApp bot (inbound + outbound), so support can
+// explain exactly what the gateway sent or why a message was skipped.
+export const whatsappMessages = pgTable("whatsapp_messages", {
+  id: serial("id").primaryKey(),
+  businessId: integer("business_id").references(() => businesses.id, { onDelete: "set null" }),
+  direction: text("direction").notNull(), // inbound | outbound
+  phone: text("phone"),
+  text: text("text"),
+  status: text("status").notNull(), // received | sent | skipped | failed
+  providerMessageId: text("provider_message_id"),
+  error: text("error"),
+  payload: jsonb("payload").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  phoneIdx: index("whatsapp_messages_phone_idx").on(table.phone, table.createdAt),
+  directionIdx: index("whatsapp_messages_direction_idx").on(table.direction, table.createdAt),
+}));
 
 // Public business directory (external listings)
 export const publicBusinesses = pgTable("public_businesses", {
@@ -334,7 +609,7 @@ export const reviews = pgTable("reviews", {
   clientName: text("client_name").notNull(),
   rating: integer("rating").notNull(),
   comment: text("comment"),
-  // Where the review came from: microsite | google | facebook | manual
+  // Where the review came from: microsite | appointment | google | facebook | manual
   source: text("source").default("microsite"),
   // Moderation: pending | approved | rejected
   status: text("status").default("pending"),
@@ -437,6 +712,30 @@ export const businessSettings = pgTable("business_settings", {
   enableContactForm: boolean("enable_contact_form").default(true),
   enableGallery: boolean("enable_gallery").default(true),
   enableReviews: boolean("enable_reviews").default(true),
+
+  // Owner desk configuration (virtual queue + cash drawer). Normalized on read
+  // by server/lib/desk-settings.ts so partially-written JSON is always safe.
+  deskSettings: jsonb("desk_settings").$type<{
+    paymentMethods?: string[];
+    allowTips?: boolean;
+    queueEnabled?: boolean;
+    queueOpen?: boolean;
+    defaultDurationMinutes?: number;
+    maxQueueLength?: number;
+    notificationTemplate?: string;
+    retentionDays?: number;
+    retentionMessage?: string;
+    showQueueOnMicrosite?: boolean;
+    showPromosOnMicrosite?: boolean;
+    whatsappRemindersEnabled?: boolean;
+    reminderHoursBefore?: number;
+    whatsappReminderTemplate?: string;
+    whatsappConfirmationsEnabled?: boolean;
+    whatsappConfirmationTemplate?: string;
+    queueWhatsappEnabled?: boolean;
+    queueJoinedTemplate?: string;
+    queueCalledTemplate?: string;
+  }>(),
 
   // "Sobre nosotros" block (previously rendered by the microsite but never stored)
   aboutUs: text("about_us"),
@@ -609,6 +908,75 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({
   id: true,
   businessId: true,
   createdAt: true,
+});
+
+/** Payment methods that actually show up in a Peruvian chair. */
+export const PAYMENT_METHODS = ["cash", "yape", "plin", "card", "transfer"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+const moneyInput = z.union([z.string(), z.number()]).transform((val, ctx) => {
+  const num = typeof val === "string" ? parseFloat(val) : val;
+  if (Number.isNaN(num) || num < 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Monto inválido" });
+    return z.NEVER;
+  }
+  return num.toFixed(2);
+});
+
+export const insertServiceTransactionSchema = createInsertSchema(serviceTransactions)
+  .omit({
+    id: true,
+    businessId: true,
+    createdAt: true,
+  })
+  .extend({
+    amount: moneyInput,
+    tipAmount: moneyInput.optional(),
+    method: z.enum(PAYMENT_METHODS),
+    occurredAt: z.coerce.date().optional(),
+  });
+
+export const insertQueueTicketSchema = createInsertSchema(queueTickets)
+  .omit({
+    id: true,
+    businessId: true,
+    token: true,
+    createdAt: true,
+  })
+  .extend({
+    status: z.enum(["waiting", "notified", "seated", "served", "left", "cancelled"]).optional(),
+  });
+
+export const QUEUE_STATUSES = ["waiting", "notified", "seated", "served", "left", "cancelled"] as const;
+export type QueueStatus = (typeof QUEUE_STATUSES)[number];
+
+export const insertPromoSchema = createInsertSchema(promos)
+  .omit({
+    id: true,
+    businessId: true,
+    code: true,
+    status: true,
+    createdAt: true,
+    updatedAt: true,
+  })
+  .extend({
+    promoPrice: moneyInput,
+    capacity: z.number().int().min(1).max(50),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida"),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/, "Hora inválida"),
+    message: z.string().trim().max(500).optional(),
+  });
+
+export const insertPromoClaimSchema = createInsertSchema(promoClaims).omit({
+  id: true,
+  businessId: true,
+  appointmentId: true,
+  clientId: true,
+  status: true,
+  token: true,
+  createdAt: true,
+  cancelledAt: true,
 });
 
 export const insertGallerySchema = createInsertSchema(gallery).omit({
@@ -974,6 +1342,27 @@ export type InsertClient = z.infer<typeof insertClientSchema>;
 
 export type Appointment = typeof appointments.$inferSelect;
 export type InsertAppointment = z.infer<typeof insertAppointmentSchema>;
+
+export type ServiceTransaction = typeof serviceTransactions.$inferSelect;
+export type InsertServiceTransaction = z.infer<typeof insertServiceTransactionSchema>;
+
+export type QueueTicket = typeof queueTickets.$inferSelect;
+export type InsertQueueTicket = z.infer<typeof insertQueueTicketSchema>;
+
+export type WaitlistEntry = typeof waitlistEntries.$inferSelect;
+
+export type LoyaltyCard = typeof loyaltyCards.$inferSelect;
+export type LoyaltyEvent = typeof loyaltyEvents.$inferSelect;
+
+export type ServicePackage = typeof servicePackages.$inferSelect;
+export type PackagePurchase = typeof packagePurchases.$inferSelect;
+export type PackageRedemption = typeof packageRedemptions.$inferSelect;
+
+export type Promo = typeof promos.$inferSelect;
+export type InsertPromo = z.infer<typeof insertPromoSchema>;
+export type PromoClaim = typeof promoClaims.$inferSelect;
+export type InsertPromoClaim = z.infer<typeof insertPromoClaimSchema>;
+export type WhatsAppMessage = typeof whatsappMessages.$inferSelect;
 
 export type GalleryItem = typeof gallery.$inferSelect;
 export type InsertGalleryItem = z.infer<typeof insertGallerySchema>;

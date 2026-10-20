@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "wouter";
-import { Calendar, Clock, MapPin, Phone, RefreshCw, XCircle, CheckCircle2 } from "lucide-react";
+import { Calendar, Clock, MapPin, Phone, RefreshCw, ShieldCheck, XCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { publicJson } from "@/lib/public-api";
 
 interface AppointmentPayload {
   appointment: {
@@ -18,11 +19,28 @@ interface AppointmentPayload {
     price: string | null;
     notes: string | null;
   };
+  deposit: {
+    required: boolean;
+    amount: number;
+    status: string | null;
+    expiresAt: string | null;
+    paidAt: string | null;
+    policy: string;
+    checkoutAvailable: boolean;
+  } | null;
   client: { name: string; email: string | null; phone: string | null } | null;
   service: { id: number; name: string; duration: number | null; price: string | null } | null;
   business: { id: number; name: string; phone: string | null; email: string | null } | null;
   canManage: boolean;
 }
+
+const DEPOSIT_LABELS: Record<string, string> = {
+  pending: "Pendiente de pago",
+  paid: "Pagado",
+  waived: "Exonerado",
+  refunded: "Devuelto",
+  expired: "Plazo vencido",
+};
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pendiente de confirmación",
@@ -40,6 +58,19 @@ export default function AppointmentManagePage() {
   const [newTime, setNewTime] = useState("");
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [depositMessage, setDepositMessage] = useState<string | null>(null);
+  const [isPayingDeposit, setIsPayingDeposit] = useState(false);
+
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get("deposit");
+    if (result === "success") {
+      setMessage({ type: "ok", text: "Pago recibido. Estamos confirmando tu cita." });
+    } else if (result === "failure") {
+      setMessage({ type: "error", text: "El pago no se completó. Puedes intentarlo de nuevo." });
+    } else if (result === "pending") {
+      setMessage({ type: "ok", text: "Pago pendiente de confirmación por MercadoPago." });
+    }
+  }, []);
 
   const { data, isLoading, error } = useQuery<AppointmentPayload>({
     queryKey: [`/api/public/appointments/${token}`],
@@ -100,6 +131,23 @@ export default function AppointmentManagePage() {
     }
   };
 
+  const payDeposit = async () => {
+    setIsPayingDeposit(true);
+    setDepositMessage(null);
+    try {
+      const result = await publicJson<{ checkoutUrl: string }>(
+        `/api/public/appointments/${token}/deposit`,
+        "POST",
+        {},
+      );
+      window.location.href = result.checkoutUrl;
+    } catch (error: any) {
+      setDepositMessage(error?.message ?? "No se pudo iniciar el pago del depósito");
+    } finally {
+      setIsPayingDeposit(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-neutral-50">
@@ -124,7 +172,7 @@ export default function AppointmentManagePage() {
       </div>
     );
   }
-  const { appointment, business, service, client, canManage } = data;
+  const { appointment, business, service, client, canManage, deposit } = data;
 
 
   return (
@@ -168,6 +216,81 @@ export default function AppointmentManagePage() {
             )}
           </CardContent>
         </Card>
+
+        {deposit && (
+          <Card
+            className={
+              deposit.status === "paid"
+                ? "border-emerald-200 bg-emerald-50/60"
+                : deposit.status === "expired"
+                  ? "border-red-200 bg-red-50/60"
+                  : "border-amber-200 bg-amber-50/60"
+            }
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ShieldCheck className="h-5 w-5" />
+                Depósito de reserva
+                <Badge variant={deposit.status === "paid" ? "default" : "secondary"}>
+                  {DEPOSIT_LABELS[deposit.status ?? ""] ?? deposit.status}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Monto</span>
+                <span className="text-lg font-bold">S/ {deposit.amount.toFixed(2)}</span>
+              </div>
+              <p className="text-muted-foreground">{deposit.policy}</p>
+
+              {deposit.status === "pending" && canManage && (
+                <>
+                  {deposit.checkoutAvailable ? (
+                    <Button className="w-full" onClick={payDeposit} disabled={isPayingDeposit}>
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      {isPayingDeposit ? "Abriendo MercadoPago…" : "Pagar depósito online"}
+                    </Button>
+                  ) : (
+                    <p className="rounded-lg bg-white/70 p-3 text-amber-900">
+                      El pago online no está disponible ahora. Paga en el local o coordina con el
+                      negocio para confirmar tu cita.
+                    </p>
+                  )}
+                  {business?.phone && (
+                    <Button asChild variant="outline" className="w-full">
+                      <a
+                        href={`https://wa.me/${business.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
+                          `Hola, quiero pagar el depósito de mi cita del ${appointment.date} a las ${appointment.time}.`,
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Coordinar por WhatsApp
+                      </a>
+                    </Button>
+                  )}
+                  {deposit.expiresAt && (
+                    <p className="text-xs text-amber-800">
+                      Paga antes de {new Date(deposit.expiresAt).toLocaleString("es-PE", { timeZone: "America/Lima" })} para no perder el horario.
+                    </p>
+                  )}
+                </>
+              )}
+
+              {deposit.status === "paid" && (
+                <p className="flex items-center gap-2 text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4" /> Depósito recibido. Se descuenta del servicio.
+                </p>
+              )}
+              {deposit.status === "expired" && (
+                <p className="text-red-800">
+                  El plazo para el depósito venció y el horario fue liberado. Puedes reservar de nuevo.
+                </p>
+              )}
+              {depositMessage && <p className="text-red-700">{depositMessage}</p>}
+            </CardContent>
+          </Card>
+        )}
 
         {message && (
           <div className={`rounded-lg p-3 text-sm flex items-center gap-2 ${message.type === "ok" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
