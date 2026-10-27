@@ -145,6 +145,27 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
   const [galleryImages, setGalleryImages] = useState<Array<{ id: string, imageUrl: string, title?: string }>>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
+  // Social Feed Showcase State (Instagram / TikTok / Facebook feeds on microsite)
+  const [socialFeedConfig, setSocialFeedConfig] = useState<{
+    enabled: boolean;
+    platforms: Array<"instagram" | "tiktok" | "facebook">;
+    posts: Array<{
+      id: string;
+      platform: "instagram" | "tiktok" | "facebook";
+      url: string;
+      caption?: string;
+      thumbnailUrl?: string;
+    }>;
+  }>({
+    enabled: true,
+    platforms: ["instagram", "tiktok", "facebook"],
+    posts: [],
+  });
+  const [newPostPlatform, setNewPostPlatform] = useState<"instagram" | "tiktok" | "facebook">("instagram");
+  const [newPostUrl, setNewPostUrl] = useState("");
+  const [newPostCaption, setNewPostCaption] = useState("");
+  const [newPostThumb, setNewPostThumb] = useState("");
+
   // Blocked dates state
   const [blockDateStart, setBlockDateStart] = useState("");
   const [blockDateEnd, setBlockDateEnd] = useState("");
@@ -250,6 +271,18 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
       const storedGallery = (settings as any).gallery ?? (settings as any).galleryImages;
       if (Array.isArray(storedGallery)) {
         setGalleryImages(storedGallery);
+      }
+
+      // Load social feed configuration if stored inside deskSettings.socialFeed
+      const storedSocialFeed = settings?.deskSettings?.socialFeed;
+      if (storedSocialFeed && typeof storedSocialFeed === "object") {
+        setSocialFeedConfig({
+          enabled: storedSocialFeed.enabled ?? true,
+          platforms: Array.isArray(storedSocialFeed.platforms)
+            ? storedSocialFeed.platforms
+            : ["instagram", "tiktok", "facebook"],
+          posts: Array.isArray(storedSocialFeed.posts) ? storedSocialFeed.posts : [],
+        });
       }
     }
   }, [currentBusinessSettings]);
@@ -372,12 +405,16 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
   const onMicrositeSubmit = (data: MicrositeForm) => {
     console.log("✅ Submitting micrositio data:", data);
 
-    // Include gallery images and blocked dates/hours in the submission
+    // Include gallery images, blocked dates/hours, and socialFeedConfig in the submission
     const submissionData = {
       ...data,
       galleryImages: galleryImages,
       blockedDates: blockedDates,
       blockedHours: blockedHours,
+      deskSettings: {
+        ...((currentBusinessSettings as any)?.deskSettings || {}),
+        socialFeed: socialFeedConfig,
+      },
     };
 
     updateMicrositeSettingsMutation.mutate(submissionData);
@@ -1323,6 +1360,188 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
                       />
                     </div>
                   </div>
+
+                  {/* ── SOCIAL FEED SHOWCASE CONFIGURATION ── */}
+                  <div className="pt-8 border-t border-pink-100 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-pink-50/60 p-4 rounded-xl border border-pink-200/70">
+                      <div>
+                        <h4 className="font-bold text-gray-900 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-pink-600" />
+                          Feed Social en Vivo en tu Micrositio
+                        </h4>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          Muestra tus Reels de Instagram, videos de TikTok o publicaciones de Facebook directamente en tu micrositio.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs font-semibold text-gray-700">Mostrar sección</Label>
+                        <Switch
+                          checked={socialFeedConfig.enabled}
+                          onCheckedChange={(checked) =>
+                            setSocialFeedConfig((prev) => ({ ...prev, enabled: checked }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {socialFeedConfig.enabled && (
+                      <div className="space-y-5">
+                        {/* Platform Checkboxes */}
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-800 mb-2 block">
+                            1. ¿Qué redes quieres destacar en el feed de tu micrositio?
+                          </Label>
+                          <div className="flex flex-wrap gap-3">
+                            {([
+                              { id: "instagram", label: "Instagram Feed / Reels", icon: Instagram, color: "text-pink-600 border-pink-300 bg-pink-50" },
+                              { id: "tiktok", label: "TikTok Videos", icon: Twitter, color: "text-neutral-900 border-neutral-300 bg-neutral-100" },
+                              { id: "facebook", label: "Facebook Posts", icon: Facebook, color: "text-blue-600 border-blue-300 bg-blue-50" },
+                            ] as const).map((plat) => {
+                              const active = socialFeedConfig.platforms.includes(plat.id);
+                              const PIcon = plat.icon;
+                              return (
+                                <button
+                                  key={plat.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSocialFeedConfig((prev) => {
+                                      const exists = prev.platforms.includes(plat.id);
+                                      return {
+                                        ...prev,
+                                        platforms: exists
+                                          ? prev.platforms.filter((p) => p !== plat.id)
+                                          : [...prev.platforms, plat.id],
+                                      };
+                                    });
+                                  }}
+                                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                                    active
+                                      ? `${plat.color} ring-2 ring-offset-1 ring-pink-500/40`
+                                      : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+                                  }`}
+                                >
+                                  <PIcon className="w-4 h-4" />
+                                  <span>{plat.label}</span>
+                                  {active && <CheckCircle2 className="w-3.5 h-3.5 ml-1" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Add Featured Post / Video URL */}
+                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-3">
+                          <Label className="text-sm font-semibold text-gray-800 block">
+                            2. Destacar publicaciones o videos específicos (Opcional)
+                          </Label>
+                          <p className="text-xs text-gray-500">
+                            Pega el enlace de tus mejores Reels, TikToks o fotos para que aparezcan incrustados en tu micrositio. Si no agregas enlaces individuales, mostraremos tarjetas interactivas hacia los perfiles seleccionados arriba.
+                          </p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
+                            <div>
+                              <Label className="text-xs text-gray-600 mb-1 block">Red social</Label>
+                              <select
+                                value={newPostPlatform}
+                                onChange={(e) => setNewPostPlatform(e.target.value as any)}
+                                className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-xs font-medium"
+                              >
+                                <option value="instagram">Instagram</option>
+                                <option value="tiktok">TikTok</option>
+                                <option value="facebook">Facebook</option>
+                              </select>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <Label className="text-xs text-gray-600 mb-1 block">Enlace del Post / Reel / TikTok</Label>
+                              <Input
+                                value={newPostUrl}
+                                onChange={(e) => setNewPostUrl(e.target.value)}
+                                placeholder="https://www.instagram.com/reel/... o tiktok.com/..."
+                                className="h-10 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs text-gray-600 mb-1 block">Título corto</Label>
+                              <Input
+                                value={newPostCaption}
+                                onChange={(e) => setNewPostCaption(e.target.value)}
+                                placeholder="Ej. Fade clásico hoy"
+                                className="h-10 text-xs"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-3 pt-1">
+                            <Input
+                              value={newPostThumb}
+                              onChange={(e) => setNewPostThumb(e.target.value)}
+                              placeholder="URL de imagen de portada opcional (https://...)"
+                              className="h-9 text-xs max-w-md"
+                            />
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => {
+                                if (!newPostUrl.trim()) return;
+                                setSocialFeedConfig((prev) => ({
+                                  ...prev,
+                                  posts: [
+                                    ...prev.posts,
+                                    {
+                                      id: `${Date.now()}`,
+                                      platform: newPostPlatform,
+                                      url: newPostUrl.trim(),
+                                      caption: newPostCaption.trim() || undefined,
+                                      thumbnailUrl: newPostThumb.trim() || undefined,
+                                    },
+                                  ],
+                                }));
+                                setNewPostUrl("");
+                                setNewPostCaption("");
+                                setNewPostThumb("");
+                              }}
+                              className="bg-pink-600 hover:bg-pink-700 text-white text-xs shrink-0"
+                            >
+                              <Plus className="w-3.5 h-3.5 mr-1" />
+                              Agregar publicación
+                            </Button>
+                          </div>
+
+                          {socialFeedConfig.posts.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-3">
+                              {socialFeedConfig.posts.map((post) => (
+                                <div
+                                  key={post.id}
+                                  className="flex items-center justify-between gap-2 bg-white p-2.5 rounded-lg border border-gray-200 text-xs"
+                                >
+                                  <div className="min-w-0">
+                                    <span className="font-bold uppercase text-[10px] text-pink-600 mr-2">
+                                      {post.platform}
+                                    </span>
+                                    <span className="font-medium text-gray-800 truncate">
+                                      {post.caption || post.url}
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSocialFeedConfig((prev) => ({
+                                        ...prev,
+                                        posts: prev.posts.filter((p) => p.id !== post.id),
+                                      }))
+                                    }
+                                    className="text-red-500 hover:text-red-700 p-1"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Navigation */}
@@ -1335,13 +1554,23 @@ export function MicrositeSettings({ currentBusiness }: MicrositeSettingsProps) {
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Anterior
                   </Button>
-                  <Button
-                    onClick={() => setActiveSection('gallery')}
-                    className="px-6 w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    Siguiente Paso
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={micrositeForm.handleSubmit(onMicrositeSubmit)}
+                      className="px-6 bg-pink-600 hover:bg-pink-700 text-white"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Guardar Redes y Feed
+                    </Button>
+                    <Button
+                      onClick={() => setActiveSection('gallery')}
+                      className="px-6 w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Siguiente Paso
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

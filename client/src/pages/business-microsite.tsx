@@ -14,12 +14,16 @@ import { getThemeClasses, getThemeCSSVariables, micrositeThemes } from "@/lib/mi
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowRight,
+  Award,
   Calendar,
   Camera,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   Clock,
+  Compass,
   ExternalLink,
+  Eye,
   Facebook,
   GraduationCap,
   Heart,
@@ -37,10 +41,12 @@ import {
   Quote,
   Search,
   Send,
+  Share2,
   ShieldCheck,
   Sparkles,
   Star,
   Tag,
+  ThumbsUp,
   Ticket,
   Users,
   X,
@@ -207,10 +213,12 @@ export default function BusinessMicrosite() {
   const { toast } = useToast();
 
   const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"services" | "gallery" | "about" | "reviews" | "contact">("services");
+  const [activeTab, setActiveTab] = useState<"all" | "services" | "gallery" | "social" | "about" | "reviews" | "contact">("all");
+  const [activeSocialFilter, setActiveSocialFilter] = useState<"all" | "instagram" | "tiktok" | "facebook">("all");
   const [serviceSearch, setServiceSearch] = useState("");
   const [selectedPhoto, setSelectedPhoto] = useState<MicrositeGalleryItem | null>(null);
   const [showAllHours, setShowAllHours] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Form states
   const [reviewStars, setReviewStars] = useState(5);
@@ -549,19 +557,57 @@ export default function BusinessMicrosite() {
     }
   };
 
-  // Dynamic available tabs
+  // Social Feed Showcase data (configured in Constructor de Micrositio -> Redes Sociales)
+  const rawSocialFeed = settings?.deskSettings?.socialFeed;
+  const socialFeedEnabled = rawSocialFeed?.enabled !== false;
+  const allowedSocialPlatforms: Array<"instagram" | "tiktok" | "facebook"> = Array.isArray(rawSocialFeed?.platforms)
+    ? rawSocialFeed.platforms
+    : ["instagram", "tiktok", "facebook"];
+  const customSocialPosts: Array<{
+    id: string;
+    platform: "instagram" | "tiktok" | "facebook";
+    url: string;
+    caption?: string;
+    thumbnailUrl?: string;
+  }> = Array.isArray(rawSocialFeed?.posts) ? rawSocialFeed.posts : [];
+
+  const activeSocialChannels = [
+    allowedSocialPlatforms.includes("instagram") && settings?.instagramUrl
+      ? { id: "instagram" as const, label: "Instagram", url: settings.instagramUrl, icon: Instagram, gradient: "from-pink-500 via-red-500 to-amber-500" }
+      : null,
+    allowedSocialPlatforms.includes("tiktok") && settings?.tiktokUrl
+      ? { id: "tiktok" as const, label: "TikTok", url: settings.tiktokUrl, icon: Music2, gradient: "from-neutral-900 via-neutral-800 to-cyan-500" }
+      : null,
+    allowedSocialPlatforms.includes("facebook") && settings?.facebookUrl
+      ? { id: "facebook" as const, label: "Facebook", url: settings.facebookUrl, icon: Facebook, gradient: "from-blue-600 to-indigo-600" }
+      : null,
+  ].filter(Boolean) as Array<{
+    id: "instagram" | "tiktok" | "facebook";
+    label: string;
+    url: string;
+    icon: any;
+    gradient: string;
+  }>;
+
+  const hasSocialFeedShowcase = socialFeedEnabled && (activeSocialChannels.length > 0 || customSocialPosts.length > 0);
+
+  // Dynamic available views/tabs
   const tabs = [
+    { id: "all", label: "Todo", count: null, icon: Compass },
     { id: "services", label: "Servicios", count: services.length, icon: Sparkles },
     ...(settings?.enableGallery && gallery.length > 0
       ? [{ id: "gallery", label: "Galería", count: gallery.length, icon: Camera }]
       : []),
     ...(settings?.aboutUs || settings?.professionalTitle || settings?.yearsOfExperience || settings?.specializations
-      ? [{ id: "about", label: "Sobre Nosotros", count: null, icon: GraduationCap }]
+      ? [{ id: "about", label: "Historia", count: null, icon: GraduationCap }]
       : []),
     ...(settings?.enableReviews || reviews.length > 0
       ? [{ id: "reviews", label: "Opiniones", count: reviews.length, icon: Star }]
       : []),
-    { id: "contact", label: "Ubicación y Contacto", count: null, icon: MapPin },
+    { id: "contact", label: "Ubicación", count: null, icon: MapPin },
+    ...(hasSocialFeedShowcase
+      ? [{ id: "social", label: "En Redes", count: customSocialPosts.length || activeSocialChannels.length, icon: Instagram }]
+      : []),
   ] as const;
 
   const showQueueOnMicrosite = Boolean(desk?.showQueueOnMicrosite && desk?.queueEnabled);
@@ -628,8 +674,29 @@ export default function BusinessMicrosite() {
               className="text-xs h-9 px-3 rounded-full border-current/20 bg-white/50 dark:bg-black/30 backdrop-blur-md gap-1.5 shadow-sm hover:scale-105 transition-transform"
             >
               <Palette className="w-3.5 h-3.5 text-red-500" />
-              <span className="font-medium">Tema:</span>
+              <span className="font-medium hidden sm:inline">Tema:</span>
               <span className="font-bold capitalize opacity-90">{micrositeThemes[theme]?.name.split(' ')[0] || theme}</span>
+            </Button>
+
+            {/* Share profile button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(window.location.href);
+                  setCopiedLink(true);
+                  setTimeout(() => setCopiedLink(false), 2000);
+                  toast({
+                    title: "Enlace copiado",
+                    description: "El link del micrositio se copió a tu portapapeles.",
+                  });
+                }
+              }}
+              className="text-xs h-9 px-3 rounded-full border-current/20 bg-white/50 dark:bg-black/30 backdrop-blur-md gap-1.5 shadow-sm hover:scale-105 transition-transform"
+            >
+              {copiedLink ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Share2 className="w-3.5 h-3.5 opacity-70" />}
+              <span className="hidden sm:inline">{copiedLink ? "Copiado" : "Compartir"}</span>
             </Button>
 
             {phone && (
@@ -647,137 +714,141 @@ export default function BusinessMicrosite() {
         </div>
       </header>
 
-      {/* ── CINEMATIC MODERN HERO ── */}
-      <section className="relative bg-neutral-900 text-white overflow-hidden">
-        {/* Cover background */}
-        <div className="absolute inset-0 z-0">
-          {settings?.coverImage ? (
-            <img
-              src={settings.coverImage}
-              alt={business.name}
-              className="w-full h-full object-cover opacity-50 scale-105 transform transition-transform duration-1000"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-tr from-neutral-950 via-neutral-900 to-red-950/60" />
-          )}
-          {/* Subtle multi-layer gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-neutral-950/80 via-transparent to-neutral-950/40" />
-        </div>
+      {/* ── 2027 AMBIENT EDITORIAL HERO ── */}
+      <section className="relative overflow-hidden">
+        {/* Cover Hero Canvas */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
+          <div className="relative rounded-[2.5rem] overflow-hidden min-h-[300px] sm:min-h-[360px] md:min-h-[420px] flex flex-col justify-end p-6 sm:p-10 md:p-12 shadow-2xl border border-black/5 dark:border-white/10">
+            {/* Visual Background / Cover */}
+            <div className="absolute inset-0 z-0">
+              {settings?.coverImage ? (
+                <img
+                  src={settings.coverImage}
+                  alt={business.name}
+                  className="w-full h-full object-cover scale-105 transform hover:scale-100 transition-transform duration-1000 ease-out"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-tr from-amber-700/80 via-red-700/70 to-rose-900" />
+              )}
+              {/* Refined gradient overlay for crystal clear contrast & soft ambient light */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent" />
+            </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-12 pb-16 md:pt-16 md:pb-20">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
-            
-            {/* Identity & Badges */}
-            <div className="flex items-start sm:items-center gap-5 sm:gap-6">
-              {/* Profile Avatar */}
-              <div className="relative shrink-0">
-                {settings?.profileImage ? (
-                  <img
-                    src={settings.profileImage}
-                    alt={business.name}
-                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl object-cover ring-4 ring-white/10 shadow-2xl backdrop-blur-md"
-                  />
-                ) : (
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white font-display font-bold text-4xl shadow-2xl ring-4 ring-white/10">
-                    {business.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div
-                  className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-neutral-900 flex items-center justify-center ${
-                    isOpenNow ? "bg-emerald-500" : "bg-neutral-500"
-                  }`}
-                  title={isOpenNow ? "Abierto" : "Cerrado"}
-                >
-                  <span className={`w-2 h-2 rounded-full bg-white ${isOpenNow ? "animate-ping" : ""}`} />
-                </div>
-              </div>
-
-              {/* Title & metadata */}
-              <div>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  {categoryInfo && (
-                    <Badge className="bg-white/10 hover:bg-white/15 text-white/90 border-0 rounded-full px-3 py-0.5 text-xs font-medium backdrop-blur-md">
-                      {categoryInfo.name}
-                    </Badge>
-                  )}
-                  {avgRating > 0 && (
-                    <div className="flex items-center gap-1.5 bg-amber-500/20 text-amber-300 rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur-md">
-                      <Star className="w-3.5 h-3.5 fill-current" />
-                      <span>{avgRating.toFixed(1)}</span>
-                      <span className="text-amber-200/60 font-normal">({reviews.length})</span>
+            {/* Hero Main Content */}
+            <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8">
+              
+              {/* Business Identity */}
+              <div className="flex items-start sm:items-center gap-5 sm:gap-6">
+                {/* Profile Avatar with clean frosted ring */}
+                <div className="relative shrink-0">
+                  {settings?.profileImage ? (
+                    <img
+                      src={settings.profileImage}
+                      alt={business.name}
+                      className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-3xl object-cover ring-4 ring-white/80 shadow-2xl backdrop-blur-md"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-3xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center text-white font-display font-bold text-3xl sm:text-4xl shadow-2xl ring-4 ring-white/80">
+                      {business.name.charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-medium backdrop-blur-md ${
-                      isOpenNow
-                        ? "bg-emerald-500/20 text-emerald-300"
-                        : "bg-neutral-800 text-neutral-400"
+                    className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow-md ${
+                      isOpenNow ? "bg-emerald-500" : "bg-neutral-500"
                     }`}
+                    title={isOpenNow ? "Abierto" : "Cerrado"}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${isOpenNow ? "bg-emerald-400" : "bg-neutral-400"}`} />
-                    {isOpenNow ? "Abierto ahora" : "Cerrado"}
+                    <span className={`w-2 h-2 rounded-full bg-white ${isOpenNow ? "animate-ping" : ""}`} />
                   </div>
                 </div>
 
-                <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
-                  {business.name}
-                </h1>
+                {/* Typography & Pills */}
+                <div className="space-y-1 sm:space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {categoryInfo && (
+                      <span className="bg-white/20 hover:bg-white/30 text-white rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur-md transition-colors">
+                        {categoryInfo.name}
+                      </span>
+                    )}
+                    {avgRating > 0 && (
+                      <div className="flex items-center gap-1.5 bg-amber-400/25 text-amber-200 rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur-md">
+                        <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                        <span>{avgRating.toFixed(1)}</span>
+                        <span className="text-white/60 font-normal">({reviews.length})</span>
+                      </div>
+                    )}
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-0.5 text-xs font-semibold backdrop-blur-md ${
+                        isOpenNow
+                          ? "bg-emerald-500/30 text-emerald-200"
+                          : "bg-black/40 text-neutral-300"
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${isOpenNow ? "bg-emerald-400" : "bg-neutral-400"}`} />
+                      {isOpenNow ? "Abierto ahora" : "Cerrado"}
+                    </div>
+                  </div>
 
-                {settings?.professionalTitle && (
-                  <p className="text-white/70 text-sm sm:text-base mt-1 font-light max-w-xl">
-                    {settings.professionalTitle}
-                  </p>
+                  <h1 className="font-display text-2xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight drop-shadow-sm">
+                    {business.name}
+                  </h1>
+
+                  {settings?.professionalTitle && (
+                    <p className="text-white/80 text-xs sm:text-sm md:text-base font-medium max-w-xl">
+                      {settings.professionalTitle}
+                    </p>
+                  )}
+
+                  {address && (
+                    <p className="flex items-center gap-1.5 text-white/70 text-xs sm:text-sm">
+                      <MapPin className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span className="truncate max-w-md">{address}{settings?.district ? `, ${settings.district}` : ""}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons Floating on Glass */}
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 md:justify-end">
+                {showQueueOnMicrosite && (
+                  <a href={withFrom(`/q/${business.id}`)}>
+                    <Button className="h-11 px-5 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold gap-2 shadow-xl shadow-red-600/30">
+                      <ListOrdered className="w-3.5 h-3.5" />
+                      Saca tu turno
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </a>
+                )}
+                {phone && (
+                  <a href={`tel:${phone}`}>
+                    <Button
+                      variant="outline"
+                      className="h-11 px-5 rounded-2xl bg-white/15 hover:bg-white/25 border-white/20 text-white text-xs font-semibold backdrop-blur-md gap-2 shadow-sm"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      Llamar
+                    </Button>
+                  </a>
                 )}
 
-                {address && (
-                  <p className="flex items-center gap-1.5 text-white/60 text-xs sm:text-sm mt-2">
-                    <MapPin className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                    <span className="truncate max-w-md">{address}{settings?.district ? `, ${settings.district}` : ""}</span>
-                  </p>
+                {mapUrl && (
+                  <a href={mapUrl} target="_blank" rel="noopener noreferrer">
+                    <Button
+                      variant="outline"
+                      className="h-11 px-5 rounded-2xl bg-white/15 hover:bg-white/25 border-white/20 text-white text-xs font-semibold backdrop-blur-md gap-2 shadow-sm"
+                    >
+                      <Navigation className="w-3.5 h-3.5" />
+                      Cómo llegar
+                    </Button>
+                  </a>
                 )}
               </div>
+
             </div>
-
-            {/* Quick Metrics & Call to Action */}
-            <div className="flex flex-wrap items-center gap-3 md:justify-end">
-              {showQueueOnMicrosite && (
-                <a href={withFrom(`/q/${business.id}`)}>
-                  <Button className="h-11 px-5 rounded-2xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold gap-2 shadow-lg shadow-red-500/20">
-                    <ListOrdered className="w-3.5 h-3.5" />
-                    Saca tu turno
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </a>
-              )}
-              {phone && (
-                <a href={`tel:${phone}`}>
-                  <Button
-                    variant="outline"
-                    className="h-11 px-5 rounded-2xl bg-white/10 hover:bg-white/20 border-white/15 text-white text-xs font-medium backdrop-blur-md gap-2 shadow-sm"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    Llamar
-                  </Button>
-                </a>
-              )}
-
-              {mapUrl && (
-                <a href={mapUrl} target="_blank" rel="noopener noreferrer">
-                  <Button
-                    variant="outline"
-                    className="h-11 px-5 rounded-2xl bg-white/10 hover:bg-white/20 border-white/15 text-white text-xs font-medium backdrop-blur-md gap-2 shadow-sm"
-                  >
-                    <Navigation className="w-3.5 h-3.5" />
-                    Cómo llegar
-                  </Button>
-                </a>
-              )}
-            </div>
-
           </div>
         </div>
       </section>
@@ -986,662 +1057,858 @@ export default function BusinessMicrosite() {
         </section>
       )}
 
-      {/* ── MAIN CONTENT CONTAINER WITH DEDICATED SIDEBAR ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* ── MAIN CONTENT CONTAINER: 2027 EDITORIAL CANVAS ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
 
           {/* ══════════════════════════════════════════════════════════
-              LEFT / MAIN AREA: MODERN TABBED NAVIGATION & VIEWS
+              LEFT / MAIN AREA: OPEN EDITORIAL CANVAS (NO BOXY CARD WALLS)
              ══════════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-7 xl:col-span-8 space-y-6">
+          <div className="lg:col-span-7 xl:col-span-8 space-y-16">
 
-            {/* Segmented Pill Tabs Navigation (Uses theme card/button) */}
-            <div className={`${themeConfig.card} p-1.5 flex items-center gap-1 overflow-x-auto scrollbar-hide`}>
-              {tabs.map((tab) => {
-                const isActive = activeTab === tab.id;
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all duration-200 shrink-0 ${
-                      isActive
-                        ? `${themeConfig.button} shadow-sm scale-[1.01]`
-                        : "opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{tab.label}</span>
-                    {tab.count !== null && (
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          isActive
-                            ? "bg-white/20 text-white"
-                            : "bg-black/5 dark:bg-white/10 opacity-80"
-                        }`}
-                      >
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+            {/* ── FLOATING EDITORIAL STATS & NAVIGATION RIBBON ── */}
+            <div className="space-y-6">
+              {/* Open Typographic Stats Strip (No white boxes, pure editorial rhythm) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 py-4 border-y border-current/10">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-1">
+                    Calificación
+                  </span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-display text-3xl sm:text-4xl font-black tracking-tight">
+                      {avgRating > 0 ? avgRating.toFixed(1) : "5.0"}
+                    </span>
+                    <Star className="w-4 h-4 fill-amber-400 text-amber-400 shrink-0" />
+                  </div>
+                  <span className="text-xs opacity-50 mt-0.5">
+                    {reviews.length > 0 ? `${reviews.length} reseñas verificadas` : "Calidad verificada"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col border-l border-current/10 pl-5">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-1">
+                    Experiencias
+                  </span>
+                  <div className="font-display text-3xl sm:text-4xl font-black tracking-tight">
+                    {services.length}
+                  </div>
+                  <span className="text-xs opacity-50 mt-0.5">
+                    {lowestPrice ? `Desde S/ ${lowestPrice.toFixed(0)}` : "Servicios activos"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:border-l border-current/10 sm:pl-5">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-1">
+                    Respaldo
+                  </span>
+                  <div className="font-display text-3xl sm:text-4xl font-black tracking-tight">
+                    {settings?.yearsOfExperience ? `${settings.yearsOfExperience}+` : "100%"}
+                  </div>
+                  <span className="text-xs opacity-50 mt-0.5">
+                    {settings?.yearsOfExperience ? "Años de trayectoria" : "Garantía profesional"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col border-l border-current/10 pl-5">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40 mb-1">
+                    Disponibilidad
+                  </span>
+                  <div className={`font-display text-xl sm:text-2xl font-bold flex items-center gap-2 mt-1 ${isOpenNow ? "text-emerald-600 dark:text-emerald-400" : "opacity-60"}`}>
+                    <span className={`w-2.5 h-2.5 rounded-full ${isOpenNow ? "bg-emerald-500 animate-ping" : "bg-neutral-400"}`} />
+                    <span>{isOpenNow ? "Abierto" : "Cerrado"}</span>
+                  </div>
+                  <span className="text-xs opacity-50 mt-1 truncate">
+                    {todayRow?.text || "Consulta horarios"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Minimalist Floating Section Switcher */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-1">
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  const Icon = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id as any);
+                        if (tab.id !== "all") {
+                          const el = document.getElementById(`section-${tab.id}`);
+                          if (el) {
+                            el.scrollIntoView({ behavior: "smooth", block: "start" });
+                          }
+                        }
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-200 shrink-0 ${
+                        isActive
+                          ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 shadow-md"
+                          : "bg-black/[0.04] dark:bg-white/[0.06] opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5 shrink-0" />
+                      <span>{tab.label}</span>
+                      {tab.count !== null && (
+                        <span className="opacity-60 text-[10px]">({tab.count})</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* TAB VIEW 1: SERVICIOS */}
-            {activeTab === "services" && (
-              <div className="space-y-6 animate-in fade-in-50 duration-200">
-                {/* Search & Filter bar for services */}
-                <div className={`${themeConfig.card} p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3`}>
-                  <div className="relative flex-1">
-                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 opacity-40" />
+            {/* ═══ 01. INTERACTIVE EDITORIAL SERVICE MENU (No boxy white windows!) ═══ */}
+            {(activeTab === "all" || activeTab === "services") && (
+              <section id="section-services" className="space-y-6 scroll-mt-24">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-red-600 dark:text-red-400 mb-1.5">
+                      <span>01</span>
+                      <span className="w-6 h-px bg-current opacity-40" />
+                      <span>Menú de Servicios</span>
+                    </div>
+                    <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+                      Experiencias & Tarifas
+                    </h2>
+                  </div>
+
+                  {/* Minimalist Pill Search */}
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 opacity-40" />
                     <input
                       type="text"
                       value={serviceSearch}
                       onChange={(e) => setServiceSearch(e.target.value)}
-                      placeholder="Buscar un servicio o tratamiento…"
-                      className="w-full pl-10 pr-4 py-2 bg-black/5 dark:bg-white/5 rounded-xl text-sm placeholder:opacity-40 focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                      placeholder="Filtrar servicio…"
+                      className="w-full pl-9 pr-8 py-2 bg-transparent border-b border-current/20 focus:border-red-500 text-xs sm:text-sm placeholder:opacity-40 focus:outline-none transition-colors"
                     />
                     {serviceSearch && (
                       <button
                         onClick={() => setServiceSearch("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-80"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-40 hover:opacity-80"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
-                  <div className="text-xs opacity-60 font-medium px-2 text-right">
-                    {filteredServices.length} disponible{filteredServices.length === 1 ? "" : "s"}
-                  </div>
                 </div>
 
-                {/* Service Cards (Borderless, elevated, reacts to Theme) */}
+                {/* Sleek Editorial Menu List */}
                 {filteredServices.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {filteredServices.map((service) => (
-                      <div
-                        key={service.id}
-                        className={`${themeConfig.card} p-6 flex flex-col justify-between group hover:-translate-y-0.5 transition-all duration-200`}
-                      >
-                        <div>
-                          <div className="flex items-start justify-between gap-4 mb-2">
-                            <h3 className="font-display font-bold text-lg leading-snug group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
-                              {service.name}
-                            </h3>
-                            {service.price && (
-                              <div className="text-right shrink-0">
-                                <span className="font-display font-extrabold text-xl">
-                                  S/ {service.price}
-                                </span>
+                  <div className="divide-y divide-current/10 border-t border-b border-current/10">
+                    {filteredServices.map((service, idx) => {
+                      const isPopular = idx === 0;
+                      return (
+                        <div
+                          key={service.id}
+                          className="group py-5 sm:py-6 px-2 sm:px-4 -mx-2 sm:-mx-4 rounded-2xl hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                        >
+                          {/* Service Index + Info */}
+                          <div className="flex items-start gap-4 min-w-0">
+                            <span className="font-mono text-xs opacity-30 font-semibold pt-1.5 hidden sm:inline-block w-6 shrink-0">
+                              {String(idx + 1).padStart(2, "0")}
+                            </span>
+                            <div className="space-y-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="font-display font-bold text-lg sm:text-xl tracking-tight group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">
+                                  {service.name}
+                                </h3>
+                                {isPopular && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-500/10 text-red-600 dark:text-red-400">
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                    Destacado
+                                  </span>
+                                )}
+                                {service.duration && (
+                                  <span className="inline-flex items-center gap-1 text-xs opacity-50 font-medium">
+                                    · <Clock className="w-3 h-3" /> {service.duration} min
+                                  </span>
+                                )}
                               </div>
-                            )}
+
+                              {service.description && (
+                                <p className="text-xs sm:text-sm opacity-65 leading-relaxed max-w-xl">
+                                  {service.description}
+                                </p>
+                              )}
+                            </div>
                           </div>
 
-                          {service.description && (
-                            <p className="text-sm opacity-70 leading-relaxed mb-4 line-clamp-3">
-                              {service.description}
-                            </p>
-                          )}
-                        </div>
+                          {/* Right Side: Price + Instant Action Pill */}
+                          <div className="flex items-center justify-between sm:justify-end gap-5 pl-0 sm:pl-4 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-current/5">
+                            <div className="text-left sm:text-right">
+                              {service.price ? (
+                                <span className="font-display font-black text-xl sm:text-2xl tracking-tight">
+                                  S/ {service.price}
+                                </span>
+                              ) : (
+                                <span className="text-xs font-semibold opacity-50">Consultar</span>
+                              )}
+                            </div>
 
-                        <div className="pt-4 border-t border-black/[0.06] dark:border-white/[0.06] flex items-center justify-between gap-3 mt-4">
-                          {service.duration ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-black/5 dark:bg-white/5 opacity-80">
-                              <Clock className="w-3.5 h-3.5 opacity-60" />
-                              {service.duration} min
-                            </span>
-                          ) : (
-                            <span />
-                          )}
-
-                          {canBook && (
-                            <div className="scale-90 origin-right">
+                            {canBook && (
                               <BookingWidget
                                 services={services}
                                 businessId={business.id}
                                 workingHours={settings?.workingHours}
                                 blockedDates={settings?.blockedDates}
                                 blockedHours={settings?.blockedHours}
+                                initialServiceId={service.id.toString()}
+                                triggerLabel="Reservar"
+                                triggerClassName="h-10 px-5 rounded-full text-xs font-bold uppercase tracking-wider bg-neutral-900 hover:bg-red-600 text-white dark:bg-white dark:text-neutral-950 dark:hover:bg-red-500 dark:hover:text-white shadow-sm transition-all duration-200 group-hover:scale-105"
                               />
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
-                  <div className={`${themeConfig.card} p-12 text-center`}>
-                    <p className="opacity-50 text-sm">No se encontraron servicios con "{serviceSearch}".</p>
+                  <div className="py-12 text-center border-y border-current/10">
+                    <p className="opacity-50 text-sm">No encontramos servicios con "{serviceSearch}".</p>
                     <Button
                       variant="ghost"
                       onClick={() => setServiceSearch("")}
-                      className="mt-3 text-xs font-semibold text-red-600 dark:text-red-400"
+                      className="mt-2 text-xs font-semibold text-red-600"
                     >
-                      Ver todos los servicios
+                      Restablecer búsqueda
                     </Button>
                   </div>
                 )}
-              </div>
+              </section>
             )}
 
-            {/* TAB VIEW 2: GALERÍA */}
-            {activeTab === "gallery" && settings?.enableGallery && (
-              <div className="space-y-6 animate-in fade-in-50 duration-200">
-                <div className={`${themeConfig.card} p-6`}>
-                  <div className="mb-6">
-                    <h2 className="font-display text-2xl font-bold">
-                      Galería de Trabajos y Espacio
-                    </h2>
-                    <p className="text-sm opacity-60 mt-1">
-                      Conoce las instalaciones y los resultados reales de {business.name}.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {gallery.map((item, index) => (
-                      <div
-                        key={item.id}
-                        onClick={() => setSelectedPhoto(item)}
-                        className={`group relative overflow-hidden rounded-2xl cursor-pointer bg-black/5 dark:bg-white/5 ${
-                          index === 0 ? "sm:col-span-2 sm:row-span-2 aspect-video sm:aspect-square" : "aspect-square"
-                        }`}
-                      >
-                        <img
-                          src={item.imageUrl}
-                          alt={item.title || `Foto de ${business.name}`}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).style.display = "none";
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4 text-white">
-                          <p className="text-sm font-semibold truncate">{item.title || "Ver detalle"}</p>
-                          {item.description && <p className="text-xs text-white/80 line-clamp-1 mt-0.5">{item.description}</p>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB VIEW 3: SOBRE NOSOTROS */}
-            {activeTab === "about" && (
-              <div className="space-y-6 animate-in fade-in-50 duration-200">
-                <div className={`${themeConfig.card} p-8 space-y-8`}>
+            {/* ═══ 02. GALERÍA VISUAL (Only shown when enabled and has images) ═══ */}
+            {settings?.enableGallery && gallery.length > 0 && (activeTab === "all" || activeTab === "gallery") && (
+              <section id="section-gallery" className="space-y-6 scroll-mt-24">
+                <div className="flex items-end justify-between">
                   <div>
-                    <h2 className="font-display text-2xl font-bold mb-4">
-                      Nuestra Historia y Filosofía
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-red-600 dark:text-red-400 mb-1.5">
+                      <span>02</span>
+                      <span className="w-6 h-px bg-current opacity-40" />
+                      <span>Portafolio & Espacio</span>
+                    </div>
+                    <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+                      Galería Visual
                     </h2>
-                    {settings?.aboutUs ? (
-                      <div
-                        className="opacity-80 leading-relaxed space-y-4 text-base"
-                        dangerouslySetInnerHTML={{ __html: settings.aboutUs.replace(/\n/g, "<br>") }}
+                  </div>
+                  <span className="text-xs font-semibold opacity-40 uppercase tracking-widest">
+                    {gallery.length} capturas
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                  {gallery.map((item, index) => (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedPhoto(item)}
+                      className={`group relative overflow-hidden rounded-3xl cursor-pointer bg-black/5 dark:bg-white/5 ${
+                        index === 0 ? "col-span-2 row-span-2 aspect-video sm:aspect-square" : "aspect-square"
+                      }`}
+                    >
+                      <img
+                        src={item.imageUrl}
+                        alt={item.title || `Foto de ${business.name}`}
+                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
                       />
-                    ) : (
-                      <p className="opacity-80 leading-relaxed text-base">
-                        {settings?.publicDescription || business.description || "Comprometidos con brindarte la mejor atención y los mejores resultados."}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5 text-white">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold truncate">{item.title || "Ampliar imagen"}</p>
+                          <Eye className="w-4 h-4 opacity-80" />
+                        </div>
+                        {item.description && <p className="text-xs text-white/80 line-clamp-1 mt-0.5">{item.description}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+
+
+            {/* ═══ 04. EDITORIAL STORY / SOBRE NOSOTROS (Magazine Quote Layout, No White Box) ═══ */}
+            {(settings?.aboutUs || settings?.professionalTitle || settings?.yearsOfExperience || settings?.specializations) && (activeTab === "all" || activeTab === "about") && (
+              <section id="section-about" className="space-y-6 scroll-mt-24 pt-4 border-t border-current/10">
+                <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-red-600 dark:text-red-400">
+                  <span>03</span>
+                  <span className="w-6 h-px bg-current opacity-40" />
+                  <span>Nuestra Esencia</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                  <div className="md:col-span-5">
+                    <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight leading-tight">
+                      El arte detrás de {business.name}
+                    </h2>
+                    {settings?.professionalTitle && (
+                      <p className="text-sm font-semibold text-red-600 dark:text-red-400 mt-2">
+                        {settings.professionalTitle}
                       </p>
                     )}
                   </div>
 
-                  {/* Highlights / Badges */}
-                  {(settings?.professionalTitle || settings?.yearsOfExperience || settings?.specializations) && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-black/[0.06] dark:border-white/[0.06]">
-                      {settings?.professionalTitle && (
-                        <div className="bg-black/5 dark:bg-white/5 p-5 rounded-2xl">
-                          <GraduationCap className="w-5 h-5 text-red-500 mb-2" />
-                          <p className="text-xs font-semibold opacity-50 uppercase tracking-wider">Título Profesional</p>
-                          <p className="font-bold text-sm mt-1">{settings.professionalTitle}</p>
-                        </div>
-                      )}
-                      {settings?.yearsOfExperience && (
-                        <div className="bg-black/5 dark:bg-white/5 p-5 rounded-2xl">
-                          <ShieldCheck className="w-5 h-5 text-amber-500 mb-2" />
-                          <p className="text-xs font-semibold opacity-50 uppercase tracking-wider">Trayectoria</p>
-                          <p className="font-bold text-sm mt-1">{settings.yearsOfExperience} años de experiencia</p>
-                        </div>
-                      )}
-                      {settings?.specializations && (
-                        <div className="bg-black/5 dark:bg-white/5 p-5 rounded-2xl">
-                          <Sparkles className="w-5 h-5 text-emerald-500 mb-2" />
-                          <p className="text-xs font-semibold opacity-50 uppercase tracking-wider">Especialidad</p>
-                          <p className="font-bold text-sm mt-1">{settings.specializations}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="md:col-span-7 space-y-6">
+                    {settings?.aboutUs ? (
+                      <div
+                        className="opacity-80 leading-relaxed space-y-4 text-base sm:text-lg font-light"
+                        dangerouslySetInnerHTML={{ __html: settings.aboutUs.replace(/\n/g, "<br>") }}
+                      />
+                    ) : (
+                      <p className="opacity-80 leading-relaxed text-base sm:text-lg font-light">
+                        {settings?.publicDescription || business.description || "Comprometidos con brindarte la mejor experiencia, atención personalizada y los más altos estándares de calidad en cada visita."}
+                      </p>
+                    )}
+
+                    {/* Open Editorial Badges */}
+                    {(settings?.professionalTitle || settings?.yearsOfExperience || settings?.specializations) && (
+                      <div className="flex flex-wrap gap-3 pt-2">
+                        {settings?.professionalTitle && (
+                          <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06]">
+                            <GraduationCap className="w-4 h-4 text-red-500 shrink-0" />
+                            <span className="text-xs font-bold">{settings.professionalTitle}</span>
+                          </div>
+                        )}
+                        {settings?.yearsOfExperience && (
+                          <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06]">
+                            <ShieldCheck className="w-4 h-4 text-amber-500 shrink-0" />
+                            <span className="text-xs font-bold">{settings.yearsOfExperience} años de experiencia</span>
+                          </div>
+                        )}
+                        {settings?.specializations && (
+                          <div className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06]">
+                            <Sparkles className="w-4 h-4 text-emerald-500 shrink-0" />
+                            <span className="text-xs font-bold">{settings.specializations}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </section>
             )}
 
-            {/* TAB VIEW 4: RESEÑAS */}
-            {activeTab === "reviews" && (
-              <div className="space-y-6 animate-in fade-in-50 duration-200">
-                {/* Rating Overview Card */}
-                <div className={`${themeConfig.card} p-8 flex flex-col sm:flex-row items-center gap-8 justify-between`}>
-                  <div className="flex items-center gap-6">
-                    <div className="text-5xl font-black font-display tracking-tight">
-                      {avgRating > 0 ? avgRating.toFixed(1) : "—"}
+            {/* ═══ 05. EDITORIAL VOICES / RESEÑAS (Open Typography Quotes, No White Box Wall) ═══ */}
+            {(activeTab === "all" || activeTab === "reviews") && (
+              <section id="section-reviews" className="space-y-8 scroll-mt-24 pt-4 border-t border-current/10">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-amber-500 mb-1.5">
+                      <span>04</span>
+                      <span className="w-6 h-px bg-current opacity-40" />
+                      <span>Testimonios Verificados</span>
+                    </div>
+                    <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+                      Lo que dicen nuestros clientes
+                    </h2>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl font-display font-black">
+                      {avgRating > 0 ? avgRating.toFixed(1) : "5.0"}
                     </div>
                     <div>
-                      <StarRow rating={avgRating} className="w-5 h-5" />
-                      <p className="text-sm opacity-60 mt-1">
-                        Basado en {reviews.length} opiniones de clientes
+                      <StarRow rating={avgRating > 0 ? avgRating : 5} className="w-4 h-4" />
+                      <p className="text-[11px] opacity-50">
+                        {reviews.length} opiniones reales
                       </p>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="rounded-full px-4 py-1.5 text-xs font-medium border-current/20">
-                      100% verificadas
-                    </Badge>
-                  </div>
                 </div>
 
-                {/* Reviews List */}
+                {/* Open Editorial Quotes Grid */}
                 {reviews.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
                     {reviews.map((rev) => (
-                      <div key={rev.id} className={`${themeConfig.card} p-6 space-y-3 relative`}>
-                        <Quote className="w-8 h-8 opacity-10 absolute top-4 right-4" />
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-neutral-300 to-neutral-400 dark:from-neutral-700 dark:to-neutral-800 flex items-center justify-center font-bold text-sm">
-                            {(rev.clientName || "C").charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-sm">{rev.clientName || "Cliente"}</p>
-                            <StarRow rating={rev.rating} className="w-3.5 h-3.5" />
-                          </div>
-                        </div>
+                      <div
+                        key={rev.id}
+                        className="relative pl-5 border-l-2 border-red-500/40 space-y-3 py-1"
+                      >
+                        <StarRow rating={rev.rating} className="w-3.5 h-3.5" />
                         {rev.comment && (
-                          <p className="text-sm opacity-75 leading-relaxed pt-1">
-                            {rev.comment}
+                          <p className="text-sm sm:text-base italic opacity-85 leading-relaxed font-light">
+                            “{rev.comment}”
                           </p>
                         )}
+                        <div className="flex items-center gap-2.5 pt-1">
+                          <div className="w-7 h-7 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 flex items-center justify-center font-bold text-xs">
+                            {(rev.clientName || "C").charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-bold text-xs tracking-wide">
+                            {rev.clientName || "Cliente verificado"}
+                          </span>
+                          <span className="text-[10px] opacity-40 uppercase tracking-wider">· Verificado</span>
+                        </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className={`${themeConfig.card} p-8 text-center`}>
-                    <p className="opacity-50 text-sm">Aún no hay reseñas registradas para este negocio.</p>
-                  </div>
+                  <p className="text-sm opacity-50 italic">
+                    Aún no hay testimonios publicados. ¡Sé el primero en compartir tu experiencia!
+                  </p>
                 )}
 
-                {/* Form to leave a review */}
+                {/* Minimalist Review Input */}
                 {settings?.enableReviews && (
-                  <div className={`${themeConfig.card} p-8 space-y-5`}>
-                    <div>
-                      <h3 className="font-display font-bold text-xl">
-                        Comparte tu Experiencia
-                      </h3>
-                      <p className="text-xs opacity-60 mt-0.5">
-                        Tu opinión ayuda a otros usuarios a conocer la calidad de este negocio.
-                      </p>
+                  <div className="pt-6 border-t border-current/10 space-y-4">
+                    <h3 className="font-display font-bold text-lg">
+                      Deja tu valoración
+                    </h3>
+                    <div className="flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setReviewStars(s)}
+                            className="p-1 hover:scale-110 transition-transform"
+                          >
+                            <Star
+                              className={`w-6 h-6 ${
+                                s <= reviewStars
+                                  ? "fill-amber-400 text-amber-400"
+                                  : "fill-neutral-200 text-neutral-300 dark:fill-neutral-800 dark:text-neutral-700"
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <Input
+                        value={reviewName}
+                        onChange={(e) => setReviewName(e.target.value)}
+                        placeholder="Tu nombre completo"
+                        className="h-10 max-w-xs rounded-full bg-black/[0.04] dark:bg-white/[0.06] border-0 px-4 text-xs sm:text-sm"
+                      />
                     </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="text-xs font-semibold opacity-70 mb-1.5 block">Calificación</Label>
-                        <div className="flex items-center gap-1.5">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <button
-                              key={s}
-                              type="button"
-                              onClick={() => setReviewStars(s)}
-                              className="p-1 hover:scale-110 transition-transform"
-                            >
-                              <Star
-                                className={`w-7 h-7 ${
-                                  s <= reviewStars
-                                    ? "fill-amber-400 text-amber-400"
-                                    : "fill-neutral-200 text-neutral-300 dark:fill-neutral-800 dark:text-neutral-700"
-                                }`}
-                              />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="rev-name" className="text-xs font-semibold opacity-70 mb-1.5 block">
-                            Tu nombre
-                          </Label>
-                          <Input
-                            id="rev-name"
-                            value={reviewName}
-                            onChange={(e) => setReviewName(e.target.value)}
-                            placeholder="Ej. Roberto Díaz"
-                            className="h-11 rounded-xl bg-black/5 dark:bg-white/5 border-0 focus-visible:ring-2 focus-visible:ring-red-500/20"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label htmlFor="rev-comment" className="text-xs font-semibold opacity-70 mb-1.5 block">
-                          Comentario
-                        </Label>
-                        <Textarea
-                          id="rev-comment"
-                          rows={3}
-                          value={reviewComment}
-                          onChange={(e) => setReviewComment(e.target.value)}
-                          placeholder="Cuéntanos qué tal fue el servicio y la atención…"
-                          className="rounded-xl bg-black/5 dark:bg-white/5 border-0 focus-visible:ring-2 focus-visible:ring-red-500/20"
-                        />
-                      </div>
-
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Textarea
+                        rows={2}
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        placeholder="Escribe brevemente cómo fue tu experiencia…"
+                        className="rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border-0 text-xs sm:text-sm flex-1"
+                      />
                       <Button
                         onClick={submitReview}
                         disabled={isSubmittingReview}
-                        className={`${themeConfig.button} h-11 px-6 font-semibold text-sm shadow-sm`}
+                        className="h-auto py-3 px-6 rounded-2xl bg-neutral-900 hover:bg-red-600 text-white dark:bg-white dark:text-neutral-950 font-bold text-xs uppercase tracking-wider shrink-0"
                       >
-                        {isSubmittingReview ? "Enviando…" : "Publicar reseña"}
+                        {isSubmittingReview ? "Enviando…" : "Publicar"}
                       </Button>
                     </div>
                   </div>
                 )}
-              </div>
+              </section>
             )}
 
-            {/* TAB VIEW 5: UBICACIÓN Y CONTACTO */}
-            {activeTab === "contact" && (
-              <div className="space-y-6 animate-in fade-in-50 duration-200">
-                <div className={`${themeConfig.card} p-8 space-y-6`}>
-                  <div>
-                    <h2 className="font-display text-2xl font-bold">
-                      Ubicación y Canales Directos
+            {/* ═══ 06. UBICACIÓN Y CONTACTO DIRECTO (Open Split Layout) ═══ */}
+            {(activeTab === "all" || activeTab === "contact") && (
+              <section id="section-contact" className="space-y-6 scroll-mt-24 pt-4 border-t border-current/10">
+                <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-red-600 dark:text-red-400">
+                  <span>05</span>
+                  <span className="w-6 h-px bg-current opacity-40" />
+                  <span>Ubicación & Contacto</span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                  <div className="md:col-span-5 space-y-4">
+                    <h2 className="font-display text-3xl font-bold tracking-tight">
+                      Visítanos o escríbenos
                     </h2>
-                    <p className="text-sm opacity-60 mt-1">
-                      Encuentra cómo llegar o envíanos un mensaje directo.
-                    </p>
+                    {address && (
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold uppercase tracking-widest opacity-40">Dirección</p>
+                        <p className="font-semibold text-base">{address}</p>
+                        {settings?.district && (
+                          <p className="text-xs opacity-60">{settings.district}, {settings.region || "Perú"}</p>
+                        )}
+                      </div>
+                    )}
+                    {mapUrl && (
+                      <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="inline-block pt-1">
+                        <Button variant="outline" className="rounded-full text-xs font-bold uppercase tracking-wider h-10 px-5 gap-2 border-current/20">
+                          <Navigation className="w-3.5 h-3.5 text-red-500" />
+                          Cómo llegar en Google Maps
+                        </Button>
+                      </a>
+                    )}
                   </div>
 
-                  {address && (
-                    <div className="p-5 rounded-2xl bg-black/5 dark:bg-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-bold opacity-40 uppercase tracking-wider">Dirección</p>
-                        <p className="font-semibold text-base mt-0.5">{address}</p>
-                        {settings?.district && <p className="text-xs opacity-60">{settings.district}, {settings.region || "Perú"}</p>}
-                      </div>
-                      {mapUrl && (
-                        <a href={mapUrl} target="_blank" rel="noopener noreferrer">
-                          <Button variant="outline" className="rounded-xl text-xs font-semibold h-10 px-4 gap-1.5 border-current/20">
-                            Abrir en Google Maps
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </Button>
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Contact Form */}
                   {settings?.enableContactForm && (
-                    <div className="pt-6 border-t border-black/[0.06] dark:border-white/[0.06] space-y-4">
-                      <h3 className="font-display font-bold text-lg">
-                        Envía un Mensaje
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs font-semibold opacity-70 mb-1.5 block">Tu nombre</Label>
-                          <Input
-                            value={contactName}
-                            onChange={(e) => setContactName(e.target.value)}
-                            placeholder="Nombre completo"
-                            className="h-11 rounded-xl bg-black/5 dark:bg-white/5 border-0"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs font-semibold opacity-70 mb-1.5 block">Correo electrónico</Label>
-                          <Input
-                            type="email"
-                            value={contactEmail}
-                            onChange={(e) => setContactEmail(e.target.value)}
-                            placeholder="ejemplo@correo.com"
-                            className="h-11 rounded-xl bg-black/5 dark:bg-white/5 border-0"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs font-semibold opacity-70 mb-1.5 block">Mensaje o consulta</Label>
-                        <Textarea
-                          rows={4}
-                          value={contactMessage}
-                          onChange={(e) => setContactMessage(e.target.value)}
-                          placeholder="Escribe aquí tu consulta o requerimiento especial…"
-                          className="rounded-xl bg-black/5 dark:bg-white/5 border-0"
+                    <div className="md:col-span-7 space-y-3">
+                      <p className="text-xs font-bold uppercase tracking-widest opacity-40">
+                        Consulta Directa
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Input
+                          value={contactName}
+                          onChange={(e) => setContactName(e.target.value)}
+                          placeholder="Tu nombre"
+                          className="h-11 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border-0 text-xs sm:text-sm"
+                        />
+                        <Input
+                          type="email"
+                          value={contactEmail}
+                          onChange={(e) => setContactEmail(e.target.value)}
+                          placeholder="Tu correo electrónico"
+                          className="h-11 rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border-0 text-xs sm:text-sm"
                         />
                       </div>
+                      <Textarea
+                        rows={3}
+                        value={contactMessage}
+                        onChange={(e) => setContactMessage(e.target.value)}
+                        placeholder="¿En qué podemos ayudarte?"
+                        className="rounded-2xl bg-black/[0.04] dark:bg-white/[0.06] border-0 text-xs sm:text-sm"
+                      />
                       <Button
                         onClick={submitContact}
                         disabled={isSubmittingContact}
-                        className={`${themeConfig.button} h-11 px-6 font-semibold text-sm shadow-sm gap-2`}
+                        className="h-11 px-6 rounded-full bg-neutral-900 hover:bg-red-600 text-white dark:bg-white dark:text-neutral-950 font-bold text-xs uppercase tracking-wider gap-2"
                       >
                         <Send className="w-3.5 h-3.5" />
-                        {isSubmittingContact ? "Enviando…" : "Enviar mensaje"}
+                        {isSubmittingContact ? "Enviando…" : "Enviar consulta"}
                       </Button>
                     </div>
                   )}
                 </div>
-              </div>
+              </section>
+            )}
+
+            {/* ═══ 06. SOCIAL MEDIA FEED SHOWCASE (Instagram / TikTok / Facebook) - FINAL SECTION ═══ */}
+            {hasSocialFeedShowcase && (activeTab === "all" || activeTab === "social") && (
+              <section id="section-social" className="space-y-6 scroll-mt-24 pt-4 border-t border-current/10">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.25em] text-pink-600 dark:text-pink-400 mb-1.5">
+                      <span>06</span>
+                      <span className="w-6 h-px bg-current opacity-40" />
+                      <span>Social Hub en Vivo</span>
+                    </div>
+                    <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+                      Síguenos en Redes
+                    </h2>
+                  </div>
+
+                  {/* Platform Switcher Pills */}
+                  {activeSocialChannels.length > 1 && (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setActiveSocialFilter("all")}
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                          activeSocialFilter === "all"
+                            ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                            : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+                        }`}
+                      >
+                        Todas
+                      </button>
+                      {activeSocialChannels.map((ch) => {
+                        const ChIcon = ch.icon;
+                        return (
+                          <button
+                            key={ch.id}
+                            onClick={() => setActiveSocialFilter(ch.id)}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                              activeSocialFilter === ch.id
+                                ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                                : "bg-black/5 dark:bg-white/5 opacity-60 hover:opacity-100"
+                            }`}
+                          >
+                            <ChIcon className="w-3.5 h-3.5" />
+                            <span>{ch.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Custom Featured Reels / TikToks / Posts if configured */}
+                {customSocialPosts.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {customSocialPosts
+                      .filter((p) => activeSocialFilter === "all" || p.platform === activeSocialFilter)
+                      .map((post) => {
+                        const isIG = post.platform === "instagram";
+                        const isTT = post.platform === "tiktok";
+                        const PlatIcon = isIG ? Instagram : isTT ? Music2 : Facebook;
+                        const gradient = isIG
+                          ? "from-pink-600 via-red-500 to-amber-500"
+                          : isTT
+                          ? "from-neutral-950 via-neutral-900 to-cyan-600"
+                          : "from-blue-600 to-indigo-700";
+
+                        return (
+                          <a
+                            key={post.id}
+                            href={post.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group relative aspect-[4/5] rounded-3xl overflow-hidden flex flex-col justify-between p-5 text-white shadow-lg hover:-translate-y-1 transition-all duration-300"
+                          >
+                            {post.thumbnailUrl ? (
+                              <img
+                                src={post.thumbnailUrl}
+                                alt={post.caption || post.platform}
+                                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                              />
+                            ) : (
+                              <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-95`} />
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30" />
+
+                            <div className="relative z-10 flex items-center justify-between">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold uppercase tracking-wider">
+                                <PlatIcon className="w-3.5 h-3.5" />
+                                {post.platform}
+                              </span>
+                              <ExternalLink className="w-4 h-4 opacity-75 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+
+                            <div className="relative z-10 space-y-2">
+                              <p className="font-display font-bold text-base leading-snug line-clamp-2">
+                                {post.caption || `Ver publicación en ${post.platform}`}
+                              </p>
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-white/80 group-hover:text-white">
+                                Reproducir contenido <ArrowRight className="w-3.5 h-3.5" />
+                              </span>
+                            </div>
+                          </a>
+                        );
+                      })}
+                  </div>
+                )}
+
+                {/* Interactive Channel Showcase Banners (Instagram / TikTok / Facebook) */}
+                {activeSocialChannels.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {activeSocialChannels
+                      .filter((ch) => activeSocialFilter === "all" || ch.id === activeSocialFilter)
+                      .map((ch) => {
+                        const ChIcon = ch.icon;
+                        const handle = ch.url
+                          .replace(/^https?:\/\/(www\.)?(instagram|tiktok|facebook)\.com\/?/i, "")
+                          .replace(/\/$/, "");
+                        return (
+                          <a
+                            key={ch.id}
+                            href={ch.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`relative overflow-hidden rounded-3xl p-6 text-white bg-gradient-to-br ${ch.gradient} shadow-lg group hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between min-h-[160px]`}
+                          >
+                            <div className="absolute -right-6 -bottom-6 opacity-15 group-hover:scale-110 transition-transform duration-500">
+                              <ChIcon className="w-32 h-32" />
+                            </div>
+
+                            <div className="relative z-10 flex items-center justify-between">
+                              <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                                <ChIcon className="w-5 h-5" />
+                              </div>
+                              <span className="text-[11px] font-bold uppercase tracking-widest bg-black/20 backdrop-blur-md px-3 py-1 rounded-full">
+                                Oficial
+                              </span>
+                            </div>
+
+                            <div className="relative z-10 mt-6">
+                              <p className="text-xs text-white/80 font-medium">
+                                {ch.id === "instagram"
+                                  ? "Reels, historias y trabajos"
+                                  : ch.id === "tiktok"
+                                  ? "Videos y transformaciones"
+                                  : "Comunidad y novedades"}
+                              </p>
+                              <h3 className="font-display font-bold text-lg truncate mt-0.5">
+                                {handle ? `@${handle.replace(/^@/, "")}` : ch.label}
+                              </h3>
+                              <span className="inline-flex items-center gap-1.5 text-xs font-bold mt-2 group-hover:underline">
+                                Ver feed en {ch.label}
+                                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                              </span>
+                            </div>
+                          </a>
+                        );
+                      })}
+                  </div>
+                )}
+              </section>
             )}
 
           </div>
 
           {/* ══════════════════════════════════════════════════════════
-              RIGHT AREA: PERSISTENT MODERN SIDEBAR (STICKY ON DESKTOP)
+              RIGHT AREA: UNIFIED STICKY CONCIERGE DOCK (Single sleek dock!)
              ══════════════════════════════════════════════════════════ */}
-          <aside className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-20 space-y-5">
-            
-            {/* Primary Action Booking Card (Uses themeConfig.card) */}
-            <div className={`${themeConfig.card} p-6 space-y-6`}>
-              
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-bold uppercase tracking-wider opacity-50">
-                    Reserva tu cita
+          <aside className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-24">
+            <div className="rounded-[2rem] bg-neutral-950 text-white p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
+              {/* Subtle ambient top glow */}
+              <div className="absolute -top-24 -right-24 w-48 h-48 rounded-full bg-red-600/20 blur-3xl pointer-events-none" />
+
+              {/* Header */}
+              <div className="relative z-10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">
+                    Concierge de Reservas
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                    className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-0.5 rounded-full ${
                       isOpenNow
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                        : "bg-black/5 dark:bg-white/10 opacity-70"
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-white/10 text-white/60"
                     }`}
                   >
-                    <span className={`w-1.5 h-1.5 rounded-full ${isOpenNow ? "bg-emerald-500 animate-pulse" : "bg-neutral-400"}`} />
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOpenNow ? "bg-emerald-400 animate-pulse" : "bg-white/40"}`} />
                     {isOpenNow ? "Atendiendo hoy" : "Cerrado"}
                   </span>
                 </div>
 
-                <h3 className="font-display text-2xl font-bold">
-                  Agenda en línea
+                <h3 className="font-display text-2xl sm:text-3xl font-bold tracking-tight">
+                  Agenda tu cita
                 </h3>
 
                 {lowestPrice && (
-                  <p className="text-xs opacity-60 mt-1">
-                    Servicios disponibles desde <span className="font-bold opacity-100">S/ {lowestPrice.toFixed(2)}</span>
+                  <p className="text-xs text-white/60">
+                    Experiencias disponibles desde <span className="text-white font-bold">S/ {lowestPrice.toFixed(2)}</span>
                   </p>
                 )}
               </div>
 
-              {/* Guarantees */}
-              <div className="space-y-2.5 py-1">
-                <div className="flex items-center gap-2.5 text-xs opacity-80">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Confirmación inmediata por WhatsApp y correo</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs opacity-80">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Sin costo por reservar en línea</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-xs opacity-80">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Elige el horario que mejor te convenga</span>
-                </div>
-              </div>
-
-              {/* The Core Booking Widget trigger */}
+              {/* Primary Booking Trigger */}
               {canBook ? (
-                <div className="pt-2">
+                <div className="relative z-10">
                   <BookingWidget
                     services={services}
                     businessId={business.id}
                     workingHours={settings?.workingHours}
                     blockedDates={settings?.blockedDates}
                     blockedHours={settings?.blockedHours}
+                    triggerLabel="Reservar Cita Ahora"
+                    triggerClassName="w-full h-14 rounded-2xl bg-gradient-to-r from-red-600 to-amber-500 hover:from-red-500 hover:to-amber-400 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-red-600/25 transition-all hover:scale-[1.01]"
                   />
                 </div>
               ) : (
-                <div className="bg-black/5 dark:bg-white/5 p-4 rounded-2xl text-center">
-                  <p className="text-xs opacity-60">
-                    Las reservas automáticas están en mantenimiento. Contáctanos por WhatsApp.
+                <div className="bg-white/5 p-4 rounded-2xl text-center">
+                  <p className="text-xs text-white/60">
+                    Agenda directa por WhatsApp disponible.
                   </p>
                 </div>
               )}
 
-              {/* Quick Contact Buttons Row */}
-              <div className="pt-4 border-t border-black/[0.06] dark:border-white/[0.06] grid grid-cols-2 gap-2">
-                {phone && (
-                  <a
-                href={whatsappLink(phone, business.name)}
-                onClick={() => trackEvent("whatsapp_click")}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold transition-colors"
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 fill-current" />
-                    WhatsApp
-                  </a>
-                )}
-                {phone && (
-                  <a
-                    href={`tel:${phone}`}
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 text-xs font-semibold transition-colors"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    Llamar
-                  </a>
-                )}
+              {/* Instant Perks */}
+              <div className="space-y-2 text-xs text-white/70 border-t border-white/10 pt-5">
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Confirmación inmediata por WhatsApp</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Reserva gratis y elige tu horario ideal</span>
+                </div>
               </div>
-            </div>
 
-            {/* Hours Card */}
-            {hoursRows.length > 0 && (
-              <div className={`${themeConfig.card} p-6 space-y-4`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 opacity-50" />
-                    <h4 className="font-display font-bold text-sm">
-                      Horarios de Atención
-                    </h4>
-                  </div>
+              {/* Integrated Schedule Accordion inside the same dock */}
+              {hoursRows.length > 0 && (
+                <div className="border-t border-white/10 pt-5 space-y-3">
                   <button
+                    type="button"
                     onClick={() => setShowAllHours(!showAllHours)}
-                    className="text-xs font-semibold text-red-600 dark:text-red-400 hover:underline flex items-center gap-0.5"
+                    className="w-full flex items-center justify-between text-xs font-semibold text-white/90 hover:text-white"
                   >
-                    {showAllHours ? "Ocultar" : "Ver todos"}
-                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllHours ? "rotate-180" : ""}`} />
+                    <span className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-amber-400" />
+                      <span>Hoy: {todayRow?.text || "Cerrado"}</span>
+                    </span>
+                    <span className="text-white/50 flex items-center gap-1 text-[11px]">
+                      {showAllHours ? "Ocultar" : "Ver semana"}
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAllHours ? "rotate-180" : ""}`} />
+                    </span>
                   </button>
+
+                  {showAllHours && (
+                    <div className="space-y-1.5 pt-2 text-xs">
+                      {hoursRows.map((r) => {
+                        const isToday = r.day === todayKey();
+                        return (
+                          <div
+                            key={r.day}
+                            className={`flex items-center justify-between py-1 px-2 rounded-lg ${
+                              isToday ? "bg-white/10 font-bold text-amber-300" : "text-white/60"
+                            }`}
+                          >
+                            <span>{r.label}</span>
+                            <span>{r.text}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Popular Times (ONLY rendered if non-empty cells actually exist) */}
+              {popularTimesResponse?.cells && popularTimesResponse.cells.some((c) => c.popularity > 0) && (
+                <div className="border-t border-white/10 pt-5">
+                  <PopularTimes data={popularTimesData} />
+                </div>
+              )}
+
+              {/* Direct Channels & Social Icons inside the same unified dock */}
+              <div className="border-t border-white/10 pt-5 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {phone && (
+                    <a
+                      href={whatsappLink(phone, business.name)}
+                      onClick={() => trackEvent("whatsapp_click")}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-bold transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5 fill-current" />
+                      WhatsApp
+                    </a>
+                  )}
+                  {phone && (
+                    <a
+                      href={`tel:${phone}`}
+                      className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-colors"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      Llamar
+                    </a>
+                  )}
                 </div>
 
-                {/* Today's schedule banner */}
-                <div className="p-3.5 rounded-2xl bg-black/5 dark:bg-white/5 flex items-center justify-between text-xs">
-                  <span className="font-bold">
-                    Hoy ({todayRow?.label || "Hoy"})
-                  </span>
-                  <span className={todayRow?.open ? "font-bold text-emerald-600 dark:text-emerald-400" : "opacity-50"}>
-                    {todayRow?.text || "Cerrado"}
-                  </span>
-                </div>
-
-                {/* All days dropdown */}
-                {showAllHours && (
-                  <div className="space-y-1.5 pt-2 border-t border-black/[0.06] dark:border-white/[0.06] animate-in fade-in-50 duration-200">
-                    {hoursRows.map((r) => {
-                      const isToday = r.day === todayKey();
-                      return (
-                        <div
-                          key={r.day}
-                          className={`flex items-center justify-between text-xs py-1.5 px-2 rounded-lg ${
-                            isToday ? "bg-red-500/10 font-semibold text-red-600 dark:text-red-400" : "opacity-60"
-                          }`}
-                        >
-                          <span>{r.label}</span>
-                          <span className={r.open ? "opacity-90 font-medium" : "opacity-40"}>
-                            {r.text}
-                          </span>
-                        </div>
-                      );
-                    })}
+                {socials.length > 0 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">
+                      Redes Oficiales
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {socials.map((s) => {
+                        const SIcon = s.icon;
+                        return (
+                          <a
+                            key={s.label}
+                            href={s.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={s.label}
+                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+                          >
+                            <SIcon className="w-3.5 h-3.5" />
+                          </a>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
-            )}
 
-            {/* Demand heatmap: helps a visitor pick a quieter time */}
-            {popularTimesData && Object.keys(popularTimesData).length > 0 && (
-              <div className={`${themeConfig.card} p-6 space-y-3`}>
-                <PopularTimes data={popularTimesData} />
-              </div>
-            )}
-
-            {/* Location & Mini Map snippet */}
-            {address && (
-              <div className={`${themeConfig.card} p-6 space-y-3`}>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-red-500" />
-                  <h4 className="font-display font-bold text-sm">
-                    ¿Dónde estamos?
-                  </h4>
-                </div>
-
-                <p className="text-xs opacity-70 leading-relaxed">
-                  {address}{settings?.district ? `, ${settings.district}` : ""}
-                </p>
-
-                {mapUrl && (
-                  <a
-                    href={mapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-600 dark:text-red-400 hover:underline pt-1"
-                  >
-                    Ver ruta en Google Maps
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </a>
-                )}
-              </div>
-            )}
-
-            {/* Social links */}
-            {socials.length > 0 && (
-              <div className={`${themeConfig.card} p-6`}>
-                <p className="text-xs font-bold opacity-50 uppercase tracking-wider mb-3">
-                  Redes Oficiales
-                </p>
-                <div className="flex items-center gap-2">
-                  {socials.map((s) => {
-                    const SIcon = s.icon;
-                    return (
-                      <a
-                        key={s.label}
-                        href={s.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={s.label}
-                        className="w-10 h-10 rounded-2xl bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 flex items-center justify-center opacity-70 hover:opacity-100 hover:text-red-600 dark:hover:text-red-400 transition-colors shadow-sm"
-                      >
-                        <SIcon className="w-4 h-4" />
-                      </a>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
+            </div>
           </aside>
 
         </div>

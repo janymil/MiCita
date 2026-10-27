@@ -110,11 +110,74 @@ async function main() {
     .where(eq(businessSettings.businessId, business.id))
     .limit(1);
 
+  const demoGallery = [
+    {
+      id: "gal-1",
+      imageUrl: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1200&q=80",
+      title: "Espacio Principal & Sillones Clásicos",
+      description: "Ambiente cálido, iluminación vintage y herramientas de alta precisión."
+    },
+    {
+      id: "gal-2",
+      imageUrl: "https://images.unsplash.com/photo-1621605815971-fbc98d665033?auto=format&fit=crop&w=800&q=80",
+      title: "Skin Fade de Precisión",
+      description: "Degradado milimétrico con navaja y acabado mate texturizado."
+    },
+    {
+      id: "gal-3",
+      imageUrl: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?auto=format&fit=crop&w=800&q=80",
+      title: "Ritual de Afeitado Tradicional",
+      description: "Toallas aromatizadas al vapor y aceites esenciales de cedro."
+    },
+    {
+      id: "gal-4",
+      imageUrl: "https://images.unsplash.com/photo-1517832606589-7629c33971a3?auto=format&fit=crop&w=800&q=80",
+      title: "Perfilado y Cuidado de Barba",
+      description: "Definición de contornos y bálsamo hidratante premium."
+    },
+    {
+      id: "gal-5",
+      imageUrl: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=800&q=80",
+      title: "Herramientas de Precisión",
+      description: "Esterilización grado médico e instrumental importado."
+    }
+  ];
+
+  const demoSocialFeed = {
+    enabled: true,
+    platforms: ["instagram", "tiktok", "facebook"],
+    posts: [
+      {
+        id: "ig-1",
+        platform: "instagram",
+        url: "https://www.instagram.com/micita",
+        caption: "Fade texturizado con tijera y navaja japonesa ✂️💈",
+        thumbnailUrl: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "ig-2",
+        platform: "instagram",
+        url: "https://www.instagram.com/micita",
+        caption: "Ritual completo: toalla caliente + bálsamo orgánico de cedro",
+        thumbnailUrl: "https://images.unsplash.com/photo-1512690459411-b9245aed614b?auto=format&fit=crop&w=600&q=80"
+      },
+      {
+        id: "tt-1",
+        platform: "tiktok",
+        url: "https://www.tiktok.com/@micita",
+        caption: "Transformación en 30 segundos: De pelo largo a Mid Fade limpio 🔥",
+        thumbnailUrl: "https://images.unsplash.com/photo-1605497788044-5a32c7078486?auto=format&fit=crop&w=600&q=80"
+      }
+    ]
+  };
+
   const settingsValues = {
     businessId: business.id,
     customUrl: DEMO_SLUG,
     publicDescription:
       "Cortes clásicos, fades y arreglo de barba en el corazón de Miraflores. Reserva en línea en segundos.",
+    aboutUs:
+      "Fundada con la convicción de devolver a la barbería su carácter artesanal y pausado. En Demo Barbería combinamos las técnicas tradicionales de afeitado con toalla caliente y navaja con las últimas tendencias de degradados modernos y cuidado capilar masculino.\n\nCada servicio es un momento de desconexión: café de especialidad peruano, música seleccionada y la atención detallista de barberos con más de 8 años de oficio.",
     publicPhone: "+51987654321",
     publicEmail: DEMO_EMAIL,
     streetAddress: "Av. Larco 123",
@@ -122,10 +185,14 @@ async function main() {
     region: "Lima",
     country: "Perú",
     primaryColor: "#dc2626",
+    profileImage: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&w=400&h=400&q=80",
+    coverImage: "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?auto=format&fit=crop&w=1600&q=80",
     enablePublicBooking: true,
     enableGallery: true,
-    instagramUrl: "https://instagram.com/micita",
-    facebookUrl: "https://facebook.com/micita",
+    gallery: demoGallery,
+    instagramUrl: "https://instagram.com/micita_pe",
+    tiktokUrl: "https://tiktok.com/@micita_pe",
+    facebookUrl: "https://facebook.com/micitaperu",
     whatsappNumber: "+51987654321",
     mondayHours: "09:00 - 19:00",
     tuesdayHours: "09:00 - 19:00",
@@ -134,7 +201,12 @@ async function main() {
     fridayHours: "09:00 - 19:00",
     saturdayHours: "09:00 - 17:00",
     sundayHours: "Cerrado",
-    professionalTitle: "Barbero profesional",
+    professionalTitle: "Master Barbers & Grooming Studio",
+    yearsOfExperience: "8",
+    specializations: "Fade, Barba & Ritual Spa",
+    deskSettings: {
+      socialFeed: demoSocialFeed,
+    },
   };
 
   if (settings) {

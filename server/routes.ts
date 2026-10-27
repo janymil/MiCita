@@ -3248,7 +3248,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      let mergedDesk: Record<string, any> | undefined;
+      if (raw.deskSettings && typeof raw.deskSettings === "object") {
+        const existing = await storage.getBusinessSettings(businessId);
+        const existingDesk =
+          existing?.deskSettings && typeof existing.deskSettings === "object"
+            ? existing.deskSettings
+            : {};
+        mergedDesk = { ...existingDesk, ...raw.deskSettings };
+      }
+
       const body = insertBusinessSettingsSchema.partial().parse(raw);
+      if (mergedDesk) {
+        (body as any).deskSettings = mergedDesk;
+      }
       // jsonb columns (gallery, desk_settings) are `unknown` in the generated
       // insert schema; the DB layer accepts the parsed object as-is.
       const settings = await storage.updateBusinessSettings(businessId, body as any);

@@ -20,6 +20,9 @@ interface BookingWidgetProps {
   workingHours?: any;
   blockedDates?: any[];
   blockedHours?: any[];
+  triggerLabel?: string;
+  triggerClassName?: string;
+  initialServiceId?: string;
 }
 
 interface AvailableSlot {
@@ -27,22 +30,39 @@ interface AvailableSlot {
   available: boolean;
 }
 
-export default function BookingWidget({ services, businessId, workingHours, blockedDates, blockedHours }: BookingWidgetProps) {
+export default function BookingWidget({ 
+  services, 
+  businessId, 
+  workingHours, 
+  blockedDates, 
+  blockedHours,
+  triggerLabel,
+  triggerClassName,
+  initialServiceId
+}: BookingWidgetProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState("");
+  const [selectedService, setSelectedService] = useState(initialServiceId || "");
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
-  const [step, setStep] = useState(1); // 1: Service, 2: Date/Time, 3: Customer Info
+  const [step, setStep] = useState(initialServiceId ? 2 : 1); // If service pre-selected, go directly to Date/Time
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Reset form when modal opens
   const handleModalOpen = () => {
-    setSelectedService("");
+    setSelectedService(initialServiceId || "");
+    setSelectedDate("");
+    setSelectedTime("");
+    setCustomerName("");
+    setCustomerPhone("");
+    setCustomerEmail("");
+    setCustomerNotes("");
+    setStep(initialServiceId ? 2 : 1);
+    setIsModalOpen(true);
     setSelectedDate("");
     setSelectedTime("");
     setCustomerName("");
@@ -239,10 +259,10 @@ export default function BookingWidget({ services, businessId, workingHours, bloc
       <DialogTrigger asChild>
         <Button 
           onClick={handleModalOpen}
-          className="w-full h-14 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+          className={triggerClassName || "w-full h-14 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"}
         >
-          <Calendar className="w-6 h-6 mr-3" />
-          Reservar Cita
+          <Calendar className="w-5 h-5 mr-2 shrink-0" />
+          <span>{triggerLabel || "Reservar Cita"}</span>
         </Button>
       </DialogTrigger>
       
