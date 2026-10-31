@@ -150,5 +150,13 @@
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.9": true,
+    "argon2@0.45.1": true,
+    "bcrypt@5.1.1": true,
+    "bufferutil@4.0.8": true,
+    "es5-ext@0.10.64": true
   }
 }
